@@ -52,9 +52,10 @@ func main() {
 	} else {
 		catalogue := finance.NewSecurityCatalogue()
 		// Process the imported data to organize it by ticker.
-		if (*catalogue).ProcessImport(resp.Values) {
-			fmt.Println("Number of transactions processed: " + strconv.Itoa(len(resp.Values)))
-		}
+		(*catalogue).ProcessImport(resp.Values)
+		fmt.Println("Number of transactions processed: " + strconv.Itoa(len(resp.Values)))
+		// Calculate metrics for each stock.
+		catalogue.Calculate()
 	}
 	fmt.Println("Successful Completion!")
 }

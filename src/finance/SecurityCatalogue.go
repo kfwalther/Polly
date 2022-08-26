@@ -5,20 +5,20 @@ import "fmt"
 // Definition of a security catalogue to house a portfolio of stock/ETF info in a map.
 type SecurityCatalogue struct {
 	id         uint
-	securities map[string]Security
+	securities map[string]*Security
 }
 
 // Constructor for a new SecurityCatalogue object, initializing the map.
 func NewSecurityCatalogue() *SecurityCatalogue {
 	var sc SecurityCatalogue
-	sc.securities = make(map[string]Security)
+	sc.securities = make(map[string]*Security)
 	return &sc
 }
 
 // Method to process the imported data, by creating a new [Transaction] for
 // each row of data, and inserting it into the appropriate [Security] object
 // within the catalogue.
-func (sc *SecurityCatalogue) ProcessImport(txnData [][]interface{}) bool {
+func (sc *SecurityCatalogue) ProcessImport(txnData [][]interface{}) {
 	// TODO: Would be good to perform column name verification before processing.
 	// Iterate thru each row of data.
 	for _, row := range txnData {
@@ -36,10 +36,16 @@ func (sc *SecurityCatalogue) ProcessImport(txnData [][]interface{}) bool {
 					// Create a new Security to track transactions for it, then append.
 					sec := NewSecurity(txn.ticker)
 					sec.transactions = append(sec.transactions, *txn)
-					sc.securities[txn.ticker] = *sec
+					sc.securities[txn.ticker] = sec
 				}
 			}
 		}
 	}
-	return true
+}
+
+func (sc *SecurityCatalogue) Calculate() {
+	// Iterate thru each security in the map, and calculate its data.
+	for _, s := range sc.securities {
+		s.CalculateMetrics()
+	}
 }
