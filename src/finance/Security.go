@@ -1,4 +1,4 @@
-package main
+package finance
 
 // Definition of a security to hold the transactions for a particular stock/ETF.
 type Security struct {

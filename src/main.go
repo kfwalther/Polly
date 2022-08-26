@@ -8,6 +8,8 @@ import (
 	"log"
 	"strconv"
 
+	"github.com/kfwalther/Polly/src/auth"
+	"github.com/kfwalther/Polly/src/finance"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/option"
 	"google.golang.org/api/sheets/v4"
@@ -26,7 +28,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Unable to parse client secret file to config: %v", err)
 	}
-	client := getClient(config)
+	client := auth.GetClient(config)
 
 	srv, err := sheets.NewService(ctx, option.WithHTTPClient(client))
 	if err != nil {
@@ -48,9 +50,9 @@ func main() {
 	if len(resp.Values) == 0 {
 		fmt.Println("No data found.")
 	} else {
-		catalogue := NewSecurityCatalogue()
+		catalogue := finance.NewSecurityCatalogue()
 		// Process the imported data to organize it by ticker.
-		if (*catalogue).processImport(resp.Values) {
+		if (*catalogue).ProcessImport(resp.Values) {
 			fmt.Println("Number of transactions processed: " + strconv.Itoa(len(resp.Values)))
 		}
 	}
