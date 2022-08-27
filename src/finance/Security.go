@@ -2,6 +2,7 @@ package finance
 
 import (
 	"fmt"
+	"sort"
 
 	"github.com/piquette/finance-go/quote"
 )
@@ -26,6 +27,7 @@ func NewSecurity(tkr string) *Security {
 	return &s
 }
 
+// Grab the current market price of this ticker symbol, from the web.
 func (s *Security) CurrentPrice() float64 {
 	q, err := quote.Get(s.ticker)
 	if err != nil || q == nil {
@@ -36,61 +38,83 @@ func (s *Security) CurrentPrice() float64 {
 
 // Calculate various metrics about this security.
 func (s *Security) CalculateMetrics() {
+	// Lookup if this security has any stock splits to account for.
+	if val, ok := StockSplits[s.ticker]; ok {
+		s.transactions = append(s.transactions, val...)
+	}
+	// Order the transactions by date, using anonymous function.
+	sort.Slice(s.transactions, func(i, j int) bool {
+		return s.transactions[i].dateTime.Before(s.transactions[j].dateTime)
+	})
 	// Create a slice to use as a FIFO queue.
-	q := make([]Transaction, 0)
+	buyQ := make([]Transaction, 0)
 	// Iterate thru each transaction.
 	for _, t := range s.transactions {
+		// Ignore cash withdraws/deposits
+		if t.ticker == "CASH" {
+			continue
+		}
 		// For buys, increment number of shares.
 		if t.action == "Buy" {
-			// Add the txn to the queue.
-			q = append(q, t)
+			// Add the txn to the buy queue.
+			buyQ = append(buyQ, t)
 		} else if t.action == "Sell" {
 			remainingShares := t.shares
 			for remainingShares > 0 {
 				// Make sure we have buys to cover remaining shares in the sell.
-				if len(q) > 0 {
-					if q[0].shares > remainingShares {
+				if len(buyQ) > 0 {
+					if buyQ[0].shares > remainingShares {
 						// Remaining sell shares are covered by this buy.
-						s.realizedGains += (t.price - q[0].price) * remainingShares
-						q[0].shares -= remainingShares
+						s.realizedGains += (t.price - buyQ[0].price) * remainingShares
+						buyQ[0].shares -= remainingShares
 						remainingShares = 0
-					} else if q[0].shares == remainingShares {
+					} else if buyQ[0].shares == remainingShares {
 						// Shares in this buy equal remaining shares, pop the buy off the queue.
-						s.realizedGains += (t.price - q[0].price) * remainingShares
+						s.realizedGains += (t.price - buyQ[0].price) * remainingShares
 						remainingShares = 0
-						q = q[1:]
-					} else if q[0].shares < remainingShares {
+						buyQ = buyQ[1:]
+					} else if buyQ[0].shares < remainingShares {
 						// This buy is completely covered by sell, pop it.
-						s.realizedGains += (t.price - q[0].price) * q[0].shares
-						remainingShares -= q[0].shares
-						q = q[1:]
+						s.realizedGains += (t.price - buyQ[0].price) * buyQ[0].shares
+						remainingShares -= buyQ[0].shares
+						buyQ = buyQ[1:]
 					}
 				} else {
-					// Queue is empty, but apparently have more sold shares to account for. ERROR!
-					fmt.Printf("Security %s is oversold! (%s, %f)\n", t.ticker, t.dateTime, t.shares)
+					// Queue is empty, but apparently have more sold shares to account for.
+					// There was either a stock split, or re-invested dividends.
+					additionalGains := remainingShares * t.price
+					s.realizedGains += additionalGains
+					fmt.Printf("%s is oversold - Adding remaining shares to realized gain (%f shares, total $%f)\n", t.ticker, remainingShares, additionalGains)
 					break
 				}
+			}
+		} else if t.action == "Split" {
+			// Apply the split to all txns in the buy queue.
+			for i := range buyQ {
+				buyQ[i].price /= t.shares
+				buyQ[i].shares *= t.shares
 			}
 		}
 	}
 
-	// Calculate cost bases and unrealized gains with any remaining buy shares in the queue.
-	for _, txn := range q {
+	// Calculate cost bases and unrealized gains with any remaining buy shares in the buy queue.
+	for _, txn := range buyQ {
 		s.numShares += txn.shares
 		s.totalCostBasis += txn.shares * txn.price
 	}
 	// Current market price
 	curPrice := s.CurrentPrice()
-	// Unit cost basis
-	s.unitCostBasis = s.totalCostBasis / s.numShares
-	// Unrealized gain
-	s.unrealizedGains = (s.CurrentPrice() * s.numShares) - s.totalCostBasis
-
-	fmt.Printf("%s Market Price: %f\n", s.ticker, curPrice)
+	if s.numShares > 0 {
+		// Unit cost basis
+		s.unitCostBasis = s.totalCostBasis / s.numShares
+		// Unrealized gain
+		s.unrealizedGains = (s.CurrentPrice() * s.numShares) - s.totalCostBasis
+	}
+	fmt.Printf("%s Market Price: $%f\n", s.ticker, curPrice)
 	fmt.Printf("%s Number of Shares: %f\n", s.ticker, s.numShares)
-	fmt.Printf("%s Unit Cost Basis: %f\n", s.ticker, s.unitCostBasis)
-	fmt.Printf("%s Total Cost Basis: %f\n", s.ticker, s.totalCostBasis)
-	fmt.Printf("%s Unrealized Gains: %f\n", s.ticker, s.unrealizedGains)
-	fmt.Printf("%s Realized Gains: %f\n", s.ticker, s.realizedGains)
+	fmt.Printf("%s Unit Cost Basis: $%f\n", s.ticker, s.unitCostBasis)
+	fmt.Printf("%s Total Cost Basis: $%f\n", s.ticker, s.totalCostBasis)
+	fmt.Printf("%s Unrealized Gains: $%f\n", s.ticker, s.unrealizedGains)
+	fmt.Printf("%s Realized Gains: $%f\n", s.ticker, s.realizedGains)
 	fmt.Println("---------------------------------")
 }

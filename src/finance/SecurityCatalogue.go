@@ -1,6 +1,50 @@
 package finance
 
-import "fmt"
+import "time"
+
+// Define a global map to store the stock split history relevant to our portfolio
+var StockSplits = map[string][]Transaction{
+	"NFLX": {
+		Transaction{
+			ticker:   "NFLX",
+			dateTime: time.Date(2015, 7, 15, 0, 0, 0, 0, time.Local),
+			action:   "Split",
+			shares:   7},
+	},
+	"TSLA": {
+		Transaction{
+			ticker:   "TSLA",
+			dateTime: time.Date(2020, 8, 31, 0, 0, 0, 0, time.Local),
+			action:   "Split",
+			shares:   5},
+		Transaction{
+			ticker:   "TSLA",
+			dateTime: time.Date(2022, 8, 25, 0, 0, 0, 0, time.Local),
+			action:   "Split",
+			shares:   3},
+	},
+	"AMZN": {
+		Transaction{
+			ticker:   "AMZN",
+			dateTime: time.Date(2022, 6, 6, 0, 0, 0, 0, time.Local),
+			action:   "Split",
+			shares:   20},
+	},
+	"GOOG": {
+		Transaction{
+			ticker:   "GOOG",
+			dateTime: time.Date(2022, 7, 18, 0, 0, 0, 0, time.Local),
+			action:   "Split",
+			shares:   20},
+	},
+	"GOOGL": {
+		Transaction{
+			ticker:   "GOOGL",
+			dateTime: time.Date(2022, 7, 18, 0, 0, 0, 0, time.Local),
+			action:   "Split",
+			shares:   20},
+	},
+}
 
 // Definition of a security catalogue to house a portfolio of stock/ETF info in a map.
 type SecurityCatalogue struct {
@@ -24,7 +68,6 @@ func (sc *SecurityCatalogue) ProcessImport(txnData [][]interface{}) {
 	for _, row := range txnData {
 		// Make sure we haven't reached the end of the data.
 		if row[0] != "" {
-			fmt.Printf("%s, %s, %s, %s, %s\n", row[0], row[1], row[2], row[3], row[4])
 			// Create a new transaction with this row of data.
 			txn := NewTransaction(row[0].(string), row[1].(string), row[2].(string), row[3].(string), row[4].(string))
 			if txn != nil {
