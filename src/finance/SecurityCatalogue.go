@@ -1,6 +1,10 @@
 package finance
 
-import "time"
+import (
+	"log"
+	"sync"
+	"time"
+)
 
 // Define a global map to store the stock split history relevant to our portfolio
 var StockSplits = map[string][]Transaction{
@@ -86,9 +90,24 @@ func (sc *SecurityCatalogue) ProcessImport(txnData [][]interface{}) {
 	}
 }
 
+// Kicks off async functions in go-routines to calculate metrics for each security
 func (sc *SecurityCatalogue) Calculate() {
+	// Setup a wait group.
+	var waitGroup sync.WaitGroup
+	// Specify the number of metrics to wait for.
+	waitGroup.Add(len(sc.securities))
+
+	log.Printf("Processing %d securities...\n", len(sc.securities))
 	// Iterate thru each security in the map, and calculate its data.
 	for _, s := range sc.securities {
-		s.CalculateMetrics()
+
+		// Launch a new goroutine for this security.
+		go func(s *Security) {
+			s.CalculateMetrics()
+			waitGroup.Done()
+		}(s)
 	}
+
+	// Wait/monitor until all work is complete.
+	waitGroup.Wait()
 }

@@ -1,7 +1,7 @@
 package finance
 
 import (
-	"fmt"
+	"log"
 	"sort"
 
 	"github.com/piquette/finance-go/quote"
@@ -11,6 +11,7 @@ import (
 type Security struct {
 	id              uint
 	ticker          string
+	marketPrice     float64
 	unitCostBasis   float64
 	totalCostBasis  float64
 	numShares       float64
@@ -84,7 +85,7 @@ func (s *Security) CalculateMetrics() {
 					// There was either a stock split, or re-invested dividends.
 					additionalGains := remainingShares * t.price
 					s.realizedGains += additionalGains
-					fmt.Printf("%s is oversold - Adding remaining shares to realized gain (%f shares, total $%f)\n", t.ticker, remainingShares, additionalGains)
+					log.Printf("%s is oversold - Adding remaining shares to realized gain (%f shares, total $%f)\n", t.ticker, remainingShares, additionalGains)
 					break
 				}
 			}
@@ -103,18 +104,21 @@ func (s *Security) CalculateMetrics() {
 		s.totalCostBasis += txn.shares * txn.price
 	}
 	// Current market price
-	curPrice := s.CurrentPrice()
+	s.marketPrice = s.CurrentPrice()
 	if s.numShares > 0 {
 		// Unit cost basis
 		s.unitCostBasis = s.totalCostBasis / s.numShares
 		// Unrealized gain
-		s.unrealizedGains = (s.CurrentPrice() * s.numShares) - s.totalCostBasis
+		s.unrealizedGains = (s.marketPrice * s.numShares) - s.totalCostBasis
 	}
-	fmt.Printf("%s Market Price: $%f\n", s.ticker, curPrice)
-	fmt.Printf("%s Number of Shares: %f\n", s.ticker, s.numShares)
-	fmt.Printf("%s Unit Cost Basis: $%f\n", s.ticker, s.unitCostBasis)
-	fmt.Printf("%s Total Cost Basis: $%f\n", s.ticker, s.totalCostBasis)
-	fmt.Printf("%s Unrealized Gains: $%f\n", s.ticker, s.unrealizedGains)
-	fmt.Printf("%s Realized Gains: $%f\n", s.ticker, s.realizedGains)
-	fmt.Println("---------------------------------")
+}
+
+func (s *Security) DisplayMetrics() {
+	log.Println("---------------------------------")
+	log.Printf("%s Market Price: $%f\n", s.ticker, s.marketPrice)
+	log.Printf("%s Number of Shares: %f\n", s.ticker, s.numShares)
+	log.Printf("%s Unit Cost Basis: $%f\n", s.ticker, s.unitCostBasis)
+	log.Printf("%s Total Cost Basis: $%f\n", s.ticker, s.totalCostBasis)
+	log.Printf("%s Unrealized Gains: $%f\n", s.ticker, s.unrealizedGains)
+	log.Printf("%s Realized Gains: $%f\n", s.ticker, s.realizedGains)
 }
