@@ -12,6 +12,7 @@ type Security struct {
 	id              uint
 	ticker          string
 	marketPrice     float64
+	marketValue     float64
 	unitCostBasis   float64
 	totalCostBasis  float64
 	numShares       float64
@@ -108,8 +109,10 @@ func (s *Security) CalculateMetrics() {
 	if s.numShares > 0 {
 		// Unit cost basis
 		s.unitCostBasis = s.totalCostBasis / s.numShares
+		// Total market value
+		s.marketValue = s.marketPrice * s.numShares
 		// Unrealized gain
-		s.unrealizedGains = (s.marketPrice * s.numShares) - s.totalCostBasis
+		s.unrealizedGains = s.marketValue - s.totalCostBasis
 	}
 }
 
@@ -117,6 +120,7 @@ func (s *Security) DisplayMetrics() {
 	log.Println("---------------------------------")
 	log.Printf("%s Market Price: $%f\n", s.ticker, s.marketPrice)
 	log.Printf("%s Number of Shares: %f\n", s.ticker, s.numShares)
+	log.Printf("%s Market Value: %f\n", s.ticker, s.marketValue)
 	log.Printf("%s Unit Cost Basis: $%f\n", s.ticker, s.unitCostBasis)
 	log.Printf("%s Total Cost Basis: $%f\n", s.ticker, s.totalCostBasis)
 	log.Printf("%s Unrealized Gains: $%f\n", s.ticker, s.unrealizedGains)

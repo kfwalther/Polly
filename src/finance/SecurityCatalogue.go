@@ -110,4 +110,11 @@ func (sc *SecurityCatalogue) Calculate() {
 
 	// Wait/monitor until all work is complete.
 	waitGroup.Wait()
+
+	// Calculate total invested market value across all securities.
+	totalMarketValue := 0.0
+	for _, s := range sc.securities {
+		totalMarketValue += s.marketValue
+	}
+	log.Printf("Total Market Value: $%f", totalMarketValue)
 }
