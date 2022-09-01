@@ -35,13 +35,16 @@ func main() {
 		log.Fatalf("Unable to retrieve Sheets client: %v", err)
 	}
 
-	// Test spreadsheet: https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit
-	// ID of the portfolio spreadsheet
-	spreadsheetId := "18H9kc7j-lMBH4TJP4nEiccVU4Dj6Yqnz7RLfOwaXluI"
+	// Get the spreadsheet ID from the input file.
+	portfolioIdFile := "../portfolio-sheet-id.txt"
+	spreadsheetId, err := ioutil.ReadFile(portfolioIdFile)
+	if err != nil {
+		log.Fatalf("Can't read file (%s): %s", portfolioIdFile, err)
+	}
+
 	// Specify the sheet and columns.
 	readRange := "TransactionList!A2:G"
-	// valueRendering := "UNFORMATTED_VALUE"
-	resp, err := srv.Spreadsheets.Values.Get(spreadsheetId, readRange).Do()
+	resp, err := srv.Spreadsheets.Values.Get(string(spreadsheetId), readRange).Do()
 	if err != nil {
 		log.Fatalf("Unable to retrieve data from sheet: %v", err)
 	}

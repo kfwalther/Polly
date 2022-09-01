@@ -5,6 +5,9 @@
 *.so
 *.dylib
 
+# Portfolio ID input file
+portfolio-sheet-id.txt
+
 # Test binary, built with `go test -c`
 *.test
 
