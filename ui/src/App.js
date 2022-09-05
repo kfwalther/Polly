@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import StockList from './StockList'
+import { Header } from './components/Header';
 import { Helmet } from 'react-helmet'
 
 const LOCAL_STORAGE_KEY = 'L0C@L'
@@ -40,9 +41,9 @@ function App() {
   return (
     <>
       <Helmet>
-        <title>Polly - Portfolio Viewer</title>
         <style>{'body { background-color: black; }'}</style>
       </Helmet>
+      <Header />
       <label>
         <select value={curSortBy} onChange={handleSortByChange}>
           {sortByOptions.map((option) => (

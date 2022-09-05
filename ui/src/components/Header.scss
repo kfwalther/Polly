@@ -1,0 +1,13 @@
+.page-header {
+    height: 6rem;
+    display: flex;
+    align-items: center;
+    background-color: aqua;
+    color: black;
+    padding: 0 2rem;
+}
+
+h1:after {
+    content: url(../../public/parrot-icon-60.png);
+    vertical-align: middle;
+}
