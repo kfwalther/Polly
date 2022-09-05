@@ -18,7 +18,8 @@ portfolio-sheet-id.txt
 # vendor/
 
 # Ignore JSON config files
-*.json
+auth_token.json
+credentials.json
 
 # Ignore VS Code files
 *.vscode/
