@@ -6,10 +6,12 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"net/http"
 	"strconv"
 
-	"github.com/kfwalther/Polly/src/auth"
-	"github.com/kfwalther/Polly/src/finance"
+	"github.com/gin-gonic/gin"
+	"github.com/kfwalther/Polly/backend/auth"
+	"github.com/kfwalther/Polly/backend/finance"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/option"
 	"google.golang.org/api/sheets/v4"
@@ -49,6 +51,11 @@ func main() {
 		log.Fatalf("Unable to retrieve data from sheet: %v", err)
 	}
 
+	// Setup the Go web server.
+	router := gin.Default()
+	// router.GET("/api/securities", taskController.GetTasks)
+	router.GET("/securities", SecurityListHandler)
+
 	// Check if we parsed any data from the spreadsheet.
 	if len(resp.Values) == 0 {
 		fmt.Println("No data found.")
@@ -61,4 +68,10 @@ func main() {
 		catalogue.Calculate()
 	}
 	fmt.Println("Successful Completion!")
+}
+
+// JokeHandler retrieves a list of available jokes
+func SecurityListHandler(c *gin.Context) {
+	c.Header("Content-Type", "application/json")
+	c.JSON(http.StatusOK)
 }

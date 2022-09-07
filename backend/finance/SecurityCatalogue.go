@@ -4,6 +4,8 @@ import (
 	"log"
 	"sync"
 	"time"
+
+	"exp/maps"
 )
 
 // Define a global map to store the stock split history relevant to our portfolio
@@ -61,6 +63,10 @@ func NewSecurityCatalogue() *SecurityCatalogue {
 	var sc SecurityCatalogue
 	sc.securities = make(map[string]*Security)
 	return &sc
+}
+
+func (sc *SecurityCatalogue) GetSecurityList() []Security {
+	return maps.Values(sc.securities)
 }
 
 // Method to process the imported data, by creating a new [Transaction] for
