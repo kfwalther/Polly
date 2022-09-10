@@ -6,11 +6,12 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
-	"net/http"
 	"strconv"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/kfwalther/Polly/backend/auth"
+	"github.com/kfwalther/Polly/backend/controllers"
 	"github.com/kfwalther/Polly/backend/finance"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/option"
@@ -48,30 +49,32 @@ func main() {
 	readRange := "TransactionList!A2:G"
 	resp, err := srv.Spreadsheets.Values.Get(string(spreadsheetId), readRange).Do()
 	if err != nil {
-		log.Fatalf("Unable to retrieve data from sheet: %v", err)
+		log.Fatalf("Unable to retrieve data from sheet. If token error, "+
+			"delete auth_token file and retry: %v", err)
 	}
 
 	// Setup the Go web server.
 	router := gin.Default()
-	// router.GET("/api/securities", taskController.GetTasks)
-	router.GET("/securities", SecurityListHandler)
-
+	router.Use(gin.Logger())
+	router.Use(cors.Default())
 	// Check if we parsed any data from the spreadsheet.
 	if len(resp.Values) == 0 {
-		fmt.Println("No data found.")
-	} else {
-		catalogue := finance.NewSecurityCatalogue()
-		// Process the imported data to organize it by ticker.
-		(*catalogue).ProcessImport(resp.Values)
-		fmt.Println("Number of transactions processed: " + strconv.Itoa(len(resp.Values)))
-		// Calculate metrics for each stock.
-		catalogue.Calculate()
+		log.Fatalf("No data found in spreadsheet... Exiting!")
 	}
-	fmt.Println("Successful Completion!")
-}
 
-// JokeHandler retrieves a list of available jokes
-func SecurityListHandler(c *gin.Context) {
-	c.Header("Content-Type", "application/json")
-	c.JSON(http.StatusOK)
+	catalogue := finance.NewSecurityCatalogue()
+	// Process the imported data to organize it by ticker.
+	(*catalogue).ProcessImport(resp.Values)
+	fmt.Println("Number of transactions processed: " + strconv.Itoa(len(resp.Values)))
+	// Calculate metrics for each stock.
+	catalogue.Calculate()
+	// Create a controller to manage front-end interaction.
+	ctrlr := controllers.SecurityController{}
+	ctrlr.Init(catalogue)
+	// Setup the GET route to retrieve all the securities.
+	router.GET("/securities", ctrlr.GetSecurities)
+
+	// Run the server.
+	router.Run(":5000")
+	fmt.Println("Successful Completion!")
 }

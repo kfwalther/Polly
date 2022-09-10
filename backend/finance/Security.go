@@ -10,28 +10,28 @@ import (
 // Definition of a security to hold the transactions for a particular stock/ETF.
 type Security struct {
 	id              uint
-	ticker          string
-	marketPrice     float64
-	marketValue     float64
-	unitCostBasis   float64
-	totalCostBasis  float64
-	numShares       float64
-	realizedGains   float64
-	unrealizedGains float64
+	Ticker          string  `json:"ticker"`
+	MarketPrice     float64 `json:"marketPrice"`
+	MarketValue     float64 `json:"marketValue"`
+	UnitCostBasis   float64 `json:"unitCostBasis"`
+	TotalCostBasis  float64 `json:"totalCostBasis"`
+	NumShares       float64 `json:"numShares"`
+	RealizedGains   float64 `json:"realizedGains"`
+	UnrealizedGains float64 `json:"unrealizedGains"`
 	transactions    []Transaction
 }
 
 // Constructor for a new SecurityCatalogue object, initializing the map.
 func NewSecurity(tkr string) *Security {
 	var s Security
-	s.ticker = tkr
+	s.Ticker = tkr
 	s.transactions = make([]Transaction, 0)
 	return &s
 }
 
 // Grab the current market price of this ticker symbol, from the web.
 func (s *Security) CurrentPrice() float64 {
-	q, err := quote.Get(s.ticker)
+	q, err := quote.Get(s.Ticker)
 	if err != nil || q == nil {
 		return 0.0
 	}
@@ -41,7 +41,7 @@ func (s *Security) CurrentPrice() float64 {
 // Calculate various metrics about this security.
 func (s *Security) CalculateMetrics() {
 	// Lookup if this security has any stock splits to account for.
-	if val, ok := StockSplits[s.ticker]; ok {
+	if val, ok := StockSplits[s.Ticker]; ok {
 		s.transactions = append(s.transactions, val...)
 	}
 	// Order the transactions by date, using anonymous function.
@@ -67,17 +67,17 @@ func (s *Security) CalculateMetrics() {
 				if len(buyQ) > 0 {
 					if buyQ[0].shares > remainingShares {
 						// Remaining sell shares are covered by this buy.
-						s.realizedGains += (t.price - buyQ[0].price) * remainingShares
+						s.RealizedGains += (t.price - buyQ[0].price) * remainingShares
 						buyQ[0].shares -= remainingShares
 						remainingShares = 0
 					} else if buyQ[0].shares == remainingShares {
 						// Shares in this buy equal remaining shares, pop the buy off the queue.
-						s.realizedGains += (t.price - buyQ[0].price) * remainingShares
+						s.RealizedGains += (t.price - buyQ[0].price) * remainingShares
 						remainingShares = 0
 						buyQ = buyQ[1:]
 					} else if buyQ[0].shares < remainingShares {
 						// This buy is completely covered by sell, pop it.
-						s.realizedGains += (t.price - buyQ[0].price) * buyQ[0].shares
+						s.RealizedGains += (t.price - buyQ[0].price) * buyQ[0].shares
 						remainingShares -= buyQ[0].shares
 						buyQ = buyQ[1:]
 					}
@@ -85,7 +85,7 @@ func (s *Security) CalculateMetrics() {
 					// Queue is empty, but apparently have more sold shares to account for.
 					// There was either a stock split, or re-invested dividends.
 					additionalGains := remainingShares * t.price
-					s.realizedGains += additionalGains
+					s.RealizedGains += additionalGains
 					log.Printf("%s is oversold - Adding remaining shares to realized gain (%f shares, total $%f)\n", t.ticker, remainingShares, additionalGains)
 					break
 				}
@@ -101,28 +101,28 @@ func (s *Security) CalculateMetrics() {
 
 	// Calculate cost bases and unrealized gains with any remaining buy shares in the buy queue.
 	for _, txn := range buyQ {
-		s.numShares += txn.shares
-		s.totalCostBasis += txn.shares * txn.price
+		s.NumShares += txn.shares
+		s.TotalCostBasis += txn.shares * txn.price
 	}
 	// Current market price
-	s.marketPrice = s.CurrentPrice()
-	if s.numShares > 0 {
+	s.MarketPrice = s.CurrentPrice()
+	if s.NumShares > 0 {
 		// Unit cost basis
-		s.unitCostBasis = s.totalCostBasis / s.numShares
+		s.UnitCostBasis = s.TotalCostBasis / s.NumShares
 		// Total market value
-		s.marketValue = s.marketPrice * s.numShares
+		s.MarketValue = s.MarketPrice * s.NumShares
 		// Unrealized gain
-		s.unrealizedGains = s.marketValue - s.totalCostBasis
+		s.UnrealizedGains = s.MarketValue - s.TotalCostBasis
 	}
 }
 
 func (s *Security) DisplayMetrics() {
 	log.Println("---------------------------------")
-	log.Printf("%s Market Price: $%f\n", s.ticker, s.marketPrice)
-	log.Printf("%s Number of Shares: %f\n", s.ticker, s.numShares)
-	log.Printf("%s Market Value: %f\n", s.ticker, s.marketValue)
-	log.Printf("%s Unit Cost Basis: $%f\n", s.ticker, s.unitCostBasis)
-	log.Printf("%s Total Cost Basis: $%f\n", s.ticker, s.totalCostBasis)
-	log.Printf("%s Unrealized Gains: $%f\n", s.ticker, s.unrealizedGains)
-	log.Printf("%s Realized Gains: $%f\n", s.ticker, s.realizedGains)
+	log.Printf("%s Market Price: $%f\n", s.Ticker, s.MarketPrice)
+	log.Printf("%s Number of Shares: %f\n", s.Ticker, s.NumShares)
+	log.Printf("%s Market Value: %f\n", s.Ticker, s.MarketValue)
+	log.Printf("%s Unit Cost Basis: $%f\n", s.Ticker, s.UnitCostBasis)
+	log.Printf("%s Total Cost Basis: $%f\n", s.Ticker, s.TotalCostBasis)
+	log.Printf("%s Unrealized Gains: $%f\n", s.Ticker, s.UnrealizedGains)
+	log.Printf("%s Realized Gains: $%f\n", s.Ticker, s.RealizedGains)
 }

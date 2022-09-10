@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import StockList from './StockList'
+import StockList from './components/StockList'
 import { Header } from './components/Header';
 import { Helmet } from 'react-helmet'
+import './App.css'
 
 const LOCAL_STORAGE_KEY = 'L0C@L'
 
@@ -40,9 +41,9 @@ function App() {
   // This is what gets rendered on the page.
   return (
     <>
-      <Helmet>
+      {/* <Helmet>
         <style>{'body { background-color: black; }'}</style>
-      </Helmet>
+      </Helmet> */}
       <Header />
       <label>
         <select value={curSortBy} onChange={handleSortByChange}>
@@ -52,8 +53,8 @@ function App() {
         </select>
       </label>
       <p style={{ color: 'green' }}>Sorting by {curSortBy}</p>
-      <StockList stockList={stocks} />
       <button onClick={refreshMarketData}>Refresh</button>
+      <StockList stockList={stocks} />
     </>
   )
 }

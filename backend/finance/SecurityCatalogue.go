@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"exp/maps"
+	"golang.org/x/exp/maps"
 )
 
 // Define a global map to store the stock split history relevant to our portfolio
@@ -55,7 +55,7 @@ var StockSplits = map[string][]Transaction{
 // Definition of a security catalogue to house a portfolio of stock/ETF info in a map.
 type SecurityCatalogue struct {
 	id         uint
-	securities map[string]*Security
+	securities map[string]*Security `json:"securities"`
 }
 
 // Constructor for a new SecurityCatalogue object, initializing the map.
@@ -65,7 +65,7 @@ func NewSecurityCatalogue() *SecurityCatalogue {
 	return &sc
 }
 
-func (sc *SecurityCatalogue) GetSecurityList() []Security {
+func (sc *SecurityCatalogue) GetSecurityList() []*Security {
 	return maps.Values(sc.securities)
 }
 
@@ -120,7 +120,7 @@ func (sc *SecurityCatalogue) Calculate() {
 	// Calculate total invested market value across all securities.
 	totalMarketValue := 0.0
 	for _, s := range sc.securities {
-		totalMarketValue += s.marketValue
+		totalMarketValue += s.MarketValue
 	}
 	log.Printf("Total Market Value: $%f", totalMarketValue)
 }
