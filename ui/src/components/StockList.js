@@ -10,6 +10,7 @@ export default class StockList extends React.Component {
         this.serverRequest = this.serverRequest.bind(this);
     }
 
+    // Fetch the stock list from the server.
     serverRequest() {
         // $.get("http://localhost:3000/securities", res => {
         //     this.setState({
@@ -21,34 +22,41 @@ export default class StockList extends React.Component {
             .then(secs => this.setState({ stockList: secs["securities"] }));
     }
 
+    // Runs on component mount, to grab data from the server.
     componentDidMount() {
         this.serverRequest();
     }
 
-    render() {
+    // Returns the HTML to display the stock table.
+    renderStockTable() {
         return (
             <table>
+                <caption>Stock List</caption>
                 <thead>
                     <tr>
-                        <th>1</th>
-                        <th>2</th>
-                        <th>3</th>
-                        <th>4</th>
-                        <th>5</th>
-                        <th>6</th>
-                        <th>7</th>
-                        <th>8</th>
-                    </tr>
-                </thead>
-                <caption>Stock List</caption>
-                {this.state.stockList.map(stock => {
-                    <tr key={stock.ticker}>
-                        {Object.values(stock).map((val) => (
-                            <td>{val}</td>
+                        {Object.keys(this.state.stockList[0]).map((header) => (
+                            <th>{header}</th>
                         ))}
                     </tr>
-                })}
+                </thead>
+                <tbody>
+                    {this.state.stockList.map(stock => {
+                        return <tr key={stock.ticker}>
+                            {Object.values(stock).map((val) => (
+                                <td>{val}</td>
+                            ))}
+                        </tr>
+                    })}
+                </tbody>
             </table>
+        )
+    }
+
+    // Render the stock table, or a loader screen until data is retrieved from server.
+    render() {
+        const curState = this.state
+        return curState.stockList.length ? this.renderStockTable() : (
+            <span>LOADING STOCKS...</span>
         )
     }
 }
@@ -58,3 +66,4 @@ export default class StockList extends React.Component {
 //     <Stock key={stock.name} stock={stock} />
 // })}
 // </tbody>
+
