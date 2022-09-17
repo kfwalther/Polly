@@ -12,11 +12,6 @@ export default class StockList extends React.Component {
 
     // Fetch the stock list from the server.
     serverRequest() {
-        // $.get("http://localhost:3000/securities", res => {
-        //     this.setState({
-        //         stockList: res
-        //     });
-        // });
         fetch("http://localhost:5000/securities")
             .then(response => response.json())
             .then(secs => this.setState({ stockList: secs["securities"] }));
