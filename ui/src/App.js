@@ -1,20 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import StockList from './components/StockList'
 import { Header } from './components/Header';
-import { Helmet } from 'react-helmet'
+//import { Helmet } from 'react-helmet'
 import './App.css'
 
 const LOCAL_STORAGE_KEY = 'L0C@L'
 
 function App() {
   const [stocks, updateStock] = useState([])
-  const [curSortBy, updateSortBy] = useState('')
+  const [curSortBy, updateSortBy] = useState('LargestHoldings')
   // Define the sort-by options.
   const sortByOptions = [
-    { label: 'Largest Holdings', value: 'LargestHoldings' },
-    { label: 'Smallest Holdings', value: 'SmallestHoldings' },
-    { label: 'Biggest Absolute Gainers', value: 'BiggestAbsGainers' },
-    { label: 'Biggest Absolute Losers', value: 'BiggestAbsLosers' },
+    { label: 'Largest Holdings', value: 'LargestHoldings', col: 'marketValue', ascending: false },
+    { label: 'Smallest Holdings', value: 'SmallestHoldings', col: 'marketValue', ascending: true },
+    { label: 'Biggest Absolute Gainers', value: 'BiggestAbsGainers', col: 'unrealizedGains', ascending: false },
+    { label: 'Biggest Absolute Losers', value: 'BiggestAbsLosers', col: 'marketValue', ascending: true },
   ];
 
   // Pull the sort-by settings when page reloads.
@@ -24,8 +24,13 @@ function App() {
     );
     if (prevSortBy) updateSortBy(prevSortBy)
     console.log('Loading sort by...' + curSortBy)
-    // TODO Apply sort setting
-  }, [])
+    // Look up the full sortBy object in the list by value (stored in useState).
+    const sortByObj = sortByOptions.find(x => x.value === curSortBy);
+    console.log('Sort column: ' + sortByObj.col)
+    // Apply the sorting, use global 'window' variable to reference the StockList object.
+    window.stockList.applySorting(sortByObj);
+
+  }, [curSortBy])
 
   // Use this method to refresh the market data.
   function refreshMarketData(e) {
