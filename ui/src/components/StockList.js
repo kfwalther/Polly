@@ -53,8 +53,10 @@ export default class StockList extends React.Component {
                 <tbody>
                     {this.state.stockList.map(stock => {
                         return <tr key={stock.ticker}>
-                            {Object.values(stock).map((val) => (
-                                <td>{val}</td>
+                            {Object.entries(stock).map(([k, val]) => (
+                                (k == "ticker" || k == "numShares") ?
+                                    <td>{val}</td> :
+                                    <td><span class="dollars">{val}</span></td>
                             ))}
                         </tr>
                     })}
