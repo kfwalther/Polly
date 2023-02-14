@@ -4,7 +4,7 @@ import (
 	"log"
 	"sort"
 
-	"github.com/piquette/finance-go/quote"
+	"github.com/piquette/finance-go/equity"
 )
 
 // Definition of a security to hold the transactions for a particular stock/ETF.
@@ -31,11 +31,18 @@ func NewSecurity(tkr string) *Security {
 
 // Grab the current market price of this ticker symbol, from the web.
 func (s *Security) CurrentPrice() float64 {
-	q, err := quote.Get(s.Ticker)
+	q, err := equity.Get(s.Ticker)
 	if err != nil || q == nil {
 		return 0.0
 	}
-	return q.Ask
+	// Based on the market's current state, grab the proper price.
+	if q.MarketState == "PRE" && q.PreMarketPrice > 0.0 {
+		return q.PreMarketPrice
+	} else if q.MarketState == "POST" && q.PostMarketPrice > 0.0 {
+		return q.PostMarketPrice
+	} else {
+		return q.RegularMarketPrice
+	}
 }
 
 // Calculate various metrics about this security.

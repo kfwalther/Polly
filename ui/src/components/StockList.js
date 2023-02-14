@@ -1,4 +1,5 @@
 import React from 'react'
+import StockTable from './StockTable'
 
 export default class StockList extends React.Component {
     constructor(props) {
@@ -41,27 +42,7 @@ export default class StockList extends React.Component {
     // Returns the HTML to display the stock table.
     renderStockTable() {
         return (
-            <table>
-                <caption>Stock List</caption>
-                <thead>
-                    <tr>
-                        {Object.keys(this.state.stockList[0]).map((header) => (
-                            <th>{header}</th>
-                        ))}
-                    </tr>
-                </thead>
-                <tbody>
-                    {this.state.stockList.map(stock => {
-                        return <tr key={stock.ticker}>
-                            {Object.entries(stock).map(([k, val]) => (
-                                (k == "ticker" || k == "numShares") ?
-                                    <td>{val}</td> :
-                                    <td><span class="dollars">{val}</span></td>
-                            ))}
-                        </tr>
-                    })}
-                </tbody>
-            </table>
+            <StockTable data={this.state.stockList} />
         )
     }
 
