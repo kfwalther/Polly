@@ -24,21 +24,6 @@ export default class StockList extends React.Component {
         this.serverRequest();
     }
 
-    applySorting(sortType) {
-        console.log("sorting by " + sortType.col);
-        // Apply sort setting to this local copy of stocks.
-        const sortedList = [...this.state.stockList].sort((a, b) => {
-            // Check if sorting alphabetically or numerically.
-            if (sortType.col === "ticker") {
-                return (sortType.ascending ? 1 : -1) * a[sortType.col].localeCompare(b[sortType.col]);
-            } else {
-                return (sortType.ascending ? 1 : -1) * a[sortType.col] - b[sortType.col];
-            }
-        });
-        // Save the sorted list of stocks.
-        this.setState({ stockList: sortedList });
-    }
-
     // Returns the HTML to display the stock table.
     renderStockTable() {
         return (
@@ -54,10 +39,3 @@ export default class StockList extends React.Component {
         )
     }
 }
-
-// <tbody>
-// {this.state.stockList.map(stock => {
-//     <Stock key={stock.name} stock={stock} />
-// })}
-// </tbody>
-

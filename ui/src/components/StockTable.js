@@ -63,13 +63,15 @@ export default function StockTable({ data }) {
             {
                 Header: 'Ticker',
                 accessor: 'ticker', // accessor is the "key" in the data
-                disableFilters: true
+                disableFilters: true,
+                sortType: 'basic',
             },
             {
                 Header: 'Market Price',
                 accessor: 'marketPrice',
                 Cell: props => <React.Fragment>{toUSD(props.value)}</React.Fragment>,
-                disableFilters: true
+                disableFilters: true,
+                sortType: 'basic',
             },
             {
                 Header: 'Market Value',
@@ -77,36 +79,42 @@ export default function StockTable({ data }) {
                 Filter: SelectColumnFilter,
                 filter: filterNotEqualTo,
                 filterValue: 0.0,
+                sortType: 'basic',
                 Cell: props => <React.Fragment>{toUSD(props.value)}</React.Fragment>,
             },
             {
                 Header: 'Unit Cost Basis',
                 accessor: 'unitCostBasis',
                 Cell: props => <React.Fragment>{toUSD(props.value)}</React.Fragment>,
-                disableFilters: true
+                disableFilters: true,
+                sortType: 'basic',
             },
             {
                 Header: 'Total Cost Basis',
                 accessor: 'totalCostBasis',
                 Cell: props => <React.Fragment>{toUSD(props.value)}</React.Fragment>,
-                disableFilters: true
+                disableFilters: true,
+                sortType: 'basic',
             },
             {
                 Header: 'Number of Shares',
                 accessor: 'numShares',
-                disableFilters: true
+                disableFilters: true,
+                sortType: 'basic',
             },
             {
                 Header: 'Realized Gains',
                 accessor: 'realizedGains',
                 Cell: props => <React.Fragment>{toUSD(props.value)}</React.Fragment>,
-                disableFilters: true
+                disableFilters: true,
+                sortType: 'basic',
             },
             {
                 Header: 'Unrealized Gains',
                 accessor: 'unrealizedGains',
                 Cell: props => <React.Fragment>{toUSD(props.value)}</React.Fragment>,
-                disableFilters: true
+                disableFilters: true,
+                sortType: 'basic',
             },
         ], []
     );
@@ -142,9 +150,14 @@ export default function StockTable({ data }) {
                 {headerGroups.map(headerGroup => (
                     <tr {...headerGroup.getHeaderGroupProps()}>
                         {headerGroup.headers.map(column => (
-                            <th {...column.getHeaderProps()}>
+                            <th {...column.getHeaderProps(column.getSortByToggleProps())}>
                                 {column.render("Header")}
-                                <div>{column.canFilter ? column.render("Filter") : null}</div>
+                                <div>
+                                    {column.canFilter ? column.render("Filter") : null}
+                                </div>
+                                <span>
+                                    {column.isSorted ? (column.isSortedDesc ? ' 🔽' : ' 🔼') : ''}
+                                </span>
                             </th>
                         ))}
                     </tr>
