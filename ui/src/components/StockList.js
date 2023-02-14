@@ -1,13 +1,16 @@
 import React from 'react'
 import StockTable from './StockTable'
+import { Chart } from 'react-google-charts';
 
 export default class StockList extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
-            stockList: []
+            stockList: [],
         };
         this.serverRequest = this.serverRequest.bind(this);
+        this.renderStockCharts = this.renderStockCharts.bind(this);
+        this.render = this.render.bind(this);
         // Assign this instance to a global variable.
         window.stockList = this;
     }
@@ -16,7 +19,7 @@ export default class StockList extends React.Component {
     serverRequest() {
         fetch("http://localhost:5000/securities")
             .then(response => response.json())
-            .then(secs => this.setState({ stockList: secs["securities"] }));
+            .then(secs => this.setState({ stockList: secs["securities"] }))
     }
 
     // Runs on component mount, to grab data from the server.
@@ -25,16 +28,40 @@ export default class StockList extends React.Component {
     }
 
     // Returns the HTML to display the stock table.
-    renderStockTable() {
+    renderStockCharts() {
+        // TODO: Put all the pie chart stuff in a separate file.
+        // Sort the stocks by current market value.
+        let sorted = this.state.stockList.sort((a, b) => b.marketValue - a.marketValue);
+        // Put the sorted values in a map, and add a column header.
+        let pieChartData = sorted.map(x => [x.ticker, x.marketValue])
+        pieChartData.unshift(['Ticker', 'Market Value'])
+        // Return the charted stock data.
+        var chartOptions = {
+            legend: 'none',
+            pieSliceText: 'label',
+            pieSliceTextStyle: { fontSize: 10 },
+            sliceVisibilityThreshold: .005,
+        }
+
         return (
-            <StockTable data={this.state.stockList} />
+            <>
+                <h3>Portfolio Composition</h3>
+                <Chart
+                    chartType="PieChart"
+                    data={pieChartData}
+                    options={chartOptions}
+                    width={"100%"}
+                    height={"850px"}
+                />
+                <StockTable data={this.state.stockList} />
+            </>
         )
     }
 
     // Render the stock table, or a loader screen until data is retrieved from server.
     render() {
         const curState = this.state
-        return curState.stockList.length ? this.renderStockTable() : (
+        return curState.stockList.length ? this.renderStockCharts() : (
             <span>LOADING STOCKS...</span>
         )
     }

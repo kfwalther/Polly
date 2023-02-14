@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import StockList from './components/StockList'
 import { Header } from './components/Header';
 import './App.css'
