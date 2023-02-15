@@ -1,6 +1,7 @@
 package finance
 
 import (
+	"errors"
 	"log"
 	"sort"
 
@@ -11,6 +12,7 @@ import (
 type Security struct {
 	id              uint
 	Ticker          string  `json:"ticker"`
+	SecurityType    string  `json:"securityType"`
 	MarketPrice     float64 `json:"marketPrice"`
 	MarketValue     float64 `json:"marketValue"`
 	UnitCostBasis   float64 `json:"unitCostBasis"`
@@ -22,11 +24,16 @@ type Security struct {
 }
 
 // Constructor for a new SecurityCatalogue object, initializing the map.
-func NewSecurity(tkr string) *Security {
+func NewSecurity(tkr string, secType string) (*Security, error) {
+	// Validate the security type before creating the object.
+	if secType != "Stock" && secType != "ETF" && secType != "Mutual Fund" && secType != "Cash" {
+		return nil, errors.New("Could not create Security. Invalid security type (" + secType + ") for " + tkr)
+	}
 	var s Security
 	s.Ticker = tkr
+	s.SecurityType = secType
 	s.transactions = make([]Transaction, 0)
-	return &s
+	return &s, nil
 }
 
 // Grab the current market price of this ticker symbol, from the web.

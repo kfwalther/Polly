@@ -30,8 +30,9 @@ export default class StockList extends React.Component {
     // Returns the HTML to display the stock table.
     renderStockCharts() {
         // TODO: Put all the pie chart stuff in a separate file.
+        let filtered = this.state.stockList.filter(a => (a.marketValue >= 0.0 && a.securityType == "Stock"));
         // Sort the stocks by current market value.
-        let sorted = this.state.stockList.sort((a, b) => b.marketValue - a.marketValue);
+        let sorted = filtered.sort((a, b) => b.marketValue - a.marketValue);
         // Put the sorted values in a map, and add a column header.
         let pieChartData = sorted.map(x => [x.ticker, x.marketValue])
         pieChartData.unshift(['Ticker', 'Market Value'])
@@ -41,6 +42,7 @@ export default class StockList extends React.Component {
             pieSliceText: 'label',
             pieSliceTextStyle: { fontSize: 10 },
             sliceVisibilityThreshold: .005,
+            chartArea: { top: 0, bottom: 50 }
         }
 
         return (
@@ -51,7 +53,7 @@ export default class StockList extends React.Component {
                     data={pieChartData}
                     options={chartOptions}
                     width={"100%"}
-                    height={"850px"}
+                    height={"750px"}
                 />
                 <StockTable data={this.state.stockList} />
             </>

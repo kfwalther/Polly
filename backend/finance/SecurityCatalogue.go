@@ -87,9 +87,10 @@ func (sc *SecurityCatalogue) ProcessImport(txnData [][]interface{}) {
 					val.transactions = append(val.transactions, *txn)
 				} else {
 					// Create a new Security to track transactions for it, then append.
-					sec := NewSecurity(txn.ticker)
-					sec.transactions = append(sec.transactions, *txn)
-					sc.securities[txn.ticker] = sec
+					if sec, err := NewSecurity(txn.ticker, row[6].(string)); err == nil {
+						sec.transactions = append(sec.transactions, *txn)
+						sc.securities[txn.ticker] = sec
+					}
 				}
 			}
 		}
