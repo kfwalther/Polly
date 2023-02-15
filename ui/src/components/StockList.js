@@ -9,6 +9,7 @@ export default class StockList extends React.Component {
         this.state = {
             stockList: [],
             isStocksOnlyChecked: true,
+            isCurrentOnlyChecked: true,
         };
         this.serverRequest = this.serverRequest.bind(this);
         this.renderStockCharts = this.renderStockCharts.bind(this);
@@ -34,6 +35,11 @@ export default class StockList extends React.Component {
         this.setState({ isStocksOnlyChecked: checked })
     }
 
+    // Save the new checked state of the "Show current holdings only" checkbox.
+    onCurrentOnlyCheckboxClick = checked => {
+        this.setState({ isCurrentOnlyChecked: checked })
+    }
+
     // Returns the HTML to display the stock table.
     renderStockCharts() {
         // Define the options for this pie chart.
@@ -57,7 +63,13 @@ export default class StockList extends React.Component {
                     chartOptions={chartOptions}
                     filterOptions={this.state.isStocksOnlyChecked}
                 />
-                <StockTable data={this.state.stockList} />
+                <Checkbox
+                    label="Show Current Holdings Only"
+                    checked={this.state.isCurrentOnlyChecked}
+                    onClick={this.onCurrentOnlyCheckboxClick} />
+                <StockTable
+                    data={this.state.isCurrentOnlyChecked ? this.state.stockList.filter(s => (s.marketValue > 0.0)) : this.state.stockList}
+                />
             </>
         )
     }

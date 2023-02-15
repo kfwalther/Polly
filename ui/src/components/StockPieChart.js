@@ -5,7 +5,7 @@ export default function StockPieChart({ chartData, chartOptions, filterOptions }
 
     function getFilteredChartData() {
         // Filter for only non-zero securities.
-        let filtered = chartData.filter(s => (s.marketValue >= 0.0));
+        let filtered = chartData.filter(s => (s.marketValue > 0.0));
         // Check if we should be filtering for only stocks too.
         if (filterOptions) {
             filtered = filtered.filter(s => s.securityType === "Stock");
