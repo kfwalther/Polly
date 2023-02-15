@@ -43,11 +43,9 @@ function SelectColumnFilter({
 function filterNotEqualTo(rows, id, filterValue) {
     return rows.filter(row => {
         const rowValue = row.values[id]
-        return rowValue != filterValue.toString()
+        return rowValue !== filterValue.toString()
     })
 }
-
-// filterNotEqualTo.autoRemove = val => typeof val !== 'number'
 
 
 export default function StockTable({ data }) {

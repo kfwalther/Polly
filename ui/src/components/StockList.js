@@ -1,6 +1,6 @@
 import React from 'react'
 import StockTable from './StockTable'
-import { Chart } from 'react-google-charts';
+import StockPieChart from './StockPieChart'
 
 export default class StockList extends React.Component {
     constructor(props) {
@@ -29,31 +29,21 @@ export default class StockList extends React.Component {
 
     // Returns the HTML to display the stock table.
     renderStockCharts() {
-        // TODO: Put all the pie chart stuff in a separate file.
-        let filtered = this.state.stockList.filter(a => (a.marketValue >= 0.0 && a.securityType == "Stock"));
-        // Sort the stocks by current market value.
-        let sorted = filtered.sort((a, b) => b.marketValue - a.marketValue);
-        // Put the sorted values in a map, and add a column header.
-        let pieChartData = sorted.map(x => [x.ticker, x.marketValue])
-        pieChartData.unshift(['Ticker', 'Market Value'])
-        // Return the charted stock data.
+        // Define the options for this pie chart.
         var chartOptions = {
             legend: 'none',
             pieSliceText: 'label',
             pieSliceTextStyle: { fontSize: 10 },
             sliceVisibilityThreshold: .005,
-            chartArea: { top: 0, bottom: 50 }
+            chartArea: { top: 0, bottom: 50, left: 25, right: 25 }
         }
-
+        // Render the stock charts and tables.
         return (
             <>
                 <h3>Portfolio Composition</h3>
-                <Chart
-                    chartType="PieChart"
-                    data={pieChartData}
-                    options={chartOptions}
-                    width={"100%"}
-                    height={"750px"}
+                <StockPieChart
+                    chartData={this.state.stockList}
+                    chartOptions={chartOptions}
                 />
                 <StockTable data={this.state.stockList} />
             </>
