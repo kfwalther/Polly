@@ -47,8 +47,9 @@ export default class StockList extends React.Component {
             legend: 'none',
             pieSliceText: 'label',
             pieSliceTextStyle: { fontSize: 10 },
+            pieHole: 0.3,
             sliceVisibilityThreshold: .005,
-            chartArea: { top: 0, bottom: 50, left: 25, right: 25 }
+            chartArea: { top: 0, bottom: 0, left: 0, right: 0 }
         }
         // Render the stock charts and tables.
         return (

@@ -15,6 +15,21 @@ h3 {
     justify-content: center;
 }
 
+.piechart-container {
+    position: relative;
+}
+
+.piechart-centerlabel {
+    position: absolute;
+    left: 2px;
+    top: 2px;
+    width: 750px;
+    line-height: 750px;
+    text-align: center;
+    font-size: 20px;
+
+}
+
 th,
 td {
     border: 1px solid #ffffff;

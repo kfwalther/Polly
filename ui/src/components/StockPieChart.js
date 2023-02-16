@@ -20,13 +20,16 @@ export default function StockPieChart({ chartData, chartOptions, filterOptions }
 
     return (
         <>
-            <Chart
-                chartType="PieChart"
-                data={getFilteredChartData()}
-                options={chartOptions}
-                width={"100%"}
-                height={"750px"}
-            />
+            <div className="piechart-container">
+                <Chart
+                    chartType="PieChart"
+                    data={getFilteredChartData()}
+                    options={chartOptions}
+                    width={"100%"}
+                    height={"750px"}
+                />
+                <div className="piechart-centerlabel">Market Value</div>
+            </div>
         </>
     );
 }
