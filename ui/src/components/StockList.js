@@ -1,7 +1,9 @@
 import React from 'react'
-import { StockTable, toUSD } from './StockTable'
+import { StockTable } from './StockTable'
+import { toUSD } from './Helpers'
 import StockPieChart from './StockPieChart'
 import Checkbox from './Checkbox'
+import PortfolioSummary from './PortfolioSummary';
 
 export default class StockList extends React.Component {
     constructor(props) {
@@ -59,7 +61,9 @@ export default class StockList extends React.Component {
         // Render the stock charts and tables.
         return (
             <>
-                <h3>Portfolio Composition</h3>
+                <PortfolioSummary summaryData={this.state.portfolioSummary}/>
+                <br></br>
+                <h3 className="header-portcomposition">Portfolio Composition</h3>
                 <Checkbox
                     label="Stocks Only"
                     checked={this.state.isStocksOnlyChecked}
@@ -86,9 +90,7 @@ export default class StockList extends React.Component {
                         />
                     </div>
                 </div>
-                <div className="summary-info" style={{ color: this.state.portfolioSummary.percentageGain >= 0.0 ? "green" : "red" }}>
-                    {"Percentage Gain/Loss: " + parseFloat(this.state.portfolioSummary.percentageGain).toFixed(3) + "%"}
-                </div>
+
                 <Checkbox
                     label="Show Current Holdings Only"
                     checked={this.state.isCurrentOnlyChecked}

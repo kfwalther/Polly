@@ -17,9 +17,6 @@ function App() {
   // This is what gets rendered on the page.
   return (
     <>
-      {/* <Helmet>
-        <style>{'body { background-color: black; }'}</style>
-      </Helmet> */}
       <Header />
       <button onClick={refreshMarketData}>Refresh</button>
       <StockList stockList={stocks} />

@@ -10,7 +10,11 @@ button {
     margin-bottom: 10px;
 }
 
-h3 {
+.summary-totalmarketvalue {
+    font-size: 30px;
+}
+
+.header-portcomposition {
     text-align: center;
     justify-content: center;
     height: 30px;

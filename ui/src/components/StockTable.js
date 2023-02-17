@@ -38,19 +38,12 @@ function SelectColumnFilter({
     )
 }
 
-
 // Define a custom filter filter function, to filter out selected values.
 function filterNotEqualTo(rows, id, filterValue) {
     return rows.filter(row => {
         const rowValue = row.values[id]
         return rowValue !== filterValue.toString()
     })
-}
-
-// Define nested function to format the raw data from the server to USD format.
-export function toUSD(numberString) {
-    let number = parseFloat(numberString);
-    return "$" + number.toFixed(2);
 }
 
 export function StockTable({ data }) {
