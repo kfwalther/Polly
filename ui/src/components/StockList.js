@@ -86,6 +86,9 @@ export default class StockList extends React.Component {
                         />
                     </div>
                 </div>
+                <div className="summary-info" style={{ color: this.state.portfolioSummary.percentageGain >= 0.0 ? "green" : "red" }}>
+                    {"Percentage Gain/Loss: " + parseFloat(this.state.portfolioSummary.percentageGain).toFixed(3) + "%"}
+                </div>
                 <Checkbox
                     label="Show Current Holdings Only"
                     checked={this.state.isCurrentOnlyChecked}
