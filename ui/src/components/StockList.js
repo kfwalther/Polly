@@ -61,7 +61,7 @@ export default class StockList extends React.Component {
         // Render the stock charts and tables.
         return (
             <>
-                <PortfolioSummary summaryData={this.state.portfolioSummary}/>
+                <PortfolioSummary summaryData={this.state.portfolioSummary} />
                 <br></br>
                 <h3 className="header-portcomposition">Portfolio Composition</h3>
                 <Checkbox
@@ -90,7 +90,6 @@ export default class StockList extends React.Component {
                         />
                     </div>
                 </div>
-
                 <Checkbox
                     label="Show Current Holdings Only"
                     checked={this.state.isCurrentOnlyChecked}

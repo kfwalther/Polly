@@ -1,6 +1,6 @@
 import React from "react";
 import { useFilters, useSortBy, useTable } from "react-table";
-
+import { toUSD } from "./Helpers";
 
 // Much of the code in this file was taken from the react-table examples:
 // https://github.com/TanStack/table/blob/v7/examples/filtering/src/App.js

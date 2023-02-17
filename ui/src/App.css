@@ -14,6 +14,10 @@ button {
     font-size: 30px;
 }
 
+.summary-deltas {
+    font-size: 20px;
+}
+
 .header-portcomposition {
     text-align: center;
     justify-content: center;
@@ -69,13 +73,6 @@ button {
     font-size: 20px;
     margin-top: -15px;
     z-index: -1;
-}
-
-.summary-info {
-    text-align: center;
-    justify-content: center;
-    font-size: 24px;
-    vertical-align: middle;
 }
 
 th,

@@ -5,7 +5,7 @@
 // }
 
 // Define nested function to format the raw data from the server to USD format.
-export default function toUSD(numberString) {
+export function toUSD(numberString) {
     let number = parseFloat(numberString);
     return "$" + number.toFixed(2);
 }
