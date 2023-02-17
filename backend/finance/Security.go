@@ -10,17 +10,20 @@ import (
 
 // Definition of a security to hold the transactions for a particular stock/ETF.
 type Security struct {
-	id              uint
-	Ticker          string  `json:"ticker"`
-	SecurityType    string  `json:"securityType"`
-	MarketPrice     float64 `json:"marketPrice"`
-	MarketValue     float64 `json:"marketValue"`
-	UnitCostBasis   float64 `json:"unitCostBasis"`
-	TotalCostBasis  float64 `json:"totalCostBasis"`
-	NumShares       float64 `json:"numShares"`
-	RealizedGains   float64 `json:"realizedGains"`
-	UnrealizedGains float64 `json:"unrealizedGains"`
-	transactions    []Transaction
+	id                  uint
+	Ticker              string  `json:"ticker"`
+	SecurityType        string  `json:"securityType"`
+	MarketPrice         float64 `json:"marketPrice"`
+	MarketValue         float64 `json:"marketValue"`
+	DailyGain           float64 `json:"dailyGain"`
+	DailyGainPercentage float64 `json:"dailyGainPercentage"`
+	UnitCostBasis       float64 `json:"unitCostBasis"`
+	TotalCostBasis      float64 `json:"totalCostBasis"`
+	NumShares           float64 `json:"numShares"`
+	RealizedGain        float64 `json:"realizedGain"`
+	UnrealizedGain      float64 `json:"unrealizedGain"`
+	TotalGain           float64 `json:"totalGain"`
+	transactions        []Transaction
 }
 
 // Constructor for a new Security object.
@@ -37,19 +40,23 @@ func NewSecurity(tkr string, secType string) (*Security, error) {
 }
 
 // Grab the current market price of this ticker symbol, from the web.
-func (s *Security) CurrentPrice() float64 {
+func (s *Security) DetermineCurrentPrice() {
+	// Get the current info for the given ticker.
 	q, err := equity.Get(s.Ticker)
 	if err != nil || q == nil {
-		return 0.0
+		return
 	}
-	// Based on the market's current state, grab the proper price.
+	// Based on the market's current state, grab the proper current quoted price.
 	if q.MarketState == "PRE" && q.PreMarketPrice > 0.0 {
-		return q.PreMarketPrice
+		s.MarketPrice = q.PreMarketPrice
 	} else if q.MarketState == "POST" && q.PostMarketPrice > 0.0 {
-		return q.PostMarketPrice
+		s.MarketPrice = q.PostMarketPrice
 	} else {
-		return q.RegularMarketPrice
+		s.MarketPrice = q.RegularMarketPrice
 	}
+	// Calculate the total 1-day gain/loss for this stock.
+	s.DailyGain = q.RegularMarketChange * s.NumShares
+	s.DailyGainPercentage = q.RegularMarketChangePercent
 }
 
 // Calculate various metrics about this security.
@@ -81,17 +88,17 @@ func (s *Security) CalculateMetrics() {
 				if len(buyQ) > 0 {
 					if buyQ[0].shares > remainingShares {
 						// Remaining sell shares are covered by this buy.
-						s.RealizedGains += (t.price - buyQ[0].price) * remainingShares
+						s.RealizedGain += (t.price - buyQ[0].price) * remainingShares
 						buyQ[0].shares -= remainingShares
 						remainingShares = 0
 					} else if buyQ[0].shares == remainingShares {
 						// Shares in this buy equal remaining shares, pop the buy off the queue.
-						s.RealizedGains += (t.price - buyQ[0].price) * remainingShares
+						s.RealizedGain += (t.price - buyQ[0].price) * remainingShares
 						remainingShares = 0
 						buyQ = buyQ[1:]
 					} else if buyQ[0].shares < remainingShares {
 						// This buy is completely covered by sell, pop it.
-						s.RealizedGains += (t.price - buyQ[0].price) * buyQ[0].shares
+						s.RealizedGain += (t.price - buyQ[0].price) * buyQ[0].shares
 						remainingShares -= buyQ[0].shares
 						buyQ = buyQ[1:]
 					}
@@ -99,7 +106,7 @@ func (s *Security) CalculateMetrics() {
 					// Queue is empty, but apparently have more sold shares to account for.
 					// There was either a stock split, or re-invested dividends.
 					additionalGains := remainingShares * t.price
-					s.RealizedGains += additionalGains
+					s.RealizedGain += additionalGains
 					log.Printf("%s is oversold - Adding remaining shares to realized gain (%f shares, total $%f)\n", t.ticker, remainingShares, additionalGains)
 					break
 				}
@@ -118,16 +125,18 @@ func (s *Security) CalculateMetrics() {
 		s.NumShares += txn.shares
 		s.TotalCostBasis += txn.shares * txn.price
 	}
-	// Current market price
-	s.MarketPrice = s.CurrentPrice()
+	// Request the current market price, and calculate daily gain values.
+	s.DetermineCurrentPrice()
 	if s.NumShares > 0 {
 		// Unit cost basis
 		s.UnitCostBasis = s.TotalCostBasis / s.NumShares
 		// Total market value
 		s.MarketValue = s.MarketPrice * s.NumShares
 		// Unrealized gain
-		s.UnrealizedGains = s.MarketValue - s.TotalCostBasis
+		s.UnrealizedGain = s.MarketValue - s.TotalCostBasis
 	}
+	// Get the total gain.
+	s.TotalGain = s.UnrealizedGain + s.RealizedGain
 }
 
 func (s *Security) DisplayMetrics() {
@@ -135,8 +144,10 @@ func (s *Security) DisplayMetrics() {
 	log.Printf("%s Market Price: $%f\n", s.Ticker, s.MarketPrice)
 	log.Printf("%s Number of Shares: %f\n", s.Ticker, s.NumShares)
 	log.Printf("%s Market Value: %f\n", s.Ticker, s.MarketValue)
+	log.Printf("%s Daily Gain: $%f\n", s.Ticker, s.DailyGain)
+	log.Printf("%s Daily Gain Percent: %f\n", s.Ticker, s.DailyGainPercentage)
 	log.Printf("%s Unit Cost Basis: $%f\n", s.Ticker, s.UnitCostBasis)
 	log.Printf("%s Total Cost Basis: $%f\n", s.Ticker, s.TotalCostBasis)
-	log.Printf("%s Unrealized Gains: $%f\n", s.Ticker, s.UnrealizedGains)
-	log.Printf("%s Realized Gains: $%f\n", s.Ticker, s.RealizedGains)
+	log.Printf("%s Unrealized Gains: $%f\n", s.Ticker, s.UnrealizedGain)
+	log.Printf("%s Realized Gains: $%f\n", s.Ticker, s.RealizedGain)
 }

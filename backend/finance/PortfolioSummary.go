@@ -6,6 +6,7 @@ type PortfolioSummary struct {
 	TotalSecurities  float64 `json:"totalSecurities"`
 	TotalCostBasis   float64 `json:"totalCostBasis"`
 	PercentageGain   float64 `json:"percentageGain"`
+	DailyGain        float64 `json:"dailyGain"`
 }
 
 // Constructor for a new PortfolioSummary object.

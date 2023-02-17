@@ -126,8 +126,10 @@ func (sc *SecurityCatalogue) Calculate() {
 
 	// Calculate total invested market value across all securities.
 	for _, s := range sc.securities {
+		s.DisplayMetrics()
 		sc.summary.TotalMarketValue += s.MarketValue
 		sc.summary.TotalCostBasis += s.TotalCostBasis
+		sc.summary.DailyGain += s.DailyGain
 		sc.summary.TotalSecurities++
 	}
 	sc.summary.PercentageGain = ((sc.summary.TotalMarketValue - sc.summary.TotalCostBasis) / sc.summary.TotalCostBasis) * 100.0

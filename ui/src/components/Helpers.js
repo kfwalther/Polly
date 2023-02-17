@@ -9,3 +9,8 @@ export function toUSD(numberString) {
     let number = parseFloat(numberString);
     return "$" + number.toFixed(2);
 }
+
+export function toPercent(numberString) {
+    let number = parseFloat(numberString);
+    return number.toFixed(2) + "%";
+}
