@@ -5,7 +5,7 @@ import StockPieChart from './StockPieChart'
 import Checkbox from './Checkbox'
 import PortfolioSummary from './PortfolioSummary';
 
-export default class StockList extends React.Component {
+export default class MainPage extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
@@ -23,6 +23,7 @@ export default class StockList extends React.Component {
 
     // Fetch the stock list from the server.
     serverRequest() {
+        console.log('Refreshing data...')
         fetch("http://localhost:5000/securities")
             .then(response => response.json())
             .then(resp => this.setState({ stockList: resp["securities"] }))
@@ -61,6 +62,7 @@ export default class StockList extends React.Component {
         // Render the stock charts and tables.
         return (
             <>
+                <button >Refresh</button>
                 <PortfolioSummary summaryData={this.state.portfolioSummary} />
                 <br></br>
                 <h3 className="header-portcomposition">Portfolio Composition</h3>
