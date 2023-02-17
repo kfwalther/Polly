@@ -1,5 +1,5 @@
 import React from 'react'
-import StockTable from './StockTable'
+import { StockTable, toUSD } from './StockTable'
 import StockPieChart from './StockPieChart'
 import Checkbox from './Checkbox'
 
@@ -8,6 +8,7 @@ export default class StockList extends React.Component {
         super(props);
         this.state = {
             stockList: [],
+            portfolioSummary: {},
             isStocksOnlyChecked: true,
             isCurrentOnlyChecked: true,
         };
@@ -22,7 +23,10 @@ export default class StockList extends React.Component {
     serverRequest() {
         fetch("http://localhost:5000/securities")
             .then(response => response.json())
-            .then(secs => this.setState({ stockList: secs["securities"] }))
+            .then(resp => this.setState({ stockList: resp["securities"] }))
+        fetch("http://localhost:5000/summary")
+            .then(response => response.json())
+            .then(resp => this.setState({ portfolioSummary: resp["summary"] }))
     }
 
     // Runs on component mount, to grab data from the server.
@@ -45,11 +49,12 @@ export default class StockList extends React.Component {
         // Define the options for this pie chart.
         var chartOptions = {
             legend: 'none',
+            backgroundColor: 'transparent',
             pieSliceText: 'label',
             pieSliceTextStyle: { fontSize: 10 },
-            pieHole: 0.3,
+            pieHole: 0.25,
             sliceVisibilityThreshold: .005,
-            chartArea: { top: 0, bottom: 0, left: 0, right: 0 }
+            chartArea: { top: 0, bottom: 0, left: 25, right: 25 }
         }
         // Render the stock charts and tables.
         return (
@@ -59,11 +64,28 @@ export default class StockList extends React.Component {
                     label="Stocks Only"
                     checked={this.state.isStocksOnlyChecked}
                     onClick={this.onStocksOnlyCheckboxClick} />
-                <StockPieChart
-                    chartData={this.state.stockList}
-                    chartOptions={chartOptions}
-                    filterOptions={this.state.isStocksOnlyChecked}
-                />
+                <div className="charts-container">
+                    <div className="chart-marketvalue">
+                        <StockPieChart
+                            chartData={this.state.stockList}
+                            chartOptions={chartOptions}
+                            displayDataset="marketValue"
+                            filterOptions={this.state.isStocksOnlyChecked}
+                            title={toUSD(this.state.portfolioSummary.totalMarketValue)}
+                            titleDesc={"Market Value"}
+                        />
+                    </div>
+                    <div className="chart-costbasis">
+                        <StockPieChart
+                            chartData={this.state.stockList}
+                            chartOptions={chartOptions}
+                            displayDataset="totalCostBasis"
+                            filterOptions={this.state.isStocksOnlyChecked}
+                            title={toUSD(this.state.portfolioSummary.totalCostBasis)}
+                            titleDesc={"Cost Basis"}
+                        />
+                    </div>
+                </div>
                 <Checkbox
                     label="Show Current Holdings Only"
                     checked={this.state.isCurrentOnlyChecked}

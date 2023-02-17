@@ -47,13 +47,13 @@ function filterNotEqualTo(rows, id, filterValue) {
     })
 }
 
+// Define nested function to format the raw data from the server to USD format.
+export function toUSD(numberString) {
+    let number = parseFloat(numberString);
+    return "$" + number.toFixed(2);
+}
 
-export default function StockTable({ data }) {
-    // Define nested function to format the raw data from the server to USD format.
-    function toUSD(numberString) {
-        let number = parseFloat(numberString);
-        return "$" + number.toFixed(2);
-    }
+export function StockTable({ data }) {
 
     // Define the column names and format for our Stock table.
     const columns = React.useMemo(
