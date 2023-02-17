@@ -55,6 +55,7 @@ var StockSplits = map[string][]Transaction{
 // Definition of a security catalogue to house a portfolio of stock/ETF info in a map.
 type SecurityCatalogue struct {
 	id         uint
+	summary    *PortfolioSummary    `json:"summary"`
 	securities map[string]*Security `json:"securities"`
 }
 
@@ -62,11 +63,16 @@ type SecurityCatalogue struct {
 func NewSecurityCatalogue() *SecurityCatalogue {
 	var sc SecurityCatalogue
 	sc.securities = make(map[string]*Security)
+	sc.summary = NewPortfolioSummary()
 	return &sc
 }
 
 func (sc *SecurityCatalogue) GetSecurityList() []*Security {
 	return maps.Values(sc.securities)
+}
+
+func (sc *SecurityCatalogue) GetPortfolioSummary() *PortfolioSummary {
+	return sc.summary
 }
 
 // Method to process the imported data, by creating a new [Transaction] for
@@ -119,9 +125,12 @@ func (sc *SecurityCatalogue) Calculate() {
 	waitGroup.Wait()
 
 	// Calculate total invested market value across all securities.
-	totalMarketValue := 0.0
 	for _, s := range sc.securities {
-		totalMarketValue += s.MarketValue
+		sc.summary.TotalMarketValue += s.MarketValue
+		sc.summary.TotalCostBasis += s.TotalCostBasis
+		sc.summary.TotalSecurities++
 	}
-	log.Printf("Total Market Value: $%f", totalMarketValue)
+	sc.summary.PercentageGain = ((sc.summary.TotalMarketValue - sc.summary.TotalCostBasis) / sc.summary.TotalCostBasis) * 100.0
+	log.Printf("Total Market Value: $%f", sc.summary.TotalMarketValue)
+	log.Printf("Percentage Gain/Loss: %f", sc.summary.PercentageGain)
 }

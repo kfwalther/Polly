@@ -73,6 +73,7 @@ func main() {
 	ctrlr.Init(catalogue)
 	// Setup the GET route to retrieve all the securities.
 	router.GET("/securities", ctrlr.GetSecurities)
+	router.GET("/summary", ctrlr.GetSummary)
 
 	// Run the server.
 	router.Run(":5000")

@@ -23,7 +23,7 @@ type Security struct {
 	transactions    []Transaction
 }
 
-// Constructor for a new SecurityCatalogue object, initializing the map.
+// Constructor for a new Security object.
 func NewSecurity(tkr string, secType string) (*Security, error) {
 	// Validate the security type before creating the object.
 	if secType != "Stock" && secType != "ETF" && secType != "Mutual Fund" && secType != "Cash" {
