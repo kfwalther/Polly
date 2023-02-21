@@ -1,9 +1,9 @@
 // Define a custom Checkbox object to accept and label and onClick callback.
-const Checkbox = ({ label, checked, onClick, ...props }) => {
+const Checkbox = ({ label, checked, onClick, marginLeftVal, ...props }) => {
     const defaultChecked = checked ? checked : false;
 
     return (
-        <div className="checkbox-wrapper">
+        <div className="checkbox-wrapper" style={{ marginLeft: marginLeftVal }}>
             <label>
                 <input
                     type="checkbox"

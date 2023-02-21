@@ -40,6 +40,14 @@ button {
     vertical-align: middle;
 }
 
+.header-myholdings {
+    text-align: left;
+    margin-left: 20px;
+    justify-content: center;
+    height: 30px;
+    vertical-align: middle;
+}
+
 .piechart-container {
     position: relative;
 }
@@ -88,6 +96,15 @@ button {
     font-size: 20px;
     margin-top: -15px;
     z-index: -1;
+}
+
+.barchart-container {
+    margin-left: 20px;
+    margin-right: 20px;
+    margin-bottom: 20px;
+    overflow: auto;
+    overflow-x: scroll;
+    overflow-y: hidden;
 }
 
 th,

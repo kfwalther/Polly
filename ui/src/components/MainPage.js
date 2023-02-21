@@ -2,6 +2,7 @@ import React from 'react'
 import { StockTable } from './StockTable'
 import { toUSD } from './Helpers'
 import StockPieChart from './StockPieChart'
+import StockBarChart from './StockBarChart'
 import Checkbox from './Checkbox'
 import PortfolioSummary from './PortfolioSummary';
 
@@ -50,7 +51,7 @@ export default class MainPage extends React.Component {
     // Returns the HTML to display the stock table.
     renderStockCharts() {
         // Define the options for this pie chart.
-        var chartOptions = {
+        var pieChartOptions = {
             legend: 'none',
             backgroundColor: 'transparent',
             pieSliceText: 'label',
@@ -58,6 +59,14 @@ export default class MainPage extends React.Component {
             pieHole: 0.25,
             sliceVisibilityThreshold: .005,
             chartArea: { top: 0, bottom: 0, left: 25, right: 25 }
+        }
+        // Define the options for this pie chart.
+        var barChartOptions = {
+            legend: { position: 'none' },
+            chartArea: { top: 25, bottom: 50, left: 25, right: 25 },
+            vAxis: { format: 'short', textStyle: { fontSize: 12, bold: true } },
+            hAxis: { showTextEvery: 1, maxAlternation: 1, slantedText: true, slantedTextAngle: 45, textStyle: { fontSize: 12, bold: true } },
+            bar: { groupWidth: '40%' }
         }
         // Render the stock charts and tables.
         return (
@@ -69,12 +78,13 @@ export default class MainPage extends React.Component {
                 <Checkbox
                     label="Stocks Only"
                     checked={this.state.isStocksOnlyChecked}
-                    onClick={this.onStocksOnlyCheckboxClick} />
+                    onClick={this.onStocksOnlyCheckboxClick}
+                />
                 <div className="charts-container">
                     <div className="chart-marketvalue">
                         <StockPieChart
                             chartData={this.state.stockList}
-                            chartOptions={chartOptions}
+                            chartOptions={pieChartOptions}
                             displayDataset="marketValue"
                             filterOptions={this.state.isStocksOnlyChecked}
                             title={toUSD(this.state.portfolioSummary.totalMarketValue)}
@@ -84,7 +94,7 @@ export default class MainPage extends React.Component {
                     <div className="chart-costbasis">
                         <StockPieChart
                             chartData={this.state.stockList}
-                            chartOptions={chartOptions}
+                            chartOptions={pieChartOptions}
                             displayDataset="totalCostBasis"
                             filterOptions={this.state.isStocksOnlyChecked}
                             title={toUSD(this.state.portfolioSummary.totalCostBasis)}
@@ -92,10 +102,17 @@ export default class MainPage extends React.Component {
                         />
                     </div>
                 </div>
+                <h3 className="header-myholdings">My Holdings</h3>
+                <StockBarChart
+                    chartData={this.state.stockList}
+                    chartOptions={barChartOptions}
+                />
                 <Checkbox
                     label="Show Current Holdings Only"
                     checked={this.state.isCurrentOnlyChecked}
-                    onClick={this.onCurrentOnlyCheckboxClick} />
+                    onClick={this.onCurrentOnlyCheckboxClick}
+                    marginLeft="10px"
+                />
                 <StockTable
                     data={this.state.isCurrentOnlyChecked ? this.state.stockList.filter(s => (s.marketValue > 0.0)) : this.state.stockList}
                 />
