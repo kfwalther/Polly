@@ -10,20 +10,21 @@ import (
 
 // Definition of a security to hold the transactions for a particular stock/ETF.
 type Security struct {
-	id                  uint
-	Ticker              string  `json:"ticker"`
-	SecurityType        string  `json:"securityType"`
-	MarketPrice         float64 `json:"marketPrice"`
-	MarketValue         float64 `json:"marketValue"`
-	DailyGain           float64 `json:"dailyGain"`
-	DailyGainPercentage float64 `json:"dailyGainPercentage"`
-	UnitCostBasis       float64 `json:"unitCostBasis"`
-	TotalCostBasis      float64 `json:"totalCostBasis"`
-	NumShares           float64 `json:"numShares"`
-	RealizedGain        float64 `json:"realizedGain"`
-	UnrealizedGain      float64 `json:"unrealizedGain"`
-	TotalGain           float64 `json:"totalGain"`
-	transactions        []Transaction
+	id                       uint
+	Ticker                   string  `json:"ticker"`
+	SecurityType             string  `json:"securityType"`
+	MarketPrice              float64 `json:"marketPrice"`
+	MarketValue              float64 `json:"marketValue"`
+	DailyGain                float64 `json:"dailyGain"`
+	DailyGainPercentage      float64 `json:"dailyGainPercentage"`
+	UnitCostBasis            float64 `json:"unitCostBasis"`
+	TotalCostBasis           float64 `json:"totalCostBasis"`
+	NumShares                float64 `json:"numShares"`
+	RealizedGain             float64 `json:"realizedGain"`
+	UnrealizedGain           float64 `json:"unrealizedGain"`
+	UnrealizedGainPercentage float64 `json:"unrealizedGainPercentage"`
+	TotalGain                float64 `json:"totalGain"`
+	transactions             []Transaction
 }
 
 // Constructor for a new Security object.
@@ -132,22 +133,24 @@ func (s *Security) CalculateMetrics() {
 		s.UnitCostBasis = s.TotalCostBasis / s.NumShares
 		// Total market value
 		s.MarketValue = s.MarketPrice * s.NumShares
-		// Unrealized gain
+		// Unrealized gain (and percentage)
 		s.UnrealizedGain = s.MarketValue - s.TotalCostBasis
+		s.UnrealizedGainPercentage = (s.UnrealizedGain / s.TotalCostBasis) * 100.0
 	}
 	// Get the total gain.
 	s.TotalGain = s.UnrealizedGain + s.RealizedGain
 }
 
 func (s *Security) DisplayMetrics() {
-	log.Println("---------------------------------")
-	log.Printf("%s Market Price: $%f\n", s.Ticker, s.MarketPrice)
-	log.Printf("%s Number of Shares: %f\n", s.Ticker, s.NumShares)
-	log.Printf("%s Market Value: %f\n", s.Ticker, s.MarketValue)
-	log.Printf("%s Daily Gain: $%f\n", s.Ticker, s.DailyGain)
-	log.Printf("%s Daily Gain Percent: %f\n", s.Ticker, s.DailyGainPercentage)
-	log.Printf("%s Unit Cost Basis: $%f\n", s.Ticker, s.UnitCostBasis)
-	log.Printf("%s Total Cost Basis: $%f\n", s.Ticker, s.TotalCostBasis)
-	log.Printf("%s Unrealized Gains: $%f\n", s.Ticker, s.UnrealizedGain)
-	log.Printf("%s Realized Gains: $%f\n", s.Ticker, s.RealizedGain)
+	log.Printf("---------------%s----------------", s.Ticker)
+	log.Printf("Market Price: $%f\n", s.MarketPrice)
+	log.Printf("Number of Shares: %f\n", s.NumShares)
+	log.Printf("Market Value: %f\n", s.MarketValue)
+	log.Printf("Daily Gain: $%f\n", s.DailyGain)
+	log.Printf("Daily Gain Percent: %f\n", s.DailyGainPercentage)
+	log.Printf("Unit Cost Basis: $%f\n", s.UnitCostBasis)
+	log.Printf("Total Cost Basis: $%f\n", s.TotalCostBasis)
+	log.Printf("Unrealized Gain: $%f\n", s.UnrealizedGain)
+	log.Printf("Unrealized Gain Percent: %f\n", s.UnrealizedGainPercentage)
+	log.Printf("Realized Gain: $%f\n", s.RealizedGain)
 }

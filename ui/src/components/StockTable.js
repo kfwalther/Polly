@@ -11,60 +11,88 @@ export function StockTable({ data }) {
             {
                 Header: 'Ticker',
                 accessor: 'ticker', // accessor is the "key" in the data
+                Cell: props =>
+                    <div style={{ fontWeight: 'bold' }}>
+                        {props.value}
+                    </div>,
                 sortType: 'basic',
             },
             {
                 Header: 'Market Price',
                 accessor: 'marketPrice',
-                Cell: props => <React.Fragment>{toUSD(props.value)}</React.Fragment>,
+                Cell: props => <>{toUSD(props.value)}</>,
                 sortType: 'basic',
             },
             {
                 Header: 'Avg Cost',
                 accessor: 'unitCostBasis',
-                Cell: props => <React.Fragment>{toUSD(props.value)}</React.Fragment>,
+                Cell: props => <>{toUSD(props.value)}</>,
                 sortType: 'basic',
             },
             {
                 Header: '1D Gain %',
                 accessor: 'dailyGainPercentage',
-                Cell: props => <React.Fragment>{toPercent(props.value)}</React.Fragment>,
+                Cell: props =>
+                    <div style={{ color: props.value >= 0 ? 'green' : 'red' }} >
+                        {toPercent(props.value)}
+                    </div>,
                 sortType: 'basic',
             },
             {
                 Header: '1D Gain',
                 accessor: 'dailyGain',
-                Cell: props => <React.Fragment>{toUSD(props.value)}</React.Fragment>,
+                Cell: props =>
+                    <div style={{ color: props.value >= 0 ? 'green' : 'red' }} >
+                        {toUSD(props.value)}
+                    </div>,
                 sortType: 'basic',
             },
             {
                 Header: 'Unrealized Gain',
                 accessor: 'unrealizedGain',
-                Cell: props => <React.Fragment>{toUSD(props.value)}</React.Fragment>,
+                Cell: props =>
+                    <div style={{ color: props.value >= 0 ? 'green' : 'red' }} >
+                        {toUSD(props.value)}
+                    </div>,
+                sortType: 'basic',
+            },
+            {
+                Header: 'Unrealized Gain %',
+                accessor: 'unrealizedGainPercentage',
+                Cell: props =>
+                    <div style={{ color: props.value >= 0 ? 'green' : 'red' }} >
+                        {toPercent(props.value)}
+                    </div>,
                 sortType: 'basic',
             },
             {
                 Header: 'Market Value',
                 accessor: 'marketValue',
-                Cell: props => <React.Fragment>{toUSD(props.value)}</React.Fragment>,
+                Cell: props => <>{toUSD(props.value)}</>,
                 sortType: 'basic',
             },
             {
                 Header: 'Total Cost',
                 accessor: 'totalCostBasis',
-                Cell: props => <React.Fragment>{toUSD(props.value)}</React.Fragment>,
+                Cell: props => <>{toUSD(props.value)}</>,
                 sortType: 'basic',
             },
             {
                 Header: 'Realized Gain',
                 accessor: 'realizedGain',
-                Cell: props => <React.Fragment>{toUSD(props.value)}</React.Fragment>,
+                Cell: props =>
+                    <div style={{ color: props.value >= 0 ? 'green' : 'red' }} >
+                        {props.value != 0.0 ? toUSD(props.value) : '----'}
+                    </div>,
                 sortType: 'basic',
             },
             {
                 Header: 'Total Gain',
                 accessor: 'totalGain',
-                Cell: props => <React.Fragment>{toUSD(props.value)}</React.Fragment>,
+                Cell: props =>
+                    <div style={{ color: props.value >= 0 ? 'green' : 'red' }} >
+                        {toUSD(props.value)}
+                    </div>,
                 sortType: 'basic',
             },
             {

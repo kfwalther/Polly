@@ -50,6 +50,13 @@ var StockSplits = map[string][]Transaction{
 			action:   "Split",
 			shares:   20},
 	},
+	"IAU": {
+		Transaction{
+			ticker:   "IAU",
+			dateTime: time.Date(2021, 5, 24, 0, 0, 0, 0, time.Local),
+			action:   "Split",
+			shares:   0.5},
+	},
 }
 
 // Definition of a security catalogue to house a portfolio of stock/ETF info in a map.
@@ -133,6 +140,8 @@ func (sc *SecurityCatalogue) Calculate() {
 		sc.summary.TotalSecurities++
 	}
 	sc.summary.PercentageGain = ((sc.summary.TotalMarketValue - sc.summary.TotalCostBasis) / sc.summary.TotalCostBasis) * 100.0
+	log.Println("---------------------------------")
 	log.Printf("Total Market Value: $%f", sc.summary.TotalMarketValue)
 	log.Printf("Percentage Gain/Loss: %f", sc.summary.PercentageGain)
+	log.Println("---------------------------------")
 }
