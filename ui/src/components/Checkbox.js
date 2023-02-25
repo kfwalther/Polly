@@ -3,7 +3,7 @@ const Checkbox = ({ label, checked, onClick, marginLeftVal, ...props }) => {
     const defaultChecked = checked ? checked : false;
 
     return (
-        <div className="checkbox-wrapper" style={{ marginLeft: marginLeftVal }}>
+        <div className="checkbox-wrapper" style={{ marginLeft: marginLeftVal, color: 'white' }}>
             <label>
                 <input
                     type="checkbox"

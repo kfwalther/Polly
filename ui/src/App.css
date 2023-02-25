@@ -18,13 +18,16 @@ button {
 }
 
 .summary-cell {
-    background-color: white;
+    background-color: black;
+    border-color: black;
     margin: 0;
     padding: 0;
+    color: white;
 }
 
 .summary-deltas {
-    background-color: white;
+    background-color: black;
+    border-color: black;
     font-size: 20px;
     margin: 0;
     padding-top: 0;
@@ -38,6 +41,7 @@ button {
     justify-content: center;
     height: 30px;
     vertical-align: middle;
+    color: white;
 }
 
 .header-myholdings {
@@ -46,6 +50,7 @@ button {
     justify-content: center;
     height: 30px;
     vertical-align: middle;
+    color: white;
 }
 
 .piechart-container {
@@ -81,6 +86,7 @@ button {
     width: 100%;
     line-height: 750px;
     text-align: center;
+    color: white;
     font-size: 26px;
     margin-top: 15px;
     z-index: -1;
@@ -93,6 +99,7 @@ button {
     width: 100%;
     line-height: 750px;
     text-align: center;
+    color: white;
     font-size: 20px;
     margin-top: -15px;
     z-index: -1;
@@ -109,18 +116,22 @@ button {
 
 th,
 td {
-    border: 1px solid #ffffff;
+    border: 0.5px solid #cacaca;
     text-align: left;
     padding: 8px;
     font-size: 16px;
+    color: white;
 }
 
 th {
-    background-color: rgb(117, 201, 250);
+    background-color: rgb(46, 46, 46);
+    border: none;
 }
 
 td {
-    background-color: rgb(205, 235, 253);
+    background-color: rgb(26, 26, 26);
+    border-left: none;
+    border-right: none;
 }
 
 form {

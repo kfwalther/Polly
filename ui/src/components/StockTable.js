@@ -5,6 +5,9 @@ import { toPercent, toUSD } from "./Helpers";
 
 export function StockTable({ data }) {
 
+    var TABLE_RED = '#ff2e1f'
+    var TABLE_GREEN = '#56DC28'
+
     // Define the column names and format for our Stock table.
     const columns = React.useMemo(
         () => [
@@ -33,7 +36,7 @@ export function StockTable({ data }) {
                 Header: '1D Gain %',
                 accessor: 'dailyGainPercentage',
                 Cell: props =>
-                    <div style={{ color: props.value >= 0 ? 'green' : 'red' }} >
+                    <div style={{ color: props.value >= 0 ? TABLE_GREEN : TABLE_RED }} >
                         {toPercent(props.value)}
                     </div>,
                 sortType: 'basic',
@@ -42,7 +45,7 @@ export function StockTable({ data }) {
                 Header: '1D Gain',
                 accessor: 'dailyGain',
                 Cell: props =>
-                    <div style={{ color: props.value >= 0 ? 'green' : 'red' }} >
+                    <div style={{ color: props.value >= 0 ? TABLE_GREEN : TABLE_RED }} >
                         {toUSD(props.value)}
                     </div>,
                 sortType: 'basic',
@@ -51,7 +54,7 @@ export function StockTable({ data }) {
                 Header: 'Unrealized Gain',
                 accessor: 'unrealizedGain',
                 Cell: props =>
-                    <div style={{ color: props.value >= 0 ? 'green' : 'red' }} >
+                    <div style={{ color: props.value >= 0 ? TABLE_GREEN : TABLE_RED }} >
                         {toUSD(props.value)}
                     </div>,
                 sortType: 'basic',
@@ -60,7 +63,7 @@ export function StockTable({ data }) {
                 Header: 'Unrealized Gain %',
                 accessor: 'unrealizedGainPercentage',
                 Cell: props =>
-                    <div style={{ color: props.value >= 0 ? 'green' : 'red' }} >
+                    <div style={{ color: props.value >= 0 ? TABLE_GREEN : TABLE_RED }} >
                         {toPercent(props.value)}
                     </div>,
                 sortType: 'basic',
@@ -81,7 +84,7 @@ export function StockTable({ data }) {
                 Header: 'Realized Gain',
                 accessor: 'realizedGain',
                 Cell: props =>
-                    <div style={{ color: props.value >= 0 ? 'green' : 'red' }} >
+                    <div style={{ color: props.value >= 0 ? TABLE_GREEN : TABLE_RED }} >
                         {props.value != 0.0 ? toUSD(props.value) : '----'}
                     </div>,
                 sortType: 'basic',
@@ -90,7 +93,7 @@ export function StockTable({ data }) {
                 Header: 'Total Gain',
                 accessor: 'totalGain',
                 Cell: props =>
-                    <div style={{ color: props.value >= 0 ? 'green' : 'red' }} >
+                    <div style={{ color: props.value >= 0 ? TABLE_GREEN : TABLE_RED }} >
                         {toUSD(props.value)}
                     </div>,
                 sortType: 'basic',

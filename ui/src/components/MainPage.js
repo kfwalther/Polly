@@ -62,10 +62,11 @@ export default class MainPage extends React.Component {
         }
         // Define the options for this pie chart.
         var barChartOptions = {
+            backgroundColor: 'black',
             legend: { position: 'none' },
             chartArea: { top: 25, bottom: 50, left: 25, right: 25 },
-            vAxis: { format: 'short', textStyle: { fontSize: 12, bold: true } },
-            hAxis: { showTextEvery: 1, maxAlternation: 1, slantedText: true, slantedTextAngle: 45, textStyle: { fontSize: 12, bold: true } },
+            vAxis: { format: 'short', textStyle: { fontSize: 12, bold: true, color: 'grey' } },
+            hAxis: { showTextEvery: 1, maxAlternation: 1, slantedText: true, slantedTextAngle: 45, textStyle: { fontSize: 12, bold: true, color: 'grey' } },
             bar: { groupWidth: '40%' }
         }
         // Render the stock charts and tables.
