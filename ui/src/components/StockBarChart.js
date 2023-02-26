@@ -11,7 +11,6 @@ export default function StockBarChart({ chartData, chartOptions }) {
         // Put the sorted values in an array, and add a column header.
         let data = sorted.map(s => [s.ticker, s.unrealizedGain, s.unrealizedGain >= 0 ? 'green' : 'red'])
         data.unshift(['Ticker', 'Unrealized Gain', { role: 'style' }])
-        console.log(data)
         return data
     }
 

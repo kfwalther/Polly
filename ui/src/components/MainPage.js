@@ -18,6 +18,7 @@ export default class MainPage extends React.Component {
         this.serverRequest = this.serverRequest.bind(this);
         this.renderStockCharts = this.renderStockCharts.bind(this);
         this.render = this.render.bind(this);
+        this.tickerMap = {}
         // Assign this instance to a global variable.
         window.stockList = this;
     }
@@ -48,19 +49,59 @@ export default class MainPage extends React.Component {
         this.setState({ isCurrentOnlyChecked: checked })
     }
 
+    assignTickerColors() {
+        var pieColors = [
+            '#3366cc',
+            '#dc3912',
+            '#ff9900',
+            '#109618',
+            '#990099',
+            '#0099c6',
+            '#dd4477',
+            '#66aa00',
+            '#b82e2e',
+            '#316395',
+            '#994499',
+            '#22aa99',
+            '#aaaa11',
+            '#6633cc',
+            '#e67300',
+            '#8b0707',
+            '#651067',
+            '#329262',
+            '#5574a6',
+            '#3b3eac',
+            '#b77322',
+            '#16d620',
+            '#b91383',
+            '#f4359e',
+            '#9c5935',
+            '#a9c413',
+            '#2a778d',
+            '#668d1c',
+            '#bea413',
+            '#0c5922',
+            '#743411'
+        ]
+        this.tickerMap = new Map(this.state.stockList.filter(s => {
+            // Filter out securities we no longer own.
+            if (parseFloat(s.marketValue) > 0.0) {
+                return s
+            }
+        }).sort(
+            // Sort the remaining by current value
+            (a, b) => b.marketValue - a.marketValue
+        ).map(
+            // Map the sorted tickers to colors (rolling over after 31).
+            (s, idx) => [s.ticker, pieColors[idx % 31]]
+        ))
+    }
+
     // Returns the HTML to display the stock table.
     renderStockCharts() {
-        // Define the options for this pie chart.
-        var pieChartOptions = {
-            legend: 'none',
-            backgroundColor: 'transparent',
-            pieSliceText: 'label',
-            pieSliceTextStyle: { fontSize: 10 },
-            pieHole: 0.25,
-            sliceVisibilityThreshold: .005,
-            chartArea: { top: 0, bottom: 0, left: 25, right: 25 }
-        }
-        // Define the options for this pie chart.
+        // Map ticker names to pie chart colors.
+        this.assignTickerColors()
+        // Define the options for the bar chart.
         var barChartOptions = {
             backgroundColor: 'black',
             legend: { position: 'none' },
@@ -85,21 +126,21 @@ export default class MainPage extends React.Component {
                     <div className="chart-marketvalue">
                         <StockPieChart
                             chartData={this.state.stockList}
-                            chartOptions={pieChartOptions}
                             displayDataset="marketValue"
                             filterOptions={this.state.isStocksOnlyChecked}
                             title={toUSD(this.state.portfolioSummary.totalMarketValue)}
                             titleDesc={"Market Value"}
+                            tickerColors={this.tickerMap}
                         />
                     </div>
                     <div className="chart-costbasis">
                         <StockPieChart
                             chartData={this.state.stockList}
-                            chartOptions={pieChartOptions}
                             displayDataset="totalCostBasis"
                             filterOptions={this.state.isStocksOnlyChecked}
                             title={toUSD(this.state.portfolioSummary.totalCostBasis)}
                             titleDesc={"Cost Basis"}
+                            tickerColors={this.tickerMap}
                         />
                     </div>
                 </div>
