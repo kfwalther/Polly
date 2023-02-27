@@ -63,9 +63,10 @@ var StockSplits = map[string][]Transaction{
 
 // Definition of a security catalogue to house a portfolio of stock/ETF info in a map.
 type SecurityCatalogue struct {
-	id         uint
-	summary    *PortfolioSummary    `json:"summary"`
-	securities map[string]*Security `json:"securities"`
+	id          uint
+	sp500quotes quote.Quote
+	summary     *PortfolioSummary    `json:"summary"`
+	securities  map[string]*Security `json:"securities"`
 }
 
 // Constructor for a new SecurityCatalogue object, initializing the map.
@@ -113,24 +114,31 @@ func (sc *SecurityCatalogue) ProcessImport(txnData [][]interface{}) {
 }
 
 // Helper function to find the index in an array containing the entry matching the given time.
-func indexOf(element time.Time, arr []time.Time) int {
-	for k, v := range arr {
-		if element.Equal(v) {
-			return k
+func indexOf(target time.Time, arr []time.Time) int {
+	for idx, t := range arr {
+		if t.Equal(target) {
+			return idx
 		}
 	}
 	return -1 // not found.
 }
 
+func (sc *SecurityCatalogue) GetQuoteOfSP500(year int, month time.Month, day int) float64 {
+	// Get index of this date (Yahoo dates are returned in UTC).
+	idx := indexOf(time.Date(year, month, day, 0, 0, 0, 0, time.UTC), sc.sp500quotes.Date)
+	if idx != -1 {
+		return sc.sp500quotes.Close[idx]
+	} else {
+		// TODO: ERROR HERE
+		return 0.0
+	}
+}
+
 // Kicks off async functions in go-routines to calculate metrics for each security
 func (sc *SecurityCatalogue) Calculate() {
 	// Grab the historical S&P 500 data to compare against (2015 to present).
-	spy, _ := quote.NewQuoteFromYahoo("spy", "2015-01-01", time.Now().Format("2006-01-02"), quote.Daily, true)
-	idx := indexOf(time.Date(2023, time.February, 24, 0, 0, 0, 0, time.Local), spy.Date)
-	if idx != -1 {
-		log.Println("Yahoo quote:")
-		log.Println(spy.Close[idx])
-	}
+	sc.sp500quotes, _ = quote.NewQuoteFromYahoo("spy", "2015-01-01", time.Now().Format("2006-01-02"), quote.Daily, true)
+
 	// Setup a wait group.
 	var waitGroup sync.WaitGroup
 	// Specify the number of metrics to wait for.
@@ -141,6 +149,7 @@ func (sc *SecurityCatalogue) Calculate() {
 	for _, s := range sc.securities {
 		// Launch a new goroutine for this security.
 		go func(s *Security) {
+			// TODO: Pass SP500 quotes to this function to use when calculating transaction level metrics...
 			s.CalculateMetrics()
 			waitGroup.Done()
 		}(s)
