@@ -5,6 +5,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/markcheno/go-quote"
+
 	"golang.org/x/exp/maps"
 )
 
@@ -110,8 +112,25 @@ func (sc *SecurityCatalogue) ProcessImport(txnData [][]interface{}) {
 	}
 }
 
+// Helper function to find the index in an array containing the entry matching the given time.
+func indexOf(element time.Time, arr []time.Time) int {
+	for k, v := range arr {
+		if element.Equal(v) {
+			return k
+		}
+	}
+	return -1 // not found.
+}
+
 // Kicks off async functions in go-routines to calculate metrics for each security
 func (sc *SecurityCatalogue) Calculate() {
+	// Grab the historical S&P 500 data to compare against (2015 to present).
+	spy, _ := quote.NewQuoteFromYahoo("spy", "2015-01-01", time.Now().Format("2006-01-02"), quote.Daily, true)
+	idx := indexOf(time.Date(2023, time.February, 24, 0, 0, 0, 0, time.Local), spy.Date)
+	if idx != -1 {
+		log.Println("Yahoo quote:")
+		log.Println(spy.Close[idx])
+	}
 	// Setup a wait group.
 	var waitGroup sync.WaitGroup
 	// Specify the number of metrics to wait for.
@@ -120,7 +139,6 @@ func (sc *SecurityCatalogue) Calculate() {
 	log.Printf("Processing %d securities...\n", len(sc.securities))
 	// Iterate thru each security in the map, and calculate its data.
 	for _, s := range sc.securities {
-
 		// Launch a new goroutine for this security.
 		go func(s *Security) {
 			s.CalculateMetrics()
@@ -133,7 +151,7 @@ func (sc *SecurityCatalogue) Calculate() {
 
 	// Calculate total invested market value across all securities.
 	for _, s := range sc.securities {
-		s.DisplayMetrics()
+		// s.DisplayMetrics()
 		sc.summary.TotalMarketValue += s.MarketValue
 		sc.summary.TotalCostBasis += s.TotalCostBasis
 		sc.summary.DailyGain += s.DailyGain

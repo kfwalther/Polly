@@ -7,14 +7,18 @@ import (
 	"time"
 )
 
-// Definition of a transaction containing metadata about the trade.
+// Definition of a transaction containing metadata and calculated metrics about the trade.
 type Transaction struct {
-	id       uint
-	ticker   string
-	dateTime time.Time
-	action   string
-	shares   float64
-	price    float64
+	id           uint
+	ticker       string
+	dateTime     time.Time
+	action       string
+	shares       float64
+	price        float64
+	value        float64
+	totalReturn  float64
+	sp500Return  float64
+	excessReturn float64
 }
 
 func NormalizeAmerican(num string) string {
