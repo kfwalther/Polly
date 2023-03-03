@@ -31,6 +31,20 @@ var StockSplits = map[string][]Transaction{
 			action:   "Split",
 			shares:   3},
 	},
+	"NVDA": {
+		Transaction{
+			ticker:   "NVDA",
+			dateTime: time.Date(2021, 7, 20, 0, 0, 0, 0, time.Local),
+			action:   "Split",
+			shares:   4},
+	},
+	"SHOP": {
+		Transaction{
+			ticker:   "SHOP",
+			dateTime: time.Date(2022, 06, 29, 0, 0, 0, 0, time.Local),
+			action:   "Split",
+			shares:   10},
+	},
 	"AMZN": {
 		Transaction{
 			ticker:   "AMZN",
@@ -113,27 +127,6 @@ func (sc *SecurityCatalogue) ProcessImport(txnData [][]interface{}) {
 	}
 }
 
-// Helper function to find the index in an array containing the entry matching the given time.
-func indexOf(target time.Time, arr []time.Time) int {
-	for idx, t := range arr {
-		if t.Equal(target) {
-			return idx
-		}
-	}
-	return -1 // not found.
-}
-
-func (sc *SecurityCatalogue) GetQuoteOfSP500(year int, month time.Month, day int) float64 {
-	// Get index of this date (Yahoo dates are returned in UTC).
-	idx := indexOf(time.Date(year, month, day, 0, 0, 0, 0, time.UTC), sc.sp500quotes.Date)
-	if idx != -1 {
-		return sc.sp500quotes.Close[idx]
-	} else {
-		// TODO: ERROR HERE
-		return 0.0
-	}
-}
-
 // Kicks off async functions in go-routines to calculate metrics for each security
 func (sc *SecurityCatalogue) Calculate() {
 	// Grab the historical S&P 500 data to compare against (2015 to present).
@@ -150,7 +143,7 @@ func (sc *SecurityCatalogue) Calculate() {
 		// Launch a new goroutine for this security.
 		go func(s *Security) {
 			// TODO: Pass SP500 quotes to this function to use when calculating transaction level metrics...
-			s.CalculateMetrics()
+			s.CalculateMetrics(sc.sp500quotes)
 			waitGroup.Done()
 		}(s)
 	}
@@ -160,7 +153,7 @@ func (sc *SecurityCatalogue) Calculate() {
 
 	// Calculate total invested market value across all securities.
 	for _, s := range sc.securities {
-		// s.DisplayMetrics()
+		s.DisplayMetrics()
 		sc.summary.TotalMarketValue += s.MarketValue
 		sc.summary.TotalCostBasis += s.TotalCostBasis
 		sc.summary.DailyGain += s.DailyGain

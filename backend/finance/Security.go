@@ -4,7 +4,10 @@ import (
 	"errors"
 	"log"
 	"sort"
+	"time"
 
+	"github.com/markcheno/go-quote"
+	"github.com/piquette/finance-go"
 	"github.com/piquette/finance-go/equity"
 )
 
@@ -40,13 +43,36 @@ func NewSecurity(tkr string, secType string) (*Security, error) {
 	return &s, nil
 }
 
-// Grab the current market price of this ticker symbol, from the web.
-func (s *Security) DetermineCurrentPrice() {
-	// Get the current info for the given ticker.
-	q, err := equity.Get(s.Ticker)
-	if err != nil || q == nil {
-		return
+// Helper function to find the index in an array containing the entry matching the given time.
+func indexOf(target time.Time, arr []time.Time) int {
+	for idx, t := range arr {
+		if t.Equal(target) {
+			return idx
+		}
 	}
+	return -1 // not found.
+}
+
+func (s *Security) GetQuoteOfSP500(quoteDate time.Time, sp500Quotes quote.Quote) float64 {
+	// Get index of this date (Yahoo dates are returned in UTC).
+	idx := indexOf(time.Date(quoteDate.Year(), quoteDate.Month(), quoteDate.Day(), 0, 0, 0, 0, time.UTC), sp500Quotes.Date)
+	if idx != -1 {
+		return sp500Quotes.Close[idx]
+	} else {
+		y1, m1, d1 := quoteDate.Date()
+		yNow, mNow, dNow := time.Now().Date()
+		if y1 == yNow && m1 == mNow && d1 == dNow {
+			// Likely don't have today's S&P500 quote queried yet, just return the latest quote.
+			return sp500Quotes.Close[len(sp500Quotes.Close)-1]
+		} else {
+			// TODO: ERROR HERE
+			return 0.0
+		}
+	}
+}
+
+// Grab the current market price of this ticker symbol, from the web.
+func (s *Security) DetermineCurrentPrice(q *finance.Equity) {
 	// Based on the market's current state, grab the proper current quoted price.
 	if q.MarketState == "PRE" && q.PreMarketPrice > 0.0 {
 		s.MarketPrice = q.PreMarketPrice
@@ -55,25 +81,33 @@ func (s *Security) DetermineCurrentPrice() {
 	} else {
 		s.MarketPrice = q.RegularMarketPrice
 	}
-	// Calculate the total 1-day gain/loss for this stock.
-	s.DailyGain = q.RegularMarketChange * s.NumShares
-	s.DailyGainPercentage = q.RegularMarketChangePercent
 }
 
 // Calculate various metrics about this security.
-func (s *Security) CalculateMetrics() {
+func (s *Security) CalculateMetrics(sp500Quotes quote.Quote) {
+	hasSplits := false
 	// Lookup if this security has any stock splits to account for.
 	if val, ok := StockSplits[s.Ticker]; ok {
 		s.transactions = append(s.transactions, val...)
+		hasSplits = true
 	}
 	// Order the transactions by date, using anonymous function.
 	sort.Slice(s.transactions, func(i, j int) bool {
 		return s.transactions[i].dateTime.Before(s.transactions[j].dateTime)
 	})
+	// Get the current info for the given ticker.
+	q, err := equity.Get(s.Ticker)
+	if err != nil || q == nil {
+		return
+	}
+	// Get current market price.
+	s.DetermineCurrentPrice(q)
 	// Create a slice to use as a FIFO queue.
 	buyQ := make([]Transaction, 0)
-	// Iterate thru each transaction.
-	for _, t := range s.transactions {
+	// Iterate thru each transaction (by index, using range creates a copy).
+	for idx := 0; idx < len(s.transactions); idx++ {
+		// Get a reference to the current txn.
+		t := &s.transactions[idx]
 		// Ignore cash withdraws/deposits
 		if t.ticker == "CASH" {
 			continue
@@ -81,8 +115,13 @@ func (s *Security) CalculateMetrics() {
 		// For buys, increment number of shares.
 		if t.action == "Buy" {
 			// Add the txn to the buy queue.
-			buyQ = append(buyQ, t)
+			buyQ = append(buyQ, *t)
+			// Calculate the return had we bought S&P500 for this transaction.
+			spDateOfTxn := s.GetQuoteOfSP500(t.dateTime, sp500Quotes)
+			spNow := s.GetQuoteOfSP500(time.Now(), sp500Quotes)
+			t.sp500Return = ((spNow - spDateOfTxn) / spDateOfTxn) * 100.0
 		} else if t.action == "Sell" {
+			// TODO Calculate SP500 theoretical comparison return as done above for BUYs.
 			remainingShares := t.shares
 			for remainingShares > 0 {
 				// Make sure we have buys to cover remaining shares in the sell.
@@ -119,6 +158,24 @@ func (s *Security) CalculateMetrics() {
 				buyQ[i].shares *= t.shares
 			}
 		}
+
+		// Calculate the theoretical return on this txn, if we held.
+		// TODO: Calculate for SELL.
+		if t.action == "Buy" {
+			// Keep track of the total multiplier to adjust for any stock splits.
+			splitMultiple := 1.0
+			// Iterate from the current txn to the end, checking for any stock splits.
+			if (idx != len(s.transactions)-1) && hasSplits {
+				for n := idx + 1; n < len(s.transactions); n++ {
+					if s.transactions[n].action == "Split" {
+						splitMultiple *= s.transactions[n].shares
+					}
+				}
+			}
+			// Calculate the theoretical total return (%) of each txn (using any split multiple from above).
+			t.totalReturn = ((s.MarketPrice*t.shares*splitMultiple - t.value) / t.value) * 100.0
+			t.excessReturn = t.totalReturn - t.sp500Return
+		}
 	}
 
 	// Calculate cost bases and unrealized gains with any remaining buy shares in the buy queue.
@@ -126,8 +183,9 @@ func (s *Security) CalculateMetrics() {
 		s.NumShares += txn.shares
 		s.TotalCostBasis += txn.shares * txn.price
 	}
-	// Request the current market price, and calculate daily gain values.
-	s.DetermineCurrentPrice()
+	// Calculate the total 1-day gain/loss for this stock.
+	s.DailyGain = q.RegularMarketChange * s.NumShares
+	s.DailyGainPercentage = q.RegularMarketChangePercent
 	if s.NumShares > 0 {
 		// Unit cost basis
 		s.UnitCostBasis = s.TotalCostBasis / s.NumShares
@@ -153,4 +211,12 @@ func (s *Security) DisplayMetrics() {
 	log.Printf("Unrealized Gain: $%f\n", s.UnrealizedGain)
 	log.Printf("Unrealized Gain Percent: %f\n", s.UnrealizedGainPercentage)
 	log.Printf("Realized Gain: $%f\n", s.RealizedGain)
+	for _, txn := range s.transactions {
+		log.Printf("   -----TXN: %s -----\n", txn.dateTime.Format("2006-01-02"))
+		log.Printf("   Num Shares: $%f\n", txn.shares)
+		log.Printf("   Price: $%f\n", txn.price)
+		log.Printf("   Total Return: $%f\n", txn.totalReturn)
+		log.Printf("   SP500 Return: $%f\n", txn.sp500Return)
+		log.Printf("   Excess Return: $%f\n", txn.excessReturn)
+	}
 }
