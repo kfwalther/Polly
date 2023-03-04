@@ -1,11 +1,12 @@
 import React from 'react'
 import { StockTable } from './StockTable'
 import { toUSD } from './Helpers'
-import StockPieChart from './StockPieChart'
+import { StockPieChart, PieChartColors } from './StockPieChart'
 import StockBarChart from './StockBarChart'
 import Checkbox from './Checkbox'
 import PortfolioSummary from './PortfolioSummary';
 
+// Defines the Main Page of our app.
 export default class MainPage extends React.Component {
     constructor(props) {
         super(props);
@@ -36,6 +37,8 @@ export default class MainPage extends React.Component {
 
     // Runs on component mount, to grab data from the server.
     componentDidMount() {
+        // Make entire background black.
+        document.body.style.backgroundColor = "black"
         this.serverRequest();
     }
 
@@ -49,40 +52,9 @@ export default class MainPage extends React.Component {
         this.setState({ isCurrentOnlyChecked: checked })
     }
 
+    // Helper function to map colors to our current list of stocks, sorted by market value.
     assignTickerColors() {
-        var pieColors = [
-            '#3366cc',
-            '#dc3912',
-            '#ff9900',
-            '#109618',
-            '#990099',
-            '#0099c6',
-            '#dd4477',
-            '#66aa00',
-            '#b82e2e',
-            '#316395',
-            '#994499',
-            '#22aa99',
-            '#aaaa11',
-            '#6633cc',
-            '#e67300',
-            '#8b0707',
-            '#651067',
-            '#329262',
-            '#5574a6',
-            '#3b3eac',
-            '#b77322',
-            '#16d620',
-            '#b91383',
-            '#f4359e',
-            '#9c5935',
-            '#a9c413',
-            '#2a778d',
-            '#668d1c',
-            '#bea413',
-            '#0c5922',
-            '#743411'
-        ]
+        // Sort the stocks/ETFs we currently own by current market value, and map them to the colors above.
         this.tickerMap = new Map(this.state.stockList.filter(s => {
             // Filter out securities we no longer own.
             if (parseFloat(s.marketValue) > 0.0) {
@@ -93,11 +65,11 @@ export default class MainPage extends React.Component {
             (a, b) => b.marketValue - a.marketValue
         ).map(
             // Map the sorted tickers to colors (rolling over after 31).
-            (s, idx) => [s.ticker, pieColors[idx % 31]]
+            (s, idx) => [s.ticker, PieChartColors[idx % 31]]
         ))
     }
 
-    // Returns the HTML to display the stock table.
+    // Returns the JSX to display the stock main page.
     renderStockCharts() {
         // Map ticker names to pie chart colors.
         this.assignTickerColors()
@@ -110,7 +82,7 @@ export default class MainPage extends React.Component {
             hAxis: { showTextEvery: 1, maxAlternation: 1, slantedText: true, slantedTextAngle: 45, textStyle: { fontSize: 12, bold: true, color: 'grey' } },
             bar: { groupWidth: '40%' }
         }
-        // Render the stock charts and tables.
+        // Render the stock charts and tables for the main page.
         return (
             <>
                 <PortfolioSummary summaryData={this.state.portfolioSummary} />
@@ -121,6 +93,7 @@ export default class MainPage extends React.Component {
                     checked={this.state.isStocksOnlyChecked}
                     onClick={this.onStocksOnlyCheckboxClick}
                 />
+                {/* Put the two pie charts in a div container so they sit horizontally adjacent. */}
                 <div className="charts-container">
                     <div className="chart-marketvalue">
                         <StockPieChart
@@ -144,6 +117,7 @@ export default class MainPage extends React.Component {
                     </div>
                 </div>
                 <h3 className="header-myholdings">My Holdings</h3>
+                {/* Display our current holdings in a bar chart. */}
                 <StockBarChart
                     chartData={this.state.stockList}
                     chartOptions={barChartOptions}
@@ -154,6 +128,7 @@ export default class MainPage extends React.Component {
                     onClick={this.onCurrentOnlyCheckboxClick}
                     marginLeft="10px"
                 />
+                {/* Display all the stocks/ETFs in a sortable table. */}
                 <StockTable
                     data={this.state.isCurrentOnlyChecked ? this.state.stockList.filter(s => (s.marketValue > 0.0)) : this.state.stockList}
                 />
@@ -161,9 +136,10 @@ export default class MainPage extends React.Component {
         )
     }
 
-    // Render the stock table, or a loader screen until data is retrieved from server.
+    // Render the stock main page, or a loader screen until data is retrieved from server.
     render() {
         const curState = this.state
+        // TODO: Improve this loading prompt...
         return curState.stockList.length ? this.renderStockCharts() : (
             <span>LOADING STOCKS...</span>
         )

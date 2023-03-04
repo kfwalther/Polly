@@ -3,7 +3,6 @@ import React from 'react';
 import MainPage from './components/MainPage'
 import { Header } from './components/Header';
 import { NavHeader } from './components/NavHeader';
-import { Helmet } from 'react-helmet'
 import { Routes, Route } from 'react-router-dom';
 import TransactionsPage from './components/TransactionsPage';
 
@@ -11,9 +10,6 @@ function App() {
   // This is what gets rendered on the page.
   return (
     <>
-      <Helmet>
-        <style>{'body { background-color: black; }'}</style>
-      </Helmet>
       { /* Display the decorative header, and navigation bar. */}
       <Header />
       <NavHeader />
