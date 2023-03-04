@@ -15,3 +15,8 @@ export function toPercent(numberString) {
     let number = parseFloat(numberString);
     return number.toFixed(2) + "%";
 }
+
+// Extract the date portion from the front of an ISO-formatted UTC datetime string.
+export function getDateFromUtcDateTime(dateTime) {
+    return dateTime.substring(0, dateTime.indexOf("T"));
+}

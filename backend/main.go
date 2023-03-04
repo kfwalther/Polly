@@ -71,9 +71,10 @@ func main() {
 	// Create a controller to manage front-end interaction.
 	ctrlr := controllers.SecurityController{}
 	ctrlr.Init(catalogue)
-	// Setup the GET route to retrieve all the securities.
-	router.GET("/securities", ctrlr.GetSecurities)
+	// Setup the GET routes for presenting data to the web server.
 	router.GET("/summary", ctrlr.GetSummary)
+	router.GET("/securities", ctrlr.GetSecurities)
+	router.GET("/transactions", ctrlr.GetTransactions)
 
 	// Run the server.
 	router.Run(":5000")

@@ -16,6 +16,21 @@ func (c *SecurityController) Init(catalogue *finance.SecurityCatalogue) {
 	c.securityCatalogue = catalogue
 }
 
+func (c *SecurityController) GetSummary(ctx *gin.Context) {
+	summary := c.securityCatalogue.GetPortfolioSummary()
+	if summary == nil {
+		log.Printf("No portfolio summary to forward thru API to front-end!")
+		ctx.JSON(400, gin.H{
+			"error": "No portfolio summary found!",
+		})
+	} else {
+		log.Printf("Sending portfolio summary to front-end...")
+		ctx.JSON(200, gin.H{
+			"summary": summary,
+		})
+	}
+}
+
 func (c *SecurityController) GetSecurities(ctx *gin.Context) {
 	secs := c.securityCatalogue.GetSecurityList()
 	if len(secs) == 0 {
@@ -31,17 +46,17 @@ func (c *SecurityController) GetSecurities(ctx *gin.Context) {
 	}
 }
 
-func (c *SecurityController) GetSummary(ctx *gin.Context) {
-	summary := c.securityCatalogue.GetPortfolioSummary()
-	if summary == nil {
-		log.Printf("No portfolio summary to forward thru API to front-end!")
+func (c *SecurityController) GetTransactions(ctx *gin.Context) {
+	txns := c.securityCatalogue.GetTransactionList()
+	if len(txns) == 0 {
+		log.Printf("No transactions to forward thru API to front-end!")
 		ctx.JSON(400, gin.H{
-			"error": "No portfolio summary found!",
+			"error": "No transactions found in the portfolio!",
 		})
 	} else {
-		log.Printf("Sending portfolio summary to front-end...")
+		log.Printf("Sending %d transactions to front-end...", len(txns))
 		ctx.JSON(200, gin.H{
-			"summary": summary,
+			"transactions": txns,
 		})
 	}
 }

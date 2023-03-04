@@ -93,13 +93,23 @@ func (s *Security) CalculateMetrics(sp500Quotes quote.Quote) {
 	}
 	// Order the transactions by date, using anonymous function.
 	sort.Slice(s.transactions, func(i, j int) bool {
-		return s.transactions[i].dateTime.Before(s.transactions[j].dateTime)
+		return s.transactions[i].DateTime.Before(s.transactions[j].DateTime)
 	})
 	// Get the current info for the given ticker.
 	q, err := equity.Get(s.Ticker)
 	if err != nil || q == nil {
 		return
 	}
+	// TODO: Figure out what fields we can grab from this quote...
+	// if s.Ticker == "S" {
+	// 	log.Printf("Book Value: %f", q.BookValue)
+	// 	log.Printf("Fwd PE: %f", q.ForwardPE)
+	// 	log.Printf("Price / Book: %f", q.PriceToBook)
+	// 	log.Printf("Trailing PE: %f", q.TrailingPE)
+	// 	log.Printf("Market Cap: %d", q.MarketCap)
+	// 	log.Printf("Quote Source: %s", q.QuoteSource)
+	// }
+
 	// Get current market price.
 	s.DetermineCurrentPrice(q)
 	// Create a slice to use as a FIFO queue.
@@ -109,79 +119,79 @@ func (s *Security) CalculateMetrics(sp500Quotes quote.Quote) {
 		// Get a reference to the current txn.
 		t := &s.transactions[idx]
 		// Ignore cash withdraws/deposits
-		if t.ticker == "CASH" {
+		if t.Ticker == "CASH" {
 			continue
 		}
 		// For buys, increment number of shares.
-		if t.action == "Buy" {
+		if t.Action == "Buy" {
 			// Add the txn to the buy queue.
 			buyQ = append(buyQ, *t)
 			// Calculate the return had we bought S&P500 for this transaction.
-			spDateOfTxn := s.GetQuoteOfSP500(t.dateTime, sp500Quotes)
+			spDateOfTxn := s.GetQuoteOfSP500(t.DateTime, sp500Quotes)
 			spNow := s.GetQuoteOfSP500(time.Now(), sp500Quotes)
-			t.sp500Return = ((spNow - spDateOfTxn) / spDateOfTxn) * 100.0
-		} else if t.action == "Sell" {
+			t.Sp500Return = ((spNow - spDateOfTxn) / spDateOfTxn) * 100.0
+		} else if t.Action == "Sell" {
 			// TODO Calculate SP500 theoretical comparison return as done above for BUYs.
-			remainingShares := t.shares
+			remainingShares := t.Shares
 			for remainingShares > 0 {
 				// Make sure we have buys to cover remaining shares in the sell.
 				if len(buyQ) > 0 {
-					if buyQ[0].shares > remainingShares {
+					if buyQ[0].Shares > remainingShares {
 						// Remaining sell shares are covered by this buy.
-						s.RealizedGain += (t.price - buyQ[0].price) * remainingShares
-						buyQ[0].shares -= remainingShares
+						s.RealizedGain += (t.Price - buyQ[0].Price) * remainingShares
+						buyQ[0].Shares -= remainingShares
 						remainingShares = 0
-					} else if buyQ[0].shares == remainingShares {
+					} else if buyQ[0].Shares == remainingShares {
 						// Shares in this buy equal remaining shares, pop the buy off the queue.
-						s.RealizedGain += (t.price - buyQ[0].price) * remainingShares
+						s.RealizedGain += (t.Price - buyQ[0].Price) * remainingShares
 						remainingShares = 0
 						buyQ = buyQ[1:]
-					} else if buyQ[0].shares < remainingShares {
+					} else if buyQ[0].Shares < remainingShares {
 						// This buy is completely covered by sell, pop it.
-						s.RealizedGain += (t.price - buyQ[0].price) * buyQ[0].shares
-						remainingShares -= buyQ[0].shares
+						s.RealizedGain += (t.Price - buyQ[0].Price) * buyQ[0].Shares
+						remainingShares -= buyQ[0].Shares
 						buyQ = buyQ[1:]
 					}
 				} else {
 					// Queue is empty, but apparently have more sold shares to account for.
 					// There was either a stock split, or re-invested dividends.
-					additionalGains := remainingShares * t.price
+					additionalGains := remainingShares * t.Price
 					s.RealizedGain += additionalGains
-					log.Printf("%s is oversold - Adding remaining shares to realized gain (%f shares, total $%f)\n", t.ticker, remainingShares, additionalGains)
+					log.Printf("%s is oversold - Adding remaining shares to realized gain (%f shares, total $%f)\n", t.Ticker, remainingShares, additionalGains)
 					break
 				}
 			}
-		} else if t.action == "Split" {
+		} else if t.Action == "Split" {
 			// Apply the split to all txns in the buy queue.
 			for i := range buyQ {
-				buyQ[i].price /= t.shares
-				buyQ[i].shares *= t.shares
+				buyQ[i].Price /= t.Shares
+				buyQ[i].Shares *= t.Shares
 			}
 		}
 
 		// Calculate the theoretical return on this txn, if we held.
 		// TODO: Calculate for SELL.
-		if t.action == "Buy" {
+		if t.Action == "Buy" {
 			// Keep track of the total multiplier to adjust for any stock splits.
 			splitMultiple := 1.0
 			// Iterate from the current txn to the end, checking for any stock splits.
 			if (idx != len(s.transactions)-1) && hasSplits {
 				for n := idx + 1; n < len(s.transactions); n++ {
-					if s.transactions[n].action == "Split" {
-						splitMultiple *= s.transactions[n].shares
+					if s.transactions[n].Action == "Split" {
+						splitMultiple *= s.transactions[n].Shares
 					}
 				}
 			}
 			// Calculate the theoretical total return (%) of each txn (using any split multiple from above).
-			t.totalReturn = ((s.MarketPrice*t.shares*splitMultiple - t.value) / t.value) * 100.0
-			t.excessReturn = t.totalReturn - t.sp500Return
+			t.TotalReturn = ((s.MarketPrice*t.Shares*splitMultiple - t.Value) / t.Value) * 100.0
+			t.ExcessReturn = t.TotalReturn - t.Sp500Return
 		}
 	}
 
 	// Calculate cost bases and unrealized gains with any remaining buy shares in the buy queue.
 	for _, txn := range buyQ {
-		s.NumShares += txn.shares
-		s.TotalCostBasis += txn.shares * txn.price
+		s.NumShares += txn.Shares
+		s.TotalCostBasis += txn.Shares * txn.Price
 	}
 	// Calculate the total 1-day gain/loss for this stock.
 	s.DailyGain = q.RegularMarketChange * s.NumShares
@@ -212,11 +222,11 @@ func (s *Security) DisplayMetrics() {
 	log.Printf("Unrealized Gain Percent: %f\n", s.UnrealizedGainPercentage)
 	log.Printf("Realized Gain: $%f\n", s.RealizedGain)
 	for _, txn := range s.transactions {
-		log.Printf("   -----TXN: %s -----\n", txn.dateTime.Format("2006-01-02"))
-		log.Printf("   Num Shares: $%f\n", txn.shares)
-		log.Printf("   Price: $%f\n", txn.price)
-		log.Printf("   Total Return: $%f\n", txn.totalReturn)
-		log.Printf("   SP500 Return: $%f\n", txn.sp500Return)
-		log.Printf("   Excess Return: $%f\n", txn.excessReturn)
+		log.Printf("   -----TXN: %s -----\n", txn.DateTime.Format("2006-01-02"))
+		log.Printf("   Num Shares: $%f\n", txn.Shares)
+		log.Printf("   Price: $%f\n", txn.Price)
+		log.Printf("   Total Return: $%f\n", txn.TotalReturn)
+		log.Printf("   SP500 Return: $%f\n", txn.Sp500Return)
+		log.Printf("   Excess Return: $%f\n", txn.ExcessReturn)
 	}
 }

@@ -14,64 +14,64 @@ import (
 var StockSplits = map[string][]Transaction{
 	"NFLX": {
 		Transaction{
-			ticker:   "NFLX",
-			dateTime: time.Date(2015, 7, 15, 0, 0, 0, 0, time.Local),
-			action:   "Split",
-			shares:   7},
+			Ticker:   "NFLX",
+			DateTime: time.Date(2015, 7, 15, 0, 0, 0, 0, time.Local),
+			Action:   "Split",
+			Shares:   7},
 	},
 	"TSLA": {
 		Transaction{
-			ticker:   "TSLA",
-			dateTime: time.Date(2020, 8, 31, 0, 0, 0, 0, time.Local),
-			action:   "Split",
-			shares:   5},
+			Ticker:   "TSLA",
+			DateTime: time.Date(2020, 8, 31, 0, 0, 0, 0, time.Local),
+			Action:   "Split",
+			Shares:   5},
 		Transaction{
-			ticker:   "TSLA",
-			dateTime: time.Date(2022, 8, 25, 0, 0, 0, 0, time.Local),
-			action:   "Split",
-			shares:   3},
+			Ticker:   "TSLA",
+			DateTime: time.Date(2022, 8, 25, 0, 0, 0, 0, time.Local),
+			Action:   "Split",
+			Shares:   3},
 	},
 	"NVDA": {
 		Transaction{
-			ticker:   "NVDA",
-			dateTime: time.Date(2021, 7, 20, 0, 0, 0, 0, time.Local),
-			action:   "Split",
-			shares:   4},
+			Ticker:   "NVDA",
+			DateTime: time.Date(2021, 7, 20, 0, 0, 0, 0, time.Local),
+			Action:   "Split",
+			Shares:   4},
 	},
 	"SHOP": {
 		Transaction{
-			ticker:   "SHOP",
-			dateTime: time.Date(2022, 06, 29, 0, 0, 0, 0, time.Local),
-			action:   "Split",
-			shares:   10},
+			Ticker:   "SHOP",
+			DateTime: time.Date(2022, 06, 29, 0, 0, 0, 0, time.Local),
+			Action:   "Split",
+			Shares:   10},
 	},
 	"AMZN": {
 		Transaction{
-			ticker:   "AMZN",
-			dateTime: time.Date(2022, 6, 6, 0, 0, 0, 0, time.Local),
-			action:   "Split",
-			shares:   20},
+			Ticker:   "AMZN",
+			DateTime: time.Date(2022, 6, 6, 0, 0, 0, 0, time.Local),
+			Action:   "Split",
+			Shares:   20},
 	},
 	"GOOG": {
 		Transaction{
-			ticker:   "GOOG",
-			dateTime: time.Date(2022, 7, 18, 0, 0, 0, 0, time.Local),
-			action:   "Split",
-			shares:   20},
+			Ticker:   "GOOG",
+			DateTime: time.Date(2022, 7, 18, 0, 0, 0, 0, time.Local),
+			Action:   "Split",
+			Shares:   20},
 	},
 	"GOOGL": {
 		Transaction{
-			ticker:   "GOOGL",
-			dateTime: time.Date(2022, 7, 18, 0, 0, 0, 0, time.Local),
-			action:   "Split",
-			shares:   20},
+			Ticker:   "GOOGL",
+			DateTime: time.Date(2022, 7, 18, 0, 0, 0, 0, time.Local),
+			Action:   "Split",
+			Shares:   20},
 	},
 	"IAU": {
 		Transaction{
-			ticker:   "IAU",
-			dateTime: time.Date(2021, 5, 24, 0, 0, 0, 0, time.Local),
-			action:   "Split",
-			shares:   0.5},
+			Ticker:   "IAU",
+			DateTime: time.Date(2021, 5, 24, 0, 0, 0, 0, time.Local),
+			Action:   "Split",
+			Shares:   0.5},
 	},
 }
 
@@ -79,8 +79,8 @@ var StockSplits = map[string][]Transaction{
 type SecurityCatalogue struct {
 	id          uint
 	sp500quotes quote.Quote
-	summary     *PortfolioSummary    `json:"summary"`
-	securities  map[string]*Security `json:"securities"`
+	summary     *PortfolioSummary
+	securities  map[string]*Security
 }
 
 // Constructor for a new SecurityCatalogue object, initializing the map.
@@ -91,12 +91,21 @@ func NewSecurityCatalogue() *SecurityCatalogue {
 	return &sc
 }
 
+func (sc *SecurityCatalogue) GetPortfolioSummary() *PortfolioSummary {
+	return sc.summary
+}
+
 func (sc *SecurityCatalogue) GetSecurityList() []*Security {
 	return maps.Values(sc.securities)
 }
 
-func (sc *SecurityCatalogue) GetPortfolioSummary() *PortfolioSummary {
-	return sc.summary
+func (sc *SecurityCatalogue) GetTransactionList() []Transaction {
+	var txns []Transaction
+	// Iterate through each security, appending the transactions to a slice as we go.
+	for _, s := range sc.securities {
+		txns = append(txns, s.transactions...)
+	}
+	return txns
 }
 
 // Method to process the imported data, by creating a new [Transaction] for
@@ -112,14 +121,14 @@ func (sc *SecurityCatalogue) ProcessImport(txnData [][]interface{}) {
 			txn := NewTransaction(row[0].(string), row[1].(string), row[2].(string), row[3].(string), row[4].(string))
 			if txn != nil {
 				// Check if we've seen the current ticker yet.
-				if val, ok := sc.securities[txn.ticker]; ok {
+				if val, ok := sc.securities[txn.Ticker]; ok {
 					// Yes, append the next transaction
 					val.transactions = append(val.transactions, *txn)
 				} else {
 					// Create a new Security to track transactions for it, then append.
-					if sec, err := NewSecurity(txn.ticker, row[6].(string)); err == nil {
+					if sec, err := NewSecurity(txn.Ticker, row[6].(string)); err == nil {
 						sec.transactions = append(sec.transactions, *txn)
-						sc.securities[txn.ticker] = sec
+						sc.securities[txn.Ticker] = sec
 					}
 				}
 			}
@@ -142,7 +151,7 @@ func (sc *SecurityCatalogue) Calculate() {
 	for _, s := range sc.securities {
 		// Launch a new goroutine for this security.
 		go func(s *Security) {
-			// TODO: Pass SP500 quotes to this function to use when calculating transaction level metrics...
+			// Pass SP500 quotes to this function to use when calculating transaction level metrics.
 			s.CalculateMetrics(sc.sp500quotes)
 			waitGroup.Done()
 		}(s)
@@ -153,7 +162,7 @@ func (sc *SecurityCatalogue) Calculate() {
 
 	// Calculate total invested market value across all securities.
 	for _, s := range sc.securities {
-		s.DisplayMetrics()
+		// s.DisplayMetrics()
 		sc.summary.TotalMarketValue += s.MarketValue
 		sc.summary.TotalCostBasis += s.TotalCostBasis
 		sc.summary.DailyGain += s.DailyGain
