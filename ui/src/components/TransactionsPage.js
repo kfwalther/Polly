@@ -2,8 +2,10 @@
 
 export default function TransactionsPage() {
     return (
-        <div >
-            Hello
-        </div>
+        <>
+            <div style={{ color: "white" }}>
+                Hello World!
+            </div>
+        </>
     );
 }

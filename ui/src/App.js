@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import './App.css'
+import React from 'react';
 import MainPage from './components/MainPage'
 import { Header } from './components/Header';
 import { NavHeader } from './components/NavHeader';
 import { Helmet } from 'react-helmet'
-import './App.css'
+import { Routes, Route } from 'react-router-dom';
+import TransactionsPage from './components/TransactionsPage';
 
 function App() {
   // This is what gets rendered on the page.
@@ -12,9 +14,16 @@ function App() {
       <Helmet>
         <style>{'body { background-color: black; }'}</style>
       </Helmet>
+      { /* Display the decorative header, and navigation bar. */}
       <Header />
       <NavHeader />
-      <MainPage />
+      { /* Based on the selected route path, load a specific page. Index page is the default. */}
+      <Routes>
+        <Route path="/*">
+          <Route index element={<MainPage />} />
+          <Route path='transactions' element={<TransactionsPage />} />
+        </Route>
+      </Routes>
     </>
   )
 }
