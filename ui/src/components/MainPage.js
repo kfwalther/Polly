@@ -5,6 +5,8 @@ import StockPieChart from './StockPieChart'
 import StockBarChart from './StockBarChart'
 import Checkbox from './Checkbox'
 import PortfolioSummary from './PortfolioSummary';
+import TransactionsPage from './TransactionsPage';
+import { Routes, Route } from 'react-router-dom';
 
 export default class MainPage extends React.Component {
     constructor(props) {
@@ -113,6 +115,10 @@ export default class MainPage extends React.Component {
         // Render the stock charts and tables.
         return (
             <>
+                <Routes> {/* The Switch decides which component to show based on the current URL.*/}
+                    <Route exact path='/' element={<MainPage/>}></Route>
+                    <Route exact path='/transactions' element={<TransactionsPage/>}></Route>
+                </Routes>
                 <button >Refresh</button>
                 <PortfolioSummary summaryData={this.state.portfolioSummary} />
                 <br></br>
