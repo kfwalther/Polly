@@ -1,10 +1,10 @@
 import React from 'react'
-import { StockTable } from './StockTable'
 import { toUSD } from './Helpers'
 import { StockPieChart, PieChartColors } from './StockPieChart'
 import StockBarChart from './StockBarChart'
 import Checkbox from './Checkbox'
 import PortfolioSummary from './PortfolioSummary';
+import { PortfolioHoldingsTable } from './PortfolioHoldingsTable'
 
 // Defines the Main Page of our app.
 export default class MainPage extends React.Component {
@@ -129,8 +129,8 @@ export default class MainPage extends React.Component {
                     marginLeft="10px"
                 />
                 {/* Display all the stocks/ETFs in a sortable table. */}
-                <StockTable
-                    data={this.state.isCurrentOnlyChecked ? this.state.stockList.filter(s => (s.marketValue > 0.0)) : this.state.stockList}
+                <PortfolioHoldingsTable
+                    holdingsData={this.state.isCurrentOnlyChecked ? this.state.stockList.filter(s => (s.marketValue > 0.0)) : this.state.stockList}
                 />
             </>
         )
