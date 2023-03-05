@@ -121,6 +121,33 @@ table {
     overflow-y: hidden;
 }
 
+.txn-summary-table {
+    table-layout: fixed;
+    border-collapse: collapse;
+    margin-top: 20px;
+    margin-bottom: 30px;
+    width: 700px;
+    padding-bottom: 100px;
+}
+
+.txn-summary-table-header {
+    background-color: black;
+    color: white;
+    border: none;
+    text-align: center;
+    font-size: 22px;
+}
+
+.txn-summary-table-cell {
+    background-color: black;
+    color: white;
+    border: none;
+    text-align: center;
+    font-size: 26px;
+    margin: 0;
+    padding: 0;
+}
+
 th,
 td {
     border: 0.5px solid #cacaca;
