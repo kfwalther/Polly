@@ -6,7 +6,18 @@ export const TABLE_RED = '#ff2e1f'
 export const TABLE_GREEN = '#56DC28'
 
 
-export function StockTable({ data, columns }) {
+export function StockTable({ data, columns, initialSortCol }) {
+
+    // Define an initial sort column.
+    const sortCol = React.useMemo(
+        () => [
+            {
+                id: initialSortCol,
+                desc: false
+            }
+        ],
+        []
+    );
 
     // Define the table, with the useTable hook.
     const {
@@ -17,7 +28,10 @@ export function StockTable({ data, columns }) {
         prepareRow, // Prepare the row (this function needs to be called for each row before getting the row props)
     } = useTable({
         columns,
-        data
+        data,
+        initialState: {
+            sortBy: sortCol
+        }
     },
         useSortBy
     );

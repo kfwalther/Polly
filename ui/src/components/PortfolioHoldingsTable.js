@@ -107,6 +107,7 @@ export function PortfolioHoldingsTable({ holdingsData }) {
         <StockTable
             data={holdingsData}
             columns={holdingsCols}
+            initialSortCol={'ticker'}
         />
     );
 }

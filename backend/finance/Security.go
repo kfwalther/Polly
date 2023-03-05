@@ -131,6 +131,10 @@ func (s *Security) CalculateMetrics(sp500Quotes quote.Quote) {
 			spNow := s.GetQuoteOfSP500(time.Now(), sp500Quotes)
 			t.Sp500Return = ((spNow - spDateOfTxn) / spDateOfTxn) * 100.0
 		} else if t.Action == "Sell" {
+			// Calculate the return had we sold S&P500 for this transaction.
+			spDateOfTxn := s.GetQuoteOfSP500(t.DateTime, sp500Quotes)
+			spNow := s.GetQuoteOfSP500(time.Now(), sp500Quotes)
+			t.Sp500Return = -((spNow - spDateOfTxn) / spDateOfTxn) * 100.0
 			// TODO Calculate SP500 theoretical comparison return as done above for BUYs.
 			remainingShares := t.Shares
 			for remainingShares > 0 {
@@ -170,8 +174,7 @@ func (s *Security) CalculateMetrics(sp500Quotes quote.Quote) {
 		}
 
 		// Calculate the theoretical return on this txn, if we held.
-		// TODO: Calculate for SELL.
-		if t.Action == "Buy" {
+		if t.Action == "Buy" || t.Action == "Sell" {
 			// Keep track of the total multiplier to adjust for any stock splits.
 			splitMultiple := 1.0
 			// Iterate from the current txn to the end, checking for any stock splits.
@@ -182,8 +185,12 @@ func (s *Security) CalculateMetrics(sp500Quotes quote.Quote) {
 					}
 				}
 			}
+			isNeg := 1.0
+			if t.Action == "Sell" {
+				isNeg = -1.0
+			}
 			// Calculate the theoretical total return (%) of each txn (using any split multiple from above).
-			t.TotalReturn = ((s.MarketPrice*t.Shares*splitMultiple - t.Value) / t.Value) * 100.0
+			t.TotalReturn = isNeg * ((s.MarketPrice*t.Shares*splitMultiple - t.Value) / t.Value) * 100.0
 			t.ExcessReturn = t.TotalReturn - t.Sp500Return
 		}
 	}

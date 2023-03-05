@@ -79,6 +79,7 @@ export function TransactionsTable({ txnData }) {
         <StockTable
             data={txnData}
             columns={txnCols}
+            initialSortCol={'dateTime'}
         />
     );
 }
