@@ -60,3 +60,18 @@ func (c *SecurityController) GetTransactions(ctx *gin.Context) {
 		})
 	}
 }
+
+func (c *SecurityController) GetSp500History(ctx *gin.Context) {
+	sp500 := c.securityCatalogue.GetSp500()
+	if len(sp500.Date) == 0 {
+		log.Printf("No historical S&P500 data to forward thru API to front-end!")
+		ctx.JSON(400, gin.H{
+			"error": "No historical S&P500 data found! Try restarting server to re-query.",
+		})
+	} else {
+		log.Printf("Sending %d historical S&P500 quotes to front-end...", len(sp500.Date))
+		ctx.JSON(200, gin.H{
+			"sp500": sp500,
+		})
+	}
+}

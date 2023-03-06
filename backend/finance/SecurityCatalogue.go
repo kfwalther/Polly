@@ -108,6 +108,10 @@ func (sc *SecurityCatalogue) GetTransactionList() []Transaction {
 	return txns
 }
 
+func (sc *SecurityCatalogue) GetSp500() quote.Quote {
+	return sc.sp500quotes
+}
+
 // Method to process the imported data, by creating a new [Transaction] for
 // each row of data, and inserting it into the appropriate [Security] object
 // within the catalogue.

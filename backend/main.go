@@ -75,6 +75,7 @@ func main() {
 	router.GET("/summary", ctrlr.GetSummary)
 	router.GET("/securities", ctrlr.GetSecurities)
 	router.GET("/transactions", ctrlr.GetTransactions)
+	router.GET("/sp500", ctrlr.GetSp500History)
 
 	// Run the server.
 	router.Run(":5000")

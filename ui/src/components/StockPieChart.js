@@ -45,7 +45,7 @@ export function StockPieChart({ chartData, displayDataset, filterOptions, title,
         pieSliceText: 'label',
         pieSliceTextStyle: { fontSize: 10 },
         pieHole: 0.25,
-        sliceVisibilityThreshold: .005,
+        sliceVisibilityThreshold: .003,
         chartArea: { top: 0, bottom: 0, left: 25, right: 25 }
     }
 
