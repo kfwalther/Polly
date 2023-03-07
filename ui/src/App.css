@@ -121,6 +121,12 @@ table {
     overflow-y: hidden;
 }
 
+.txnchart-container {
+    margin-left: 20px;
+    margin-right: 20px;
+    margin-bottom: 20px;
+}
+
 .txn-summary-table {
     table-layout: fixed;
     border-collapse: collapse;
