@@ -17,11 +17,11 @@ export default function StockLineChart({ chartData }) {
     var chartOptions = {
         legend: 'none',
         backgroundColor: 'transparent',
-        title: "S&P500 Performance",
+        title: 'S&P500 Performance',
         titleTextStyle: {
             color: 'lightgrey'
         },
-        curveType: "function",
+        curveType: 'function',
         chartArea: { top: 25, bottom: 50, left: 50, right: 25 },
         hAxis: {
             gridlines: { count: 0 },
@@ -30,7 +30,7 @@ export default function StockLineChart({ chartData }) {
         vAxis: {
             gridlines: { count: 0 },
             minorGridlines: { count: 0 },
-            minValue: 100,
+            viewWindowMode: 'maximized',
         },
         responsive: true,
     }
@@ -65,7 +65,6 @@ export default function StockLineChart({ chartData }) {
                                     },
                                     backgroundColor: "black",
                                     hAxis: {
-                                        baselineColor: "none",
                                         gridlines: { count: 4 },
                                         minorGridlines: { count: 0 },
                                     },
