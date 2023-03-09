@@ -14,11 +14,12 @@ export default function StockLineChart({ chartData, txnData }) {
                 new Date(k),
                 chartData.sp500.close[i],
                 (txnData.some(t => getDateFromUtcDateTime(t.dateTime) === getDateFromUtcDateTime(k) &&
-                        t.action === "Buy") ? "B" : null),
+                    t.action === "Buy") ? "B" : null),
+                chartData.sp500.close[i],
                 (txnData.some(t => getDateFromUtcDateTime(t.dateTime) === getDateFromUtcDateTime(k) &&
-                        t.action === "Sell") ? "S" : null),
+                    t.action === "Sell") ? "S" : null),
             ])
-            data.unshift(['Date', 'Price', {role: 'annotation'}, {role: 'annotation'}])
+            data.unshift(['Date', 'Price', { role: 'annotation' }, 'dummy', { role: 'annotation' }])
         }
         return data
     }
@@ -31,10 +32,12 @@ export default function StockLineChart({ chartData, txnData }) {
         titleTextStyle: {
             color: 'lightgrey'
         },
+        colors: ['aqua'],
         curveType: 'function',
         chartArea: { top: 25, bottom: 50, left: 50, right: 25 },
         hAxis: {
-            gridlines: { count: 0 },
+            format: 'MMM y',
+            gridlines: { count: 5, color: 'transparent' },
             minorGridlines: { count: 0 },
         },
         vAxis: {
@@ -42,14 +45,30 @@ export default function StockLineChart({ chartData, txnData }) {
             minorGridlines: { count: 0 },
             viewWindowMode: 'maximized',
         },
-        // TODO: Figure out how to change annotation color based on the series above...
-        annotations: {
-            textStyle: {
-              bold: true,
-              italic: true,
-              // The color of the text.
-              color: 'green',
-            }
+        // Apply green annotations to the "Buy" series, and red to the "Sell" series.
+        series: {
+            0: {
+                annotations: {
+                    textStyle: {
+                        bold: true,
+                        color: 'green',
+                    },
+                    stem: {
+                        length: 30,
+                    },
+                },
+            },
+            1: {
+                annotations: {
+                    textStyle: {
+                        bold: true,
+                        color: 'red',
+                    },
+                    stem: {
+                        length: 30,
+                    },
+                },
+            },
         },
         responsive: true,
     }
