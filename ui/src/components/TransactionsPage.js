@@ -3,6 +3,24 @@ import { TransactionsTable } from "./TransactionsTable";
 import { toPercent } from "./Helpers";
 import StockLineChart from "./StockLineChart";
 
+// Helper function to calculate the win rate for our trades (buys/sells).
+function getWinRate(txns) {
+    if (txns.length > 0) {
+        return toPercent((txns.filter(x => x.totalReturn > 0).length / txns.length) * 100.0)
+    } else {
+        return toPercent(0.0)
+    }
+}
+
+// Helper function to calculate the market beat rate for our trades (buys/sells).
+function getBeatRate(txns) {
+    if (txns.length > 0) {
+        return toPercent((txns.filter(x => x.excessReturn > 0).length / txns.length) * 100.0)
+    } else {
+        return toPercent(0.0)
+    }
+}
+
 // Fetch the transaction data from the server, and return/render the transactions page.
 export default function TransactionsPage() {
     const [txnList, setTxnList] = useState([]);
@@ -21,6 +39,12 @@ export default function TransactionsPage() {
             .then(resp => setSp500(resp))
     }, []);
 
+    var buySellList = []
+    // Filter txns for only buy/sell actions.
+    if (txnList != null) {
+        buySellList = txnList.filter(t => (t.action === "Buy" || t.action === "Sell"))
+    }
+
     return (
         <>
             {/* Display a rollup/summary of all our transactions. */}
@@ -30,9 +54,9 @@ export default function TransactionsPage() {
                 <th className="txn-summary-table-header">Beat Rate</th>
                 <tbody>
                     <tr>
-                        <td className="txn-summary-table-cell">{txnList.length}</td>
-                        <td className="txn-summary-table-cell">{toPercent((txnList.filter(x => x.totalReturn > 0).length / txnList.length) * 100.0)}</td>
-                        <td className="txn-summary-table-cell">{toPercent((txnList.filter(x => x.excessReturn > 0).length / txnList.length) * 100.0)}</td>
+                        <td className="txn-summary-table-cell">{buySellList.length}</td>
+                        <td className="txn-summary-table-cell">{getWinRate(buySellList)}</td>
+                        <td className="txn-summary-table-cell">{getBeatRate(buySellList)}</td>
                     </tr>
                 </tbody>
             </table>
@@ -43,7 +67,7 @@ export default function TransactionsPage() {
             <h3 className="header-centered">Transactions List</h3>
             {/* Display all the transactions in a sortable table. */}
             <TransactionsTable
-                txnData={txnList.filter(t => (t.action === "Buy" || t.action === "Sell"))}
+                txnData={buySellList}
             />
         </>
     );
