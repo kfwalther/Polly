@@ -43,7 +43,7 @@ table {
     padding-left: 0;
 }
 
-.header-portcomposition {
+.header-centered {
     text-align: center;
     justify-content: center;
     height: 30px;
@@ -51,7 +51,7 @@ table {
     color: white;
 }
 
-.header-myholdings {
+.header-left {
     text-align: left;
     margin-left: 20px;
     justify-content: center;
@@ -122,9 +122,8 @@ table {
 }
 
 .txnchart-container {
-    margin-left: 20px;
-    margin-right: 20px;
-    margin-bottom: 20px;
+    margin-left: 10px;
+    margin-right: 10px;
 }
 
 .txn-summary-table {

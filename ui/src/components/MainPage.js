@@ -87,7 +87,7 @@ export default class MainPage extends React.Component {
             <>
                 <PortfolioSummary summaryData={this.state.portfolioSummary} />
                 <br></br>
-                <h3 className="header-portcomposition">Portfolio Composition</h3>
+                <h3 className="header-centered">Portfolio Composition</h3>
                 <Checkbox
                     label="Stocks Only"
                     checked={this.state.isStocksOnlyChecked}
@@ -116,7 +116,7 @@ export default class MainPage extends React.Component {
                         />
                     </div>
                 </div>
-                <h3 className="header-myholdings">My Holdings</h3>
+                <h3 className="header-left">My Holdings</h3>
                 {/* Display our current holdings in a bar chart. */}
                 <StockBarChart
                     chartData={this.state.stockList}

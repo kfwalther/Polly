@@ -40,6 +40,7 @@ export default function TransactionsPage() {
             <StockLineChart
                 chartData={sp500}
             />
+            <h3 className="header-centered">Transactions List</h3>
             {/* Display all the transactions in a sortable table. */}
             <TransactionsTable
                 txnData={txnList.filter(t => (t.action === "Buy" || t.action === "Sell"))}
