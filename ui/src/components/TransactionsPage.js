@@ -63,6 +63,7 @@ export default function TransactionsPage() {
             {/* Add a line chart to superimpose our trades on the S&P500 performance. */}
             <StockLineChart
                 chartData={sp500}
+                txnData={buySellList}
             />
             <h3 className="header-centered">Transactions List</h3>
             {/* Display all the transactions in a sortable table. */}

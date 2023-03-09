@@ -1,14 +1,24 @@
 import { Chart } from 'react-google-charts';
+import { getDateFromUtcDateTime } from './Helpers';
 
 
-export default function StockLineChart({ chartData }) {
+export default function StockLineChart({ chartData, txnData }) {
 
     function getFilteredChartData() {
         var data = []
         if ((chartData != null) && (chartData.sp500 != null)) {
+            console.log(chartData.sp500)
+            console.log(txnData)
             // Put the sorted values in an array, and add a column header.
-            data = chartData.sp500.date.map((k, i) => [new Date(k), chartData.sp500.close[i]])
-            data.unshift(['Date', 'Price'])
+            data = chartData.sp500.date.map((k, i) => [
+                new Date(k),
+                chartData.sp500.close[i],
+                (txnData.some(t => getDateFromUtcDateTime(t.dateTime) === getDateFromUtcDateTime(k) &&
+                        t.action === "Buy") ? "B" : null),
+                (txnData.some(t => getDateFromUtcDateTime(t.dateTime) === getDateFromUtcDateTime(k) &&
+                        t.action === "Sell") ? "S" : null),
+            ])
+            data.unshift(['Date', 'Price', {role: 'annotation'}, {role: 'annotation'}])
         }
         return data
     }
@@ -31,6 +41,15 @@ export default function StockLineChart({ chartData }) {
             gridlines: { count: 0 },
             minorGridlines: { count: 0 },
             viewWindowMode: 'maximized',
+        },
+        // TODO: Figure out how to change annotation color based on the series above...
+        annotations: {
+            textStyle: {
+              bold: true,
+              italic: true,
+              // The color of the text.
+              color: 'green',
+            }
         },
         responsive: true,
     }
