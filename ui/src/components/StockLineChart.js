@@ -45,16 +45,32 @@ export default function StockLineChart({ chartData, txnData }) {
             minorGridlines: { count: 0 },
             viewWindowMode: 'maximized',
         },
+        annotations: {
+            boxStyle: {
+                // Color of the box outline.
+                stroke: 'white',
+                // Thickness of the box outline.
+                strokeWidth: 1,
+                // x-radius of the corner curvature.
+                rx: 5,
+                // y-radius of the corner curvature.
+                ry: 5,
+                fill: 'green',
+            },
+        },
         // Apply green annotations to the "Buy" series, and red to the "Sell" series.
         series: {
             0: {
                 annotations: {
                     textStyle: {
                         bold: true,
-                        color: 'green',
+                        color: 'white',
                     },
                     stem: {
                         length: 30,
+                    },
+                    boxStyle: {
+                        fill: 'green',
                     },
                 },
             },
@@ -62,10 +78,13 @@ export default function StockLineChart({ chartData, txnData }) {
                 annotations: {
                     textStyle: {
                         bold: true,
-                        color: 'red',
+                        color: 'white',
                     },
                     stem: {
                         length: 30,
+                    },
+                    boxStyle: {
+                        fill: 'red',
                     },
                 },
             },
@@ -106,6 +125,16 @@ export default function StockLineChart({ chartData, txnData }) {
                                         gridlines: { count: 4 },
                                         minorGridlines: { count: 0 },
                                     },
+                                    // Annotations in the range filter are hidden.
+                                    annotations: {
+                                        stem: {
+                                            color: 'transparent',
+                                            length: 0
+                                        },
+                                        textStyle: {
+                                            color: 'transparent'
+                                        },
+                                    }
                                 },
                             },
                         },
