@@ -6,22 +6,43 @@ export default function StockLineChart({ chartData, txnData }) {
 
     function getFilteredChartData() {
         var data = []
+        var fullSeries = []
         if ((chartData != null) && (chartData.sp500 != null)) {
             console.log(chartData.sp500)
             console.log(txnData)
-            // Put the sorted values in an array, and add a column header.
+            // Put the S&P500 values in an array.
             data = chartData.sp500.date.map((k, i) => [
                 new Date(k),
                 chartData.sp500.close[i],
-                (txnData.some(t => getDateFromUtcDateTime(t.dateTime) === getDateFromUtcDateTime(k) &&
-                    t.action === "Buy") ? "B" : null),
-                chartData.sp500.close[i],
-                (txnData.some(t => getDateFromUtcDateTime(t.dateTime) === getDateFromUtcDateTime(k) &&
-                    t.action === "Sell") ? "S" : null),
             ])
-            data.unshift(['Date', 'Price', { role: 'annotation' }, 'dummy', { role: 'annotation' }])
+            var numDays = chartData.sp500.date.length
+            // Iterate through each day market has been open.
+            for (var i = 0; i < numDays; i++) {
+                // Does current date have any txns?
+                if (txnData.some(t => getDateFromUtcDateTime(t.dateTime) === getDateFromUtcDateTime(chartData.sp500.date[i]))) {
+                    // Loop through each txn on this date.
+                    var txns = txnData.filter(t => getDateFromUtcDateTime(t.dateTime) === getDateFromUtcDateTime(chartData.sp500.date[i]))
+                    var numBuys = 0
+                    var numSells = 0
+                    for (var j = 0; j < txns.length; j++) {
+                        // Add a buy data point positioned above the S&P500 line.
+                        if (txns[j].action === "Buy") {
+                            numBuys++
+                            fullSeries.push([data[i][0], data[i][1], data[i][1] + (numBuys * 5), null])
+                            // Add a sell data point positioned below the S&P500 line.
+                        } else if (txns[j].action === "Sell") {
+                            numSells++
+                            fullSeries.push([data[i][0], data[i][1], null, data[i][1] - (numSells * 5)])
+                        }
+                    }
+                } else {
+                    fullSeries.push([data[i][0], data[i][1], null, null])
+                }
+            }
+            // Add the column names at the beginning of the data series.
+            fullSeries.unshift(['Date', 'Price', 'Buy', 'Sell'])
         }
-        return data
+        return fullSeries
     }
 
     // Define the options for this line chart.
@@ -45,48 +66,16 @@ export default function StockLineChart({ chartData, txnData }) {
             minorGridlines: { count: 0 },
             viewWindowMode: 'maximized',
         },
-        annotations: {
-            boxStyle: {
-                // Color of the box outline.
-                stroke: 'white',
-                // Thickness of the box outline.
-                strokeWidth: 1,
-                // x-radius of the corner curvature.
-                rx: 5,
-                // y-radius of the corner curvature.
-                ry: 5,
-                fill: 'green',
-            },
-        },
-        // Apply green annotations to the "Buy" series, and red to the "Sell" series.
         series: {
-            0: {
-                annotations: {
-                    textStyle: {
-                        bold: true,
-                        color: 'white',
-                    },
-                    stem: {
-                        length: 30,
-                    },
-                    boxStyle: {
-                        fill: 'green',
-                    },
-                },
-            },
             1: {
-                annotations: {
-                    textStyle: {
-                        bold: true,
-                        color: 'white',
-                    },
-                    stem: {
-                        length: 30,
-                    },
-                    boxStyle: {
-                        fill: 'red',
-                    },
-                },
+                type: 'scatter',
+                color: 'green',
+                visibleInLegend: false
+            },
+            2: {
+                type: 'scatter',
+                color: 'red',
+                visibleInLegend: false
             },
         },
         responsive: true,
@@ -125,16 +114,6 @@ export default function StockLineChart({ chartData, txnData }) {
                                         gridlines: { count: 4 },
                                         minorGridlines: { count: 0 },
                                     },
-                                    // Annotations in the range filter are hidden.
-                                    annotations: {
-                                        stem: {
-                                            color: 'transparent',
-                                            length: 0
-                                        },
-                                        textStyle: {
-                                            color: 'transparent'
-                                        },
-                                    }
                                 },
                             },
                         },
