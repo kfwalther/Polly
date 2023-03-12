@@ -1,9 +1,10 @@
 import { Chart } from 'react-google-charts';
-import { getDateFromUtcDateTime } from './Helpers';
+import { getDateFromUtcDateTime, toPercent, toUSD } from './Helpers';
 
 
 export default function StockLineChart({ chartData, txnData }) {
 
+    // Construct the data table to be displayed on the chart.
     function getFilteredChartData() {
         var data = []
         var fullSeries = []
@@ -28,19 +29,23 @@ export default function StockLineChart({ chartData, txnData }) {
                         // Add a buy data point positioned above the S&P500 line.
                         if (txns[j].action === "Buy") {
                             numBuys++
-                            fullSeries.push([data[i][0], data[i][1], data[i][1] + (numBuys * 5), null])
+                            fullSeries.push([data[i][0], data[i][1], data[i][1] + (numBuys * 5),
+                                    "Bought " + txns[j].ticker + ": " + toUSD(txns[j].value) + "\n" + toPercent(txns[j].totalReturn),
+                                    null, null])
                             // Add a sell data point positioned below the S&P500 line.
                         } else if (txns[j].action === "Sell") {
                             numSells++
-                            fullSeries.push([data[i][0], data[i][1], null, data[i][1] - (numSells * 5)])
+                            fullSeries.push([data[i][0], data[i][1], null, null,
+                                    data[i][1] - (numSells * 5),
+                                    "Sold " + txns[j].ticker + ": " + toUSD(txns[j].value) + "\n" + toPercent(txns[j].totalReturn)])
                         }
                     }
                 } else {
-                    fullSeries.push([data[i][0], data[i][1], null, null])
+                    fullSeries.push([data[i][0], data[i][1], null, null, null, null])
                 }
             }
             // Add the column names at the beginning of the data series.
-            fullSeries.unshift(['Date', 'Price', 'Buy', 'Sell'])
+            fullSeries.unshift(['Date', 'Price', 'Buy', { role: 'tooltip' }, 'Sell', { role: 'tooltip' }])
         }
         return fullSeries
     }
