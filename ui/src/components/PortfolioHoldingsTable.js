@@ -81,7 +81,7 @@ export function PortfolioHoldingsTable({ holdingsData }) {
                 accessor: 'realizedGain',
                 Cell: props =>
                     <div style={{ color: (props.value > 0) ? TABLE_GREEN : ((props.value < 0) ? TABLE_RED : 'white') }} >
-                        {props.value != 0.0 ? toUSD(props.value) : '----'}
+                        {props.value !== 0.0 ? toUSD(props.value) : '----'}
                     </div>,
                 sortType: 'basic',
             },

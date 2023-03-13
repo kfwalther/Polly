@@ -16,9 +16,8 @@ export default function StockLineChart({ chartData, txnData }) {
                 new Date(k),
                 chartData.sp500.close[i],
             ])
-            var numDays = chartData.sp500.date.length
             // Iterate through each day market has been open.
-            for (var i = 0; i < numDays; i++) {
+            for (let i = 0; i < chartData.sp500.date.length; i++) {
                 // Does current date have any txns?
                 if (txnData.some(t => getDateFromUtcDateTime(t.dateTime) === getDateFromUtcDateTime(chartData.sp500.date[i]))) {
                     // Loop through each txn on this date.

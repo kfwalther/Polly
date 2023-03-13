@@ -55,12 +55,10 @@ export default class MainPage extends React.Component {
     // Helper function to map colors to our current list of stocks, sorted by market value.
     assignTickerColors() {
         // Sort the stocks/ETFs we currently own by current market value, and map them to the colors above.
-        this.tickerMap = new Map(this.state.stockList.filter(s => {
+        this.tickerMap = new Map(
             // Filter out securities we no longer own.
-            if (parseFloat(s.marketValue) > 0.0) {
-                return s
-            }
-        }).sort(
+            this.state.stockList.filter(s => (parseFloat(s.marketValue) > 0.0)
+        ).sort(
             // Sort the remaining by current value
             (a, b) => b.marketValue - a.marketValue
         ).map(
