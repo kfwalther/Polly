@@ -25,18 +25,18 @@ export default function StockLineChart({ chartData, txnData }) {
                     var numBuys = 0
                     var numSells = 0
                     for (var j = 0; j < txns.length; j++) {
-                        // Add a buy data point positioned above the S&P500 line.
+                        // Add a buy event flag positioned above the S&P500 line.
                         if (txns[j].action === "Buy") {
                             numBuys++
                             fullSeries.push([data[i][0], data[i][1], data[i][1] + (numBuys * 5),
-                                    "Bought " + txns[j].ticker + ": " + toUSD(txns[j].value) + "\n" + toPercent(txns[j].totalReturn),
-                                    null, null])
-                            // Add a sell data point positioned below the S&P500 line.
+                            "Bought " + txns[j].ticker + " @ " + toUSD(txns[j].value) + "\nTotal Return:" + toPercent(txns[j].totalReturn),
+                                null, null])
+                            // Add a sell event flag positioned below the S&P500 line.
                         } else if (txns[j].action === "Sell") {
                             numSells++
                             fullSeries.push([data[i][0], data[i][1], null, null,
-                                    data[i][1] - (numSells * 5),
-                                    "Sold " + txns[j].ticker + ": " + toUSD(txns[j].value) + "\n" + toPercent(txns[j].totalReturn)])
+                            data[i][1] - (numSells * 5),
+                            "Sold " + txns[j].ticker + " @ " + toUSD(txns[j].value) + "\nTotal Return:" + toPercent(txns[j].totalReturn)])
                         }
                     }
                 } else {
@@ -58,6 +58,7 @@ export default function StockLineChart({ chartData, txnData }) {
             color: 'lightgrey'
         },
         colors: ['aqua'],
+        crosshair: { orientation: 'vertical', trigger: 'focus', color: 'lightgrey' },
         curveType: 'function',
         chartArea: { top: 25, bottom: 50, left: 50, right: 25 },
         hAxis: {
