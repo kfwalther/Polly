@@ -158,10 +158,10 @@ func (s *Security) CalculateMetrics(sp500Quotes quote.Quote) {
 					}
 				} else {
 					// Queue is empty, but apparently have more sold shares to account for.
-					// There was either a stock split, or re-invested dividends.
+					// This is usually due to re-invested dividends.
 					additionalGains := remainingShares * t.Price
 					s.RealizedGain += additionalGains
-					log.Printf("%s is oversold - Adding remaining shares to realized gain (%f shares, total $%f)\n", t.Ticker, remainingShares, additionalGains)
+					// log.Printf("%s is oversold - Adding remaining shares to realized gain (%f shares, total $%f)\n", t.Ticker, remainingShares, additionalGains)
 					break
 				}
 			}

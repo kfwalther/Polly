@@ -4,8 +4,8 @@ package main
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"log"
+	"os"
 	"strconv"
 
 	"github.com/gin-contrib/cors"
@@ -21,7 +21,7 @@ import (
 // Program entry point.
 func main() {
 	ctx := context.Background()
-	b, err := ioutil.ReadFile("../credentials.json")
+	b, err := os.ReadFile("../credentials.json")
 	if err != nil {
 		log.Fatalf("Unable to read client secret file: %v", err)
 	}
@@ -40,7 +40,7 @@ func main() {
 
 	// Get the spreadsheet ID from the input file.
 	portfolioIdFile := "../portfolio-sheet-id.txt"
-	spreadsheetId, err := ioutil.ReadFile(portfolioIdFile)
+	spreadsheetId, err := os.ReadFile(portfolioIdFile)
 	if err != nil {
 		log.Fatalf("Can't read file (%s): %s", portfolioIdFile, err)
 	}
@@ -53,9 +53,11 @@ func main() {
 			"delete auth_token file and retry: %v", err)
 	}
 
-	// Setup the Go web server.
+	// Set gin web server to release mode. Comment out to enable debug logging.
+	gin.SetMode(gin.ReleaseMode)
+
+	// Setup the Go web server, with default logger.
 	router := gin.Default()
-	router.Use(gin.Logger())
 	router.Use(cors.Default())
 	// Check if we parsed any data from the spreadsheet.
 	if len(resp.Values) == 0 {
@@ -77,6 +79,8 @@ func main() {
 	router.GET("/transactions", ctrlr.GetTransactions)
 	router.GET("/sp500", ctrlr.GetSp500History)
 
+	// Disable trusted proxies.
+	router.SetTrustedProxies(nil)
 	// Run the server.
 	router.Run(":5000")
 	fmt.Println("Successful Completion!")

@@ -29,14 +29,14 @@ export default function StockLineChart({ chartData, txnData }) {
                         if (txns[j].action === "Buy") {
                             numBuys++
                             fullSeries.push([data[i][0], data[i][1], data[i][1] + (numBuys * 5),
-                            "Bought " + txns[j].ticker + " @ " + toUSD(txns[j].value) + "\nTotal Return:" + toPercent(txns[j].totalReturn),
+                            "Bought " + txns[j].ticker + " @ " + toUSD(txns[j].price) + "\nTotal Return:" + toPercent(txns[j].totalReturn),
                                 null, null])
                             // Add a sell event flag positioned below the S&P500 line.
                         } else if (txns[j].action === "Sell") {
                             numSells++
                             fullSeries.push([data[i][0], data[i][1], null, null,
                             data[i][1] - (numSells * 5),
-                            "Sold " + txns[j].ticker + " @ " + toUSD(txns[j].value) + "\nTotal Return:" + toPercent(txns[j].totalReturn)])
+                            "Sold " + txns[j].ticker + " @ " + toUSD(txns[j].price) + "\nTotal Return:" + toPercent(txns[j].totalReturn)])
                         }
                     }
                 } else {
