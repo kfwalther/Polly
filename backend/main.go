@@ -12,6 +12,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/kfwalther/Polly/backend/auth"
 	"github.com/kfwalther/Polly/backend/controllers"
+	"github.com/kfwalther/Polly/backend/data"
 	"github.com/kfwalther/Polly/backend/finance"
 	"golang.org/x/oauth2/google"
 	"google.golang.org/api/option"
@@ -63,6 +64,10 @@ func main() {
 	if len(resp.Values) == 0 {
 		log.Fatalf("No data found in spreadsheet... Exiting!")
 	}
+
+	// Connect to our MongoDB instance.
+	dbClient := data.NewMongoDbClient()
+	dbClient.ConnectMongoDb()
 
 	catalogue := finance.NewSecurityCatalogue()
 	// Process the imported data to organize it by ticker.
