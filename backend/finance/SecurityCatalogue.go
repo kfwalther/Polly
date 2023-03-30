@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/kfwalther/Polly/backend/data"
 	"github.com/markcheno/go-quote"
 
 	"golang.org/x/exp/maps"
@@ -12,13 +13,6 @@ import (
 
 // Define a global map to store the stock split history relevant to our portfolio
 var StockSplits = map[string][]Transaction{
-	"NFLX": {
-		Transaction{
-			Ticker:   "NFLX",
-			DateTime: time.Date(2015, 7, 15, 0, 0, 0, 0, time.Local),
-			Action:   "Split",
-			Shares:   7},
-	},
 	"TSLA": {
 		Transaction{
 			Ticker:   "TSLA",
@@ -79,15 +73,17 @@ var StockSplits = map[string][]Transaction{
 type SecurityCatalogue struct {
 	id          uint
 	sp500quotes quote.Quote
+	dbClient    *data.MongoDbClient
 	summary     *PortfolioSummary
 	securities  map[string]*Security
 }
 
 // Constructor for a new SecurityCatalogue object, initializing the map.
-func NewSecurityCatalogue() *SecurityCatalogue {
+func NewSecurityCatalogue(dbClient *data.MongoDbClient) *SecurityCatalogue {
 	var sc SecurityCatalogue
 	sc.securities = make(map[string]*Security)
 	sc.summary = NewPortfolioSummary()
+	sc.dbClient = dbClient
 	return &sc
 }
 
@@ -142,9 +138,32 @@ func (sc *SecurityCatalogue) ProcessImport(txnData [][]interface{}) {
 
 // Kicks off async functions in go-routines to calculate metrics for each security
 func (sc *SecurityCatalogue) Calculate() {
-	// Grab the historical S&P 500 data to compare against (2015 to present).
-	sc.sp500quotes, _ = quote.NewQuoteFromYahoo("spy", "2015-01-01", time.Now().Format("2006-01-02"), quote.Daily, true)
 
+	stockList := make([]string, 0)
+	// Preprocess all the securities, and add the stocks to a list to grab their historical info.
+	for _, s := range sc.securities {
+		s.PreProcess()
+		stockList = append(stockList, s.Ticker)
+	}
+	// Grab the historical S&P 500 data to compare against (2015 to present).
+	stockList = append(stockList, "SPY")
+	// Grab historical quotes for all stocks in bulk.
+
+	// TODO: Need to store this in a DB, too much data to pull each time.
+	sc.sp500quotes, _ = quote.NewQuoteFromYahoo("spy", "2015-01-01", time.Now().Format("2006-01-02"), quote.Daily, true)
+	// quotes, err := quote.NewQuotesFromYahooSyms(stockList, "2015-08-01", time.Now().Format("2006-01-02"), quote.Daily, true)
+	// if err != nil {
+	// 	log.Printf("%s", err)
+	// } else {
+	// 	log.Printf("Successfully queried all quote history!")
+	// }
+	// Save the quotes in the DB.
+	sc.dbClient.StoreQuotes(sc.sp500quotes)
+	return
+	// quoteMap := make(map[string]*quote.Quote)
+	// for _, q := range quotes {
+	// 	quoteMap[q.Symbol] = &q
+	// }
 	// Setup a wait group.
 	var waitGroup sync.WaitGroup
 	// Specify the number of metrics to wait for.

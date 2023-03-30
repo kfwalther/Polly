@@ -14,19 +14,21 @@ import (
 // Definition of a security to hold the transactions for a particular stock/ETF.
 type Security struct {
 	id                       uint
-	Ticker                   string  `json:"ticker"`
-	SecurityType             string  `json:"securityType"`
-	MarketPrice              float64 `json:"marketPrice"`
-	MarketValue              float64 `json:"marketValue"`
-	DailyGain                float64 `json:"dailyGain"`
-	DailyGainPercentage      float64 `json:"dailyGainPercentage"`
-	UnitCostBasis            float64 `json:"unitCostBasis"`
-	TotalCostBasis           float64 `json:"totalCostBasis"`
-	NumShares                float64 `json:"numShares"`
-	RealizedGain             float64 `json:"realizedGain"`
-	UnrealizedGain           float64 `json:"unrealizedGain"`
-	UnrealizedGainPercentage float64 `json:"unrealizedGainPercentage"`
-	TotalGain                float64 `json:"totalGain"`
+	Ticker                   string                `json:"ticker"`
+	SecurityType             string                `json:"securityType"`
+	MarketPrice              float64               `json:"marketPrice"`
+	MarketValue              float64               `json:"marketValue"`
+	DailyGain                float64               `json:"dailyGain"`
+	DailyGainPercentage      float64               `json:"dailyGainPercentage"`
+	UnitCostBasis            float64               `json:"unitCostBasis"`
+	TotalCostBasis           float64               `json:"totalCostBasis"`
+	NumShares                float64               `json:"numShares"`
+	RealizedGain             float64               `json:"realizedGain"`
+	UnrealizedGain           float64               `json:"unrealizedGain"`
+	UnrealizedGainPercentage float64               `json:"unrealizedGainPercentage"`
+	TotalGain                float64               `json:"totalGain"`
+	ValueHistory             map[time.Time]float64 `json:"valueHistory"`
+	priceHistory             quote.Quote
 	transactions             []Transaction
 }
 
@@ -39,6 +41,7 @@ func NewSecurity(tkr string, secType string) (*Security, error) {
 	var s Security
 	s.Ticker = tkr
 	s.SecurityType = secType
+	s.ValueHistory = make(map[time.Time]float64)
 	s.transactions = make([]Transaction, 0)
 	return &s, nil
 }
@@ -53,9 +56,13 @@ func indexOf(target time.Time, arr []time.Time) int {
 	return -1 // not found.
 }
 
+func getUtcDate(inDateTime time.Time) time.Time {
+	return time.Date(inDateTime.Year(), inDateTime.Month(), inDateTime.Day(), 0, 0, 0, 0, time.UTC)
+}
+
 func (s *Security) GetQuoteOfSP500(quoteDate time.Time, sp500Quotes quote.Quote) float64 {
 	// Get index of this date (Yahoo dates are returned in UTC).
-	idx := indexOf(time.Date(quoteDate.Year(), quoteDate.Month(), quoteDate.Day(), 0, 0, 0, 0, time.UTC), sp500Quotes.Date)
+	idx := indexOf(getUtcDate(quoteDate), sp500Quotes.Date)
 	if idx != -1 {
 		return sp500Quotes.Close[idx]
 	} else {
@@ -83,23 +90,55 @@ func (s *Security) DetermineCurrentPrice(q *finance.Equity) {
 	}
 }
 
-// Calculate various metrics about this security.
-func (s *Security) CalculateMetrics(sp500Quotes quote.Quote) {
-	hasSplits := false
+// Sorts the transactions for this security, and adds in any stock splits we need to account for.
+func (s *Security) PreProcess() {
+	// Ignore ticker CASH for now, may use this later.
+	if s.Ticker == "CASH" {
+		return
+	}
 	// Lookup if this security has any stock splits to account for.
 	if val, ok := StockSplits[s.Ticker]; ok {
 		s.transactions = append(s.transactions, val...)
-		hasSplits = true
 	}
 	// Order the transactions by date, using anonymous function.
 	sort.Slice(s.transactions, func(i, j int) bool {
 		return s.transactions[i].DateTime.Before(s.transactions[j].DateTime)
 	})
+}
+
+// Calculate various metrics about this security.
+// func (s *Security) CalculateMetrics(histQuotes quote.Quote, sp500Quotes quote.Quote) {
+func (s *Security) CalculateMetrics(sp500Quotes quote.Quote) {
+	// Ignore ticker CASH for now, may use this later.
+	if s.Ticker == "CASH" {
+		return
+	}
+	hasSplits := false
+	if _, ok := StockSplits[s.Ticker]; ok {
+		hasSplits = true
+	}
 	// Get the current info for the given ticker.
 	q, err := equity.Get(s.Ticker)
 	if err != nil || q == nil {
 		return
 	}
+	// s.priceHistory = histQuotes
+
+	// // Upon first buy, grab historical quotes from that date forward to calculate running value total each day.
+	// if s.transactions[0].Action == "Buy" {
+	// 	// TODO: WTF WHY THIS RETURN NOTHING?!?!
+	// 	s.priceHistory, err = quote.NewQuoteFromYahoo(s.Ticker, s.transactions[0].DateTime.Format("2006-01-02"), time.Now().Format("2006-01-02"), quote.Daily, true)
+	// 	if err != nil {
+	// 		log.Printf("Can't query history for ticker %s: %s", s.Ticker, err)
+	// 		return
+	// 	} else {
+	// 		log.Printf("Successfully queried history for ticker: %s", s.Ticker)
+	// 	}
+	// } else {
+	// 	log.Printf("WARNING: First transaction for %s is not a Buy (%s), what is going on?!\n", s.Ticker, s.transactions[0].Action)
+	// 	return
+	// }
+
 	// TODO: Figure out what fields we can grab from this quote...
 	// if s.Ticker == "S" {
 	// 	log.Printf("Book Value: %f", q.BookValue)
@@ -114,87 +153,111 @@ func (s *Security) CalculateMetrics(sp500Quotes quote.Quote) {
 	s.DetermineCurrentPrice(q)
 	// Create a slice to use as a FIFO queue.
 	buyQ := make([]Transaction, 0)
-	// Iterate thru each transaction (by index, using range creates a copy).
-	for idx := 0; idx < len(s.transactions); idx++ {
-		// Get a reference to the current txn.
-		t := &s.transactions[idx]
-		// Ignore cash withdraws/deposits
-		if t.Ticker == "CASH" {
-			continue
-		}
-		// For buys, increment number of shares.
-		if t.Action == "Buy" {
-			// Add the txn to the buy queue.
-			buyQ = append(buyQ, *t)
-			// Calculate the return had we bought S&P500 for this transaction.
-			spDateOfTxn := s.GetQuoteOfSP500(t.DateTime, sp500Quotes)
-			spNow := s.GetQuoteOfSP500(time.Now(), sp500Quotes)
-			t.Sp500Return = ((spNow - spDateOfTxn) / spDateOfTxn) * 100.0
-		} else if t.Action == "Sell" {
-			// Calculate the return had we sold S&P500 for this transaction.
-			spDateOfTxn := s.GetQuoteOfSP500(t.DateTime, sp500Quotes)
-			spNow := s.GetQuoteOfSP500(time.Now(), sp500Quotes)
-			t.Sp500Return = -((spNow - spDateOfTxn) / spDateOfTxn) * 100.0
-			// TODO Calculate SP500 theoretical comparison return as done above for BUYs.
-			remainingShares := t.Shares
-			for remainingShares > 0 {
-				// Make sure we have buys to cover remaining shares in the sell.
-				if len(buyQ) > 0 {
-					if buyQ[0].Shares > remainingShares {
-						// Remaining sell shares are covered by this buy.
-						s.RealizedGain += (t.Price - buyQ[0].Price) * remainingShares
-						buyQ[0].Shares -= remainingShares
-						remainingShares = 0
-					} else if buyQ[0].Shares == remainingShares {
-						// Shares in this buy equal remaining shares, pop the buy off the queue.
-						s.RealizedGain += (t.Price - buyQ[0].Price) * remainingShares
-						remainingShares = 0
-						buyQ = buyQ[1:]
-					} else if buyQ[0].Shares < remainingShares {
-						// This buy is completely covered by sell, pop it.
-						s.RealizedGain += (t.Price - buyQ[0].Price) * buyQ[0].Shares
-						remainingShares -= buyQ[0].Shares
-						buyQ = buyQ[1:]
-					}
-				} else {
-					// Queue is empty, but apparently have more sold shares to account for.
-					// This is usually due to re-invested dividends.
-					additionalGains := remainingShares * t.Price
-					s.RealizedGain += additionalGains
-					// log.Printf("%s is oversold - Adding remaining shares to realized gain (%f shares, total $%f)\n", t.Ticker, remainingShares, additionalGains)
-					break
-				}
-			}
-		} else if t.Action == "Split" {
-			// Apply the split to all txns in the buy queue.
-			for i := range buyQ {
-				buyQ[i].Price /= t.Shares
-				buyQ[i].Shares *= t.Shares
-			}
-		}
 
-		// Calculate the theoretical return on this txn, if we held.
-		if t.Action == "Buy" || t.Action == "Sell" {
-			// Keep track of the total multiplier to adjust for any stock splits.
-			splitMultiple := 1.0
-			// Iterate from the current txn to the end, checking for any stock splits.
-			if (idx != len(s.transactions)-1) && hasSplits {
-				for n := idx + 1; n < len(s.transactions); n++ {
-					if s.transactions[n].Action == "Split" {
-						splitMultiple *= s.transactions[n].Shares
+	tIdx := 0
+	curShares := 0.0
+	// Iterate through each date from first purchase.
+	for dIdx := 0; dIdx < len(s.priceHistory.Date); dIdx++ {
+		// Was there a transaction on this date? (Keep iterating if multiple on this date)
+		if s.Ticker == "ROKU" {
+			log.Printf("%v - %v", s.priceHistory.Date[dIdx], s.transactions[tIdx].DateTime)
+		}
+		for tIdx < len(s.transactions) &&
+			s.priceHistory.Date[dIdx].Equal(getUtcDate(s.transactions[tIdx].DateTime)) {
+
+			// Get a reference to the current txn.
+			t := &s.transactions[tIdx]
+			tIdx++
+			if s.Ticker == "ROKU" {
+				log.Printf("%s - %s", t.Action, t.DateTime.Format("2006-01-02"))
+			}
+			// For buys, increment number of shares.
+			if t.Action == "Buy" {
+				curShares += t.Shares
+				// Add the txn to the buy queue.
+				buyQ = append(buyQ, *t)
+				// Calculate the return had we bought S&P500 for this transaction.
+				spDateOfTxn := s.GetQuoteOfSP500(t.DateTime, sp500Quotes)
+				spNow := s.GetQuoteOfSP500(time.Now(), sp500Quotes)
+				t.Sp500Return = ((spNow - spDateOfTxn) / spDateOfTxn) * 100.0
+			} else if t.Action == "Sell" {
+				curShares -= t.Shares
+				// Calculate the return had we sold S&P500 for this transaction.
+				spDateOfTxn := s.GetQuoteOfSP500(t.DateTime, sp500Quotes)
+				spNow := s.GetQuoteOfSP500(time.Now(), sp500Quotes)
+				t.Sp500Return = -((spNow - spDateOfTxn) / spDateOfTxn) * 100.0
+				// In the loop below, calculate the realized gain from this sale.
+				remainingShares := t.Shares
+				for remainingShares > 0 {
+					// Make sure we have buys to cover remaining shares in the sell.
+					if len(buyQ) > 0 {
+						if buyQ[0].Shares > remainingShares {
+							// Remaining sell shares are covered by this buy.
+							s.RealizedGain += (t.Price - buyQ[0].Price) * remainingShares
+							buyQ[0].Shares -= remainingShares
+							remainingShares = 0
+						} else if buyQ[0].Shares == remainingShares {
+							// Shares in this buy equal remaining shares, pop the buy off the queue.
+							s.RealizedGain += (t.Price - buyQ[0].Price) * remainingShares
+							remainingShares = 0
+							buyQ = buyQ[1:]
+						} else if buyQ[0].Shares < remainingShares {
+							// This buy is completely covered by sell, pop it.
+							s.RealizedGain += (t.Price - buyQ[0].Price) * buyQ[0].Shares
+							remainingShares -= buyQ[0].Shares
+							buyQ = buyQ[1:]
+						}
+					} else {
+						// Queue is empty, but apparently have more sold shares to account for.
+						// This is usually due to re-invested dividends.
+						additionalGains := remainingShares * t.Price
+						s.RealizedGain += additionalGains
+						// log.Printf("%s is oversold - Adding remaining shares to realized gain (%f shares, total $%f)\n", t.Ticker, remainingShares, additionalGains)
+						break
 					}
 				}
+			} else if t.Action == "Split" {
+				curShares *= t.Shares
+				// Apply the split to all txns in the buy queue.
+				for i := range buyQ {
+					buyQ[i].Price /= t.Shares
+					buyQ[i].Shares *= t.Shares
+				}
 			}
-			isNeg := 1.0
-			if t.Action == "Sell" {
-				isNeg = -1.0
+
+			// Calculate the theoretical return on this txn, if we held.
+			if t.Action == "Buy" || t.Action == "Sell" {
+				// Keep track of the total multiplier to adjust for any stock splits.
+				splitMultiple := 1.0
+				// Iterate from the current txn to the end, checking for any stock splits.
+				if (tIdx != len(s.transactions)-1) && hasSplits {
+					for n := tIdx + 1; n < len(s.transactions); n++ {
+						if s.transactions[n].Action == "Split" {
+							splitMultiple *= s.transactions[n].Shares
+						}
+					}
+				}
+				isNeg := 1.0
+				if t.Action == "Sell" {
+					isNeg = -1.0
+				}
+				// Calculate the theoretical total return (%) of each txn (using any split multiple from above).
+				t.TotalReturn = isNeg * ((s.MarketPrice*t.Shares*splitMultiple - t.Value) / t.Value) * 100.0
+				t.ExcessReturn = t.TotalReturn - t.Sp500Return
 			}
-			// Calculate the theoretical total return (%) of each txn (using any split multiple from above).
-			t.TotalReturn = isNeg * ((s.MarketPrice*t.Shares*splitMultiple - t.Value) / t.Value) * 100.0
-			t.ExcessReturn = t.TotalReturn - t.Sp500Return
+		}
+		// Save the value of this stock in our portfolio on this date (if still owned).
+		if curShares > 0 {
+			s.ValueHistory[s.priceHistory.Date[dIdx]] = curShares * s.priceHistory.Close[dIdx]
+		} else {
+			// If share count is zero, we need not calculate anymore dates for this stock.
+			break
 		}
 	}
 
+	if s.Ticker == "ROKU" {
+		log.Printf("%v", s.ValueHistory)
+	}
 	// Calculate cost bases and unrealized gains with any remaining buy shares in the buy queue.
 	for _, txn := range buyQ {
 		s.NumShares += txn.Shares

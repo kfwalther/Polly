@@ -69,7 +69,7 @@ func main() {
 	dbClient := data.NewMongoDbClient()
 	dbClient.ConnectMongoDb()
 
-	catalogue := finance.NewSecurityCatalogue()
+	catalogue := finance.NewSecurityCatalogue(dbClient)
 	// Process the imported data to organize it by ticker.
 	(*catalogue).ProcessImport(resp.Values)
 	fmt.Println("Number of transactions processed: " + strconv.Itoa(len(resp.Values)))
