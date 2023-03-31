@@ -3,17 +3,20 @@ package data
 import (
 	"context"
 	"log"
+	"time"
 
 	"github.com/markcheno/go-quote"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 // Define our MongoDB client.
 type MongoDbClient struct {
-	mongoClient *mongo.Client
-	pollyDb     *mongo.Database
+	mongoClient  *mongo.Client
+	pollyDb      *mongo.Database
+	stockHistory *mongo.Collection
 }
 
 // Constructor for a new MongoDbClient object.
@@ -39,33 +42,62 @@ func (mc *MongoDbClient) ConnectMongoDb() {
 	}
 	// Connect to the "polly-data" database.
 	mc.pollyDb = mc.mongoClient.Database("polly-data")
+	return
+}
 
-	// EXAMPLES
+func (mc *MongoDbClient) TickerExists(ticker string) bool {
+	names, err := mc.pollyDb.ListCollectionNames(context.Background(), bson.D{{"options.capped", true}})
+	if err != nil {
+		log.Printf("ERROR: Failed to get MongoDB collection names: %v", err)
+		return false
+	}
 
-	// // Print the stock price data
-	// cursor, err := collection.Find(context.Background(), bson.M{})
+	for _, name := range names {
+		if name == ticker {
+			log.Printf("The collection %s exists!", ticker)
+			return true
+		}
+	}
+	return false
+	// filter := bson.M{"ticker": ticker}
+	// cursor, err := mc.pollyDb.Collection(ticker).Find(context.Background(), filter)
 	// if err != nil {
 	// 	log.Fatal(err)
 	// }
 	// defer cursor.Close(context.Background())
 
-	// for cursor.Next(context.Background()) {
-	// 	var result StockPrice
-	// 	err := cursor.Decode(&result)
-	// 	if err != nil {
-	// 		log.Fatal(err)
-	// 	}
-	// 	fmt.Printf("%s: %.2f (%s)\n", result.Ticker, result.Price, result.Date.Format("2006-01-02"))
+	// // Check if the cursor has any results
+	// if cursor.Next(context.Background()) {
+	// 	fmt.Printf("Found data for ticker symbol %s\n", ticker)
+	// 	return true
+	// } else {
+	// 	fmt.Printf("Did not find data for ticker symbol %s\n", ticker)
+	// 	return false
 	// }
-	// if err := cursor.Err(); err != nil {
-	// 	log.Fatal(err)
-	// }
-	return
 }
 
-func (mc *MongoDbClient) StoreQuotes(q quote.Quote) {
-	// Grab the stock history table.
-	historyData := mc.pollyDb.Collection("stock-history")
+func (mc *MongoDbClient) GetLatestQuote(ticker string) time.Time {
+	// Setup the filter and sorting options.
+	filter := bson.M{"ticker": ticker}
+	options := options.FindOne().SetSort(bson.D{{"DateTime", -1}})
+
+	// Lookup the most recent document in the DB for this ticker.
+	var result bson.M
+	err := mc.pollyDb.Collection(ticker).FindOne(context.Background(), filter, options).Decode(&result)
+	if err != nil {
+		log.Fatal(err)
+	}
+	// Get the datetime of the most recent document.
+	dateTime, ok := result["DateTime"].(primitive.DateTime)
+	if !ok {
+		log.Fatal("DateTime field from MongoDB data is not the expected type (primitive.DateTime).")
+	}
+	return dateTime.Time()
+}
+
+func (mc *MongoDbClient) StoreQuote(q quote.Quote) {
+	// Grab the corresponding stock history collection from the DB.
+	historyData := mc.pollyDb.Collection(q.Symbol)
 	// Insert the stock price data into the collection.
 	for i, _ := range q.Close {
 		_, err := historyData.InsertOne(context.Background(),

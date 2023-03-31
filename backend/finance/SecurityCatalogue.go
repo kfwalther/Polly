@@ -136,29 +136,46 @@ func (sc *SecurityCatalogue) ProcessImport(txnData [][]interface{}) {
 	}
 }
 
+func (sc *SecurityCatalogue) RetrieveAndStoreStockData(ticker string, startDate string, endDate string) {
+	log.Printf("Querying %s data from Yahoo: %s ---> %s", ticker, startDate, endDate)
+	newQuotes, err := quote.NewQuoteFromYahoo(ticker, startDate, endDate, quote.Daily, true)
+	if err != nil {
+		log.Printf("WARNING: Couldn't get ticker (%s) data from Yahoo: %s", ticker, err)
+		return
+	}
+	sc.dbClient.StoreQuote(newQuotes)
+}
+
+func (sc *SecurityCatalogue) RefreshStockHistory(ticker string, initialDate string, currentlyOwned bool) {
+	// Does the ticker exist in the DB?
+	if sc.dbClient.TickerExists(ticker) {
+		// Do we currently own this security?
+		if currentlyOwned {
+			// Are we up to date on the quotes? More than 3 days have passed?
+			latestDate := sc.dbClient.GetLatestQuote(ticker)
+			if time.Now().Sub(latestDate).Hours() > 72 {
+				sc.RetrieveAndStoreStockData(ticker, latestDate.Format("2006-01-02"), time.Now().Format("2006-01-02"))
+			}
+		}
+	} else {
+		// Ticker doesn't exist in DB yet, query all its data.
+		sc.RetrieveAndStoreStockData(ticker, initialDate, time.Now().Format("2006-01-02"))
+	}
+}
+
 // Kicks off async functions in go-routines to calculate metrics for each security
 func (sc *SecurityCatalogue) Calculate() {
 
-	stockList := make([]string, 0)
+	// Grab the historical S&P 500 data to compare against (2015 to present).
+	sc.RefreshStockHistory("SPY", "2015-01-01", true)
 	// Preprocess all the securities, and add the stocks to a list to grab their historical info.
 	for _, s := range sc.securities {
 		s.PreProcess()
-		stockList = append(stockList, s.Ticker)
+		// TODO: Add call to RefreshStockHistory here for each stock...
 	}
-	// Grab the historical S&P 500 data to compare against (2015 to present).
-	stockList = append(stockList, "SPY")
-	// Grab historical quotes for all stocks in bulk.
 
-	// TODO: Need to store this in a DB, too much data to pull each time.
-	sc.sp500quotes, _ = quote.NewQuoteFromYahoo("spy", "2015-01-01", time.Now().Format("2006-01-02"), quote.Daily, true)
-	// quotes, err := quote.NewQuotesFromYahooSyms(stockList, "2015-08-01", time.Now().Format("2006-01-02"), quote.Daily, true)
-	// if err != nil {
-	// 	log.Printf("%s", err)
-	// } else {
-	// 	log.Printf("Successfully queried all quote history!")
-	// }
 	// Save the quotes in the DB.
-	sc.dbClient.StoreQuotes(sc.sp500quotes)
+	sc.dbClient.GetLatestQuote("SPY")
 	return
 	// quoteMap := make(map[string]*quote.Quote)
 	// for _, q := range quotes {
