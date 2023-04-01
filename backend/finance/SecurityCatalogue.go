@@ -143,7 +143,7 @@ func (sc *SecurityCatalogue) RetrieveAndStoreStockData(ticker string, startDate 
 		log.Printf("WARNING: Couldn't get ticker (%s) data from Yahoo: %s", ticker, err)
 		return
 	}
-	sc.dbClient.StoreQuote(newQuotes)
+	sc.dbClient.StoreTickerData(newQuotes)
 }
 
 func (sc *SecurityCatalogue) RefreshStockHistory(ticker string, initialDate string, currentlyOwned bool) {
@@ -168,19 +168,14 @@ func (sc *SecurityCatalogue) Calculate() {
 
 	// Grab the historical S&P 500 data to compare against (2015 to present).
 	sc.RefreshStockHistory("SPY", "2015-01-01", true)
+	sc.sp500quotes = sc.dbClient.GetTickerData("SPY")
 	// Preprocess all the securities, and add the stocks to a list to grab their historical info.
 	for _, s := range sc.securities {
 		s.PreProcess()
-		// TODO: Add call to RefreshStockHistory here for each stock...
+		// Make sure the stock's history data is up-to-date.
+		sc.RefreshStockHistory(s.Ticker, s.transactions[0].DateTime.Format("2006-01-02"), true)
 	}
 
-	// Save the quotes in the DB.
-	sc.dbClient.GetLatestQuote("SPY")
-	return
-	// quoteMap := make(map[string]*quote.Quote)
-	// for _, q := range quotes {
-	// 	quoteMap[q.Symbol] = &q
-	// }
 	// Setup a wait group.
 	var waitGroup sync.WaitGroup
 	// Specify the number of metrics to wait for.
@@ -192,7 +187,7 @@ func (sc *SecurityCatalogue) Calculate() {
 		// Launch a new goroutine for this security.
 		go func(s *Security) {
 			// Pass SP500 quotes to this function to use when calculating transaction level metrics.
-			s.CalculateMetrics(sc.sp500quotes)
+			s.CalculateMetrics(sc.sp500quotes, sc.dbClient.GetTickerData(s.Ticker))
 			waitGroup.Done()
 		}(s)
 	}

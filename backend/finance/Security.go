@@ -107,8 +107,7 @@ func (s *Security) PreProcess() {
 }
 
 // Calculate various metrics about this security.
-// func (s *Security) CalculateMetrics(histQuotes quote.Quote, sp500Quotes quote.Quote) {
-func (s *Security) CalculateMetrics(sp500Quotes quote.Quote) {
+func (s *Security) CalculateMetrics(histQuotes quote.Quote, sp500Quotes quote.Quote) {
 	// Ignore ticker CASH for now, may use this later.
 	if s.Ticker == "CASH" {
 		return
@@ -122,7 +121,7 @@ func (s *Security) CalculateMetrics(sp500Quotes quote.Quote) {
 	if err != nil || q == nil {
 		return
 	}
-	// s.priceHistory = histQuotes
+	s.priceHistory = histQuotes
 
 	// // Upon first buy, grab historical quotes from that date forward to calculate running value total each day.
 	// if s.transactions[0].Action == "Buy" {

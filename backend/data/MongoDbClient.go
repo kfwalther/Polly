@@ -15,8 +15,17 @@ import (
 // Define our MongoDB client.
 type MongoDbClient struct {
 	mongoClient  *mongo.Client
+	ctx          context.Context
 	pollyDb      *mongo.Database
 	stockHistory *mongo.Collection
+}
+
+// Define a record structure to temporarily house the DB data.
+type TempQuote struct {
+	ID       primitive.ObjectID `bson:"_id,omitempty"`
+	Ticker   string             `bson:"ticker,omitempty"`
+	DateTime time.Time          `bson:"DateTime,omitempty"`
+	Price    float64            `bson:"price,omitempty"`
 }
 
 // Constructor for a new MongoDbClient object.
@@ -29,14 +38,17 @@ func NewMongoDbClient() *MongoDbClient {
 func (mc *MongoDbClient) ConnectMongoDb() {
 	// Set connection URL.
 	clientOptions := options.Client().ApplyURI("mongodb://localhost:27017")
+	// Save our database context.
+	mc.ctx = context.Background()
+
 	// Connect to MongoDB.
-	client, err := mongo.Connect(context.Background(), clientOptions)
+	client, err := mongo.Connect(mc.ctx, clientOptions)
 	if err != nil {
 		log.Fatalf("Unable to connect to the MongoDB instance: %v", err)
 	}
 	mc.mongoClient = client
 	// Check the connection.
-	err = mc.mongoClient.Ping(context.Background(), nil)
+	err = mc.mongoClient.Ping(mc.ctx, nil)
 	if err != nil {
 		log.Fatalf("Unable to ping MongoDB instance: %v", err)
 	}
@@ -46,7 +58,7 @@ func (mc *MongoDbClient) ConnectMongoDb() {
 }
 
 func (mc *MongoDbClient) TickerExists(ticker string) bool {
-	names, err := mc.pollyDb.ListCollectionNames(context.Background(), bson.D{{"options.capped", true}})
+	names, err := mc.pollyDb.ListCollectionNames(mc.ctx, bson.D{{"options.capped", true}})
 	if err != nil {
 		log.Printf("ERROR: Failed to get MongoDB collection names: %v", err)
 		return false
@@ -59,21 +71,6 @@ func (mc *MongoDbClient) TickerExists(ticker string) bool {
 		}
 	}
 	return false
-	// filter := bson.M{"ticker": ticker}
-	// cursor, err := mc.pollyDb.Collection(ticker).Find(context.Background(), filter)
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-	// defer cursor.Close(context.Background())
-
-	// // Check if the cursor has any results
-	// if cursor.Next(context.Background()) {
-	// 	fmt.Printf("Found data for ticker symbol %s\n", ticker)
-	// 	return true
-	// } else {
-	// 	fmt.Printf("Did not find data for ticker symbol %s\n", ticker)
-	// 	return false
-	// }
 }
 
 func (mc *MongoDbClient) GetLatestQuote(ticker string) time.Time {
@@ -83,7 +80,7 @@ func (mc *MongoDbClient) GetLatestQuote(ticker string) time.Time {
 
 	// Lookup the most recent document in the DB for this ticker.
 	var result bson.M
-	err := mc.pollyDb.Collection(ticker).FindOne(context.Background(), filter, options).Decode(&result)
+	err := mc.pollyDb.Collection(ticker).FindOne(mc.ctx, filter, options).Decode(&result)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -95,12 +92,35 @@ func (mc *MongoDbClient) GetLatestQuote(ticker string) time.Time {
 	return dateTime.Time()
 }
 
-func (mc *MongoDbClient) StoreQuote(q quote.Quote) {
+func (mc *MongoDbClient) GetTickerData(ticker string) quote.Quote {
+	var data quote.Quote
+	data.Symbol = ticker
+	// Grab the corresponding stock history collection from the DB.
+	cursor, err := mc.pollyDb.Collection(ticker).Find(mc.ctx, bson.M{})
+	if err != nil {
+		log.Fatalf("GetTickerData: Failed to find collection for ticker %s: %v", ticker, err)
+	}
+	defer cursor.Close(mc.ctx)
+
+	// Iterate through the records, saving each.
+	for cursor.Next(mc.ctx) {
+		var q TempQuote
+		err := cursor.Decode(&q)
+		if err != nil {
+			log.Fatalf("GetTickerData: Failed to decode the record: %v: %v", q, err)
+		}
+		data.Date = append(data.Date, q.DateTime)
+		data.Close = append(data.Close, q.Price)
+	}
+	return data
+}
+
+func (mc *MongoDbClient) StoreTickerData(q quote.Quote) {
 	// Grab the corresponding stock history collection from the DB.
 	historyData := mc.pollyDb.Collection(q.Symbol)
 	// Insert the stock price data into the collection.
 	for i, _ := range q.Close {
-		_, err := historyData.InsertOne(context.Background(),
+		_, err := historyData.InsertOne(mc.ctx,
 			bson.M{"ticker": q.Symbol, "DateTime": q.Date[i], "price": q.Close[i]})
 		if err != nil {
 			log.Fatal(err)
@@ -110,7 +130,7 @@ func (mc *MongoDbClient) StoreQuote(q quote.Quote) {
 
 func (mc *MongoDbClient) DisconnectMongoDb() {
 	// Disconnect from MongoDB.
-	err := mc.mongoClient.Disconnect(context.Background())
+	err := mc.mongoClient.Disconnect(mc.ctx)
 	if err != nil {
 		log.Fatalf("Error occurred while disconnecting from MongoDB instance: %v", err)
 	}
