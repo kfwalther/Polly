@@ -71,11 +71,13 @@ var StockSplits = map[string][]Transaction{
 
 // Definition of a security catalogue to house a portfolio of stock/ETF info in a map.
 type SecurityCatalogue struct {
-	id          uint
-	sp500quotes quote.Quote
-	dbClient    *data.MongoDbClient
-	summary     *PortfolioSummary
-	securities  map[string]*Security
+	id               uint
+	firstTxnDate     time.Time
+	sp500quotes      quote.Quote
+	dbClient         *data.MongoDbClient
+	summary          *PortfolioSummary
+	securities       map[string]*Security
+	PortfolioHistory map[time.Time]float64 `json:"portfolioHistory"`
 }
 
 // Constructor for a new SecurityCatalogue object, initializing the map.
@@ -136,6 +138,7 @@ func (sc *SecurityCatalogue) ProcessImport(txnData [][]interface{}) {
 	}
 }
 
+// Retrieves data from Yahoo for the given ticker, and stores the data in the DB.
 func (sc *SecurityCatalogue) RetrieveAndStoreStockData(ticker string, startDate string, endDate string) {
 	log.Printf("Querying %s data from Yahoo: %s ---> %s", ticker, startDate, endDate)
 	newQuotes, err := quote.NewQuoteFromYahoo(ticker, startDate, endDate, quote.Daily, true)
@@ -146,6 +149,7 @@ func (sc *SecurityCatalogue) RetrieveAndStoreStockData(ticker string, startDate 
 	sc.dbClient.StoreTickerData(newQuotes)
 }
 
+// Checks existing ticker history data in our DB, and pulls any missing data from Yahoo to fill in gaps.
 func (sc *SecurityCatalogue) RefreshStockHistory(ticker string, initialDate string, currentlyOwned bool) {
 	// Does the ticker exist in the DB?
 	if sc.dbClient.TickerExists(ticker) {
@@ -160,6 +164,14 @@ func (sc *SecurityCatalogue) RefreshStockHistory(ticker string, initialDate stri
 	} else {
 		// Ticker doesn't exist in DB yet, query all its data.
 		sc.RetrieveAndStoreStockData(ticker, initialDate, time.Now().Format("2006-01-02"))
+	}
+}
+
+// Add an individual's security history to the total portfolio value history.
+func (sc *SecurityCatalogue) AccumulateValueHistory(stockHistory map[time.Time]float64) {
+	// Iterate through each date for this security and add to the total.
+	for date, dailyVal := range stockHistory {
+		sc.PortfolioHistory[date] += dailyVal
 	}
 }
 
@@ -198,6 +210,8 @@ func (sc *SecurityCatalogue) Calculate() {
 	// Calculate total invested market value across all securities.
 	for _, s := range sc.securities {
 		// s.DisplayMetrics()
+		// Add this security's value history to the portfolio total.
+		sc.AccumulateValueHistory(s.ValueHistory)
 		sc.summary.TotalMarketValue += s.MarketValue
 		sc.summary.TotalCostBasis += s.TotalCostBasis
 		sc.summary.DailyGain += s.DailyGain

@@ -31,6 +31,20 @@ func (c *SecurityController) GetSummary(ctx *gin.Context) {
 	}
 }
 
+func (c *SecurityController) GetPortfolioHistory(ctx *gin.Context) {
+	if c.securityCatalogue.PortfolioHistory == nil || len(c.securityCatalogue.PortfolioHistory) == 0 {
+		log.Printf("No portfolio history to forward thru API to front-end!")
+		ctx.JSON(400, gin.H{
+			"error": "No portfolio history found!",
+		})
+	} else {
+		log.Printf("Sending portfolio history to front-end...")
+		ctx.JSON(200, gin.H{
+			"history": c.securityCatalogue.PortfolioHistory,
+		})
+	}
+}
+
 func (c *SecurityController) GetSecurities(ctx *gin.Context) {
 	secs := c.securityCatalogue.GetSecurityList()
 	if len(secs) == 0 {

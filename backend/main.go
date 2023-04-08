@@ -83,6 +83,7 @@ func main() {
 	router.GET("/securities", ctrlr.GetSecurities)
 	router.GET("/transactions", ctrlr.GetTransactions)
 	router.GET("/sp500", ctrlr.GetSp500History)
+	router.GET("/history", ctrlr.GetPortfolioHistory)
 
 	// Disable trusted proxies.
 	router.SetTrustedProxies(nil)
