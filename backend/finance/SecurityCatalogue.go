@@ -72,7 +72,6 @@ var StockSplits = map[string][]Transaction{
 // Definition of a security catalogue to house a portfolio of stock/ETF info in a map.
 type SecurityCatalogue struct {
 	id               uint
-	firstTxnDate     time.Time
 	sp500quotes      quote.Quote
 	dbClient         *data.MongoDbClient
 	summary          *PortfolioSummary
@@ -84,6 +83,7 @@ type SecurityCatalogue struct {
 func NewSecurityCatalogue(dbClient *data.MongoDbClient) *SecurityCatalogue {
 	var sc SecurityCatalogue
 	sc.securities = make(map[string]*Security)
+	sc.PortfolioHistory = make(map[time.Time]float64)
 	sc.summary = NewPortfolioSummary()
 	sc.dbClient = dbClient
 	return &sc
@@ -183,9 +183,11 @@ func (sc *SecurityCatalogue) Calculate() {
 	sc.sp500quotes = sc.dbClient.GetTickerData("SPY")
 	// Preprocess all the securities, and add the stocks to a list to grab their historical info.
 	for _, s := range sc.securities {
-		s.PreProcess()
-		// Make sure the stock's history data is up-to-date.
-		sc.RefreshStockHistory(s.Ticker, s.transactions[0].DateTime.Format("2006-01-02"), true)
+		if s.Ticker != "CASH" {
+			s.PreProcess()
+			// Make sure the stock's history data is up-to-date.
+			sc.RefreshStockHistory(s.Ticker, s.transactions[0].DateTime.Format("2006-01-02"), true)
+		}
 	}
 
 	// Setup a wait group.
@@ -199,7 +201,7 @@ func (sc *SecurityCatalogue) Calculate() {
 		// Launch a new goroutine for this security.
 		go func(s *Security) {
 			// Pass SP500 quotes to this function to use when calculating transaction level metrics.
-			s.CalculateMetrics(sc.sp500quotes, sc.dbClient.GetTickerData(s.Ticker))
+			s.CalculateMetrics(sc.dbClient.GetTickerData(s.Ticker), sc.sp500quotes)
 			waitGroup.Done()
 		}(s)
 	}
@@ -209,13 +211,15 @@ func (sc *SecurityCatalogue) Calculate() {
 
 	// Calculate total invested market value across all securities.
 	for _, s := range sc.securities {
-		// s.DisplayMetrics()
-		// Add this security's value history to the portfolio total.
-		sc.AccumulateValueHistory(s.ValueHistory)
-		sc.summary.TotalMarketValue += s.MarketValue
-		sc.summary.TotalCostBasis += s.TotalCostBasis
-		sc.summary.DailyGain += s.DailyGain
-		sc.summary.TotalSecurities++
+		if s.Ticker != "CASH" {
+			// s.DisplayMetrics()
+			// Add this security's value history to the portfolio total.
+			sc.AccumulateValueHistory(s.ValueHistory)
+			sc.summary.TotalMarketValue += s.MarketValue
+			sc.summary.TotalCostBasis += s.TotalCostBasis
+			sc.summary.DailyGain += s.DailyGain
+			sc.summary.TotalSecurities++
+		}
 	}
 	sc.summary.PercentageGain = ((sc.summary.TotalMarketValue - sc.summary.TotalCostBasis) / sc.summary.TotalCostBasis) * 100.0
 	log.Println("---------------------------------")

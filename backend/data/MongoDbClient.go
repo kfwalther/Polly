@@ -58,15 +58,15 @@ func (mc *MongoDbClient) ConnectMongoDb() {
 }
 
 func (mc *MongoDbClient) TickerExists(ticker string) bool {
-	names, err := mc.pollyDb.ListCollectionNames(mc.ctx, bson.D{{"options.capped", true}})
+	// Get the complete list of collections in the database.
+	names, err := mc.pollyDb.ListCollectionNames(mc.ctx, bson.M{"type": "collection"})
 	if err != nil {
 		log.Printf("ERROR: Failed to get MongoDB collection names: %v", err)
 		return false
 	}
-
+	// Look for the collection matching the given ticker.
 	for _, name := range names {
 		if name == ticker {
-			log.Printf("The collection %s exists!", ticker)
 			return true
 		}
 	}

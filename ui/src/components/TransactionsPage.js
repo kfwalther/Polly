@@ -116,8 +116,7 @@ export default function TransactionsPage() {
                         setChartDataSeries(series)
                         console.log('Done filtering!')
                     }
-                }
-                )
+                })
         }
 
         // Cleanup function, so double useEffect doesn't keep affecting our fetched data.

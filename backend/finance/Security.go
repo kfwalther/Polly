@@ -112,15 +112,23 @@ func (s *Security) CalculateMetrics(histQuotes quote.Quote, sp500Quotes quote.Qu
 	if s.Ticker == "CASH" {
 		return
 	}
-	hasSplits := false
+	// hasSplits := false
+	splitMultiple := 1.0
 	if _, ok := StockSplits[s.Ticker]; ok {
-		hasSplits = true
+		// hasSplits = true
+		// Iterate thru all transactions to calculate the total split multiple for this stock.
+		for _, txn := range s.transactions {
+			if txn.Action == "Split" {
+				splitMultiple *= txn.Shares
+			}
+		}
 	}
 	// Get the current info for the given ticker.
 	q, err := equity.Get(s.Ticker)
 	if err != nil || q == nil {
 		return
 	}
+	// Note, for calculations below, Yahoo stock price history is already split-adjusted.
 	s.priceHistory = histQuotes
 
 	// // Upon first buy, grab historical quotes from that date forward to calculate running value total each day.
@@ -155,21 +163,22 @@ func (s *Security) CalculateMetrics(histQuotes quote.Quote, sp500Quotes quote.Qu
 
 	tIdx := 0
 	curShares := 0.0
+
 	// Iterate through each date from first purchase.
 	for dIdx := 0; dIdx < len(s.priceHistory.Date); dIdx++ {
+		// if s.Ticker == "TSLA" {
+		// 	log.Printf("%v", s.priceHistory.Date[dIdx])
+		// }
 		// Was there a transaction on this date? (Keep iterating if multiple on this date)
-		if s.Ticker == "ROKU" {
-			log.Printf("%v - %v", s.priceHistory.Date[dIdx], s.transactions[tIdx].DateTime)
-		}
 		for tIdx < len(s.transactions) &&
 			s.priceHistory.Date[dIdx].Equal(getUtcDate(s.transactions[tIdx].DateTime)) {
 
 			// Get a reference to the current txn.
 			t := &s.transactions[tIdx]
 			tIdx++
-			if s.Ticker == "ROKU" {
-				log.Printf("%s - %s", t.Action, t.DateTime.Format("2006-01-02"))
-			}
+			// if s.Ticker == "TSLA" {
+			// 	log.Printf("%s - %s", t.Action, t.DateTime.Format("2006-01-02"))
+			// }
 			// For buys, increment number of shares.
 			if t.Action == "Buy" {
 				curShares += t.Shares
@@ -222,20 +231,11 @@ func (s *Security) CalculateMetrics(histQuotes quote.Quote, sp500Quotes quote.Qu
 					buyQ[i].Price /= t.Shares
 					buyQ[i].Shares *= t.Shares
 				}
+				splitMultiple /= t.Shares
 			}
 
 			// Calculate the theoretical return on this txn, if we held.
 			if t.Action == "Buy" || t.Action == "Sell" {
-				// Keep track of the total multiplier to adjust for any stock splits.
-				splitMultiple := 1.0
-				// Iterate from the current txn to the end, checking for any stock splits.
-				if (tIdx != len(s.transactions)-1) && hasSplits {
-					for n := tIdx + 1; n < len(s.transactions); n++ {
-						if s.transactions[n].Action == "Split" {
-							splitMultiple *= s.transactions[n].Shares
-						}
-					}
-				}
 				isNeg := 1.0
 				if t.Action == "Sell" {
 					isNeg = -1.0
@@ -247,16 +247,16 @@ func (s *Security) CalculateMetrics(histQuotes quote.Quote, sp500Quotes quote.Qu
 		}
 		// Save the value of this stock in our portfolio on this date (if still owned).
 		if curShares > 0 {
-			s.ValueHistory[s.priceHistory.Date[dIdx]] = curShares * s.priceHistory.Close[dIdx]
+			s.ValueHistory[s.priceHistory.Date[dIdx]] = curShares * s.priceHistory.Close[dIdx] * splitMultiple
 		} else {
-			// If share count is zero, we need not calculate anymore dates for this stock.
+			// If share count is zero, we need not calculate any more dates for this stock.
 			break
 		}
 	}
 
-	if s.Ticker == "ROKU" {
-		log.Printf("%v", s.ValueHistory)
-	}
+	// if s.Ticker == "TSLA" {
+	// 	log.Printf("%v", s.ValueHistory)
+	// }
 	// Calculate cost bases and unrealized gains with any remaining buy shares in the buy queue.
 	for _, txn := range buyQ {
 		s.NumShares += txn.Shares
