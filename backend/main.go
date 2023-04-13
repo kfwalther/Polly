@@ -67,7 +67,7 @@ func main() {
 
 	// Connect to our MongoDB instance.
 	dbClient := data.NewMongoDbClient()
-	dbClient.ConnectMongoDb()
+	dbClient.ConnectMongoDb("polly-data-prod")
 
 	catalogue := finance.NewSecurityCatalogue(dbClient)
 	// Process the imported data to organize it by ticker.

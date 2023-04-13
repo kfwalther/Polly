@@ -14,6 +14,7 @@ import (
 
 // Define our MongoDB client.
 type MongoDbClient struct {
+	databaseName string
 	mongoClient  *mongo.Client
 	ctx          context.Context
 	pollyDb      *mongo.Database
@@ -35,7 +36,8 @@ func NewMongoDbClient() *MongoDbClient {
 }
 
 // Connect to our MongoDB and grab the Polly data collection.
-func (mc *MongoDbClient) ConnectMongoDb() {
+func (mc *MongoDbClient) ConnectMongoDb(dbName string) {
+	mc.databaseName = dbName
 	// Set connection URL.
 	clientOptions := options.Client().ApplyURI("mongodb://localhost:27017")
 	// Save our database context.
@@ -52,8 +54,8 @@ func (mc *MongoDbClient) ConnectMongoDb() {
 	if err != nil {
 		log.Fatalf("Unable to ping MongoDB instance: %v", err)
 	}
-	// Connect to the "polly-data" database.
-	mc.pollyDb = mc.mongoClient.Database("polly-data")
+	// Connect to the database.
+	mc.pollyDb = mc.mongoClient.Database(mc.databaseName)
 	return
 }
 

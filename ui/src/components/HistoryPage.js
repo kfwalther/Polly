@@ -1,26 +1,25 @@
 import { useState, useEffect } from "react";
-import { TransactionsTable } from "./TransactionsTable";
+import Select from 'react-select';
 import StockLineChart from "./StockLineChart";
 import LoadingSpinner from "./LoadingSpinner";
 
 // Construct the data table to be displayed on the chart.
-function calculatePortfolioHistory(historyData) {
-    var r = historyData.filter(s => s.ticker == "TSLA")[0].valueHistory
-    var my = []
-    for (const [date, value] of Object.entries(r)) {
-        my.push([new Date(date), value])
+function convertValueHistoryToSeries(historyData) {
+    var series = []
+    // Reformat object of date-price key-value pairs into series for plotting.
+    for (const [date, value] of Object.entries(historyData)) {
+        series.push([new Date(date), value])
     }
-    console.log(my)
     // Add the column names at the beginning of the data series.
-    my.unshift(['Date', 'Price'])
-
-    return my
+    series.unshift(['Date', 'Price'])
+    return series
 }
 
 // Fetch the transaction data from the server, and return/render the transactions page.
 export default function HistoryPage() {
     const [isLoading, setIsLoading] = useState(false);
-    const [buySellList, setBuySellList] = useState([]);
+    const [stockData, setStockData] = useState([]);
+    const [stockList, setStockList] = useState([]);
     const [chartDataSeries, setChartDataSeries] = useState([]);
     const [errorMessage, setErrorMessage] = useState("");
 
@@ -56,16 +55,20 @@ export default function HistoryPage() {
         if (!ignoreEffect) {
             // Fetch all the data and wait for it to populate here.
             getAllData()
-                .then(([stockData, historyData]) => {
-                    console.log('Done fetching! Stock data: ' + stockData.length)
-                    console.log('History data: ' + historyData)
-                    console.log('Calculating portfolio totals...')
-                    if (stockData != null && stockData.length > 0) {
-                        // Add up all the stock totals for each day.
-                        // TODO: FIX PLOTTING!
-                        // var series = calculatePortfolioHistory(historyData)
-                        // setChartDataSeries(series)
-                        console.log('Done calculating!')
+                .then(([stocks, historyData]) => {
+                    console.log('Done fetching! Number of stocks retrieved: ' + stocks.length)
+                    // If we got the list of stocks, filter out CASH position, and save them.
+                    if (stocks != null && stocks.length > 0) {
+                        var onlyStocks = stocks.filter(s => s.ticker != "CASH")
+                        setStockData(onlyStocks)
+                        var simpleList = onlyStocks.map(s => ({ value: s.ticker, label: s.ticker }))
+                        setStockList(simpleList)
+                    }
+                    // If we got total portfolio history, convert it to a plot series, and save.
+                    if (historyData != null) {
+                        var series = convertValueHistoryToSeries(historyData)
+                        setChartDataSeries(series)
+                        console.log('Done formatting plot series data.')
                     }
                 })
         }
@@ -86,6 +89,16 @@ export default function HistoryPage() {
         }
     }, [chartDataSeries]);
 
+    // Plot the selected stock in the line chart.
+    function plotSelectedStock(selection) {
+        setIsLoading(true);
+        console.log('Plotting ' + selection.value + '...')
+        var dataToPlot = stockData.find(s => s.ticker === selection.value).valueHistory
+        var series = convertValueHistoryToSeries(dataToPlot)
+        // When we save here, the useEffect will run and refresh the page.
+        setChartDataSeries(series)
+    }
+
     // Return this JSX content to be rendered.
     return (
         <>
@@ -96,6 +109,8 @@ export default function HistoryPage() {
                 />
             }
             {errorMessage && <div className="error">{errorMessage}</div>}
+            {/* Show a drop-down list to allow user to specify which stock to plot. */}
+            <Select options={stockList} onChange={plotSelectedStock} />
         </>
     );
 }
