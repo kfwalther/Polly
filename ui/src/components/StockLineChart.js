@@ -1,26 +1,27 @@
 import { Chart } from 'react-google-charts';
 
 
-export default function StockLineChart({ chartDataSeries }) {
+export default function StockLineChart({ chartDataSeries, chartTitle, startDate }) {
 
     // Define the options for this line chart.
     var chartOptions = {
         legend: 'none',
         backgroundColor: 'transparent',
-        title: 'S&P500 Performance',
+        title: chartTitle,
         titleTextStyle: {
             color: 'lightgrey'
         },
         colors: ['aqua'],
         crosshair: { orientation: 'vertical', trigger: 'focus', color: 'lightgrey' },
         curveType: 'function',
-        chartArea: { top: 25, bottom: 50, left: 50, right: 25 },
+        chartArea: { top: 25, bottom: 50, left: 65, right: 25 },
         hAxis: {
             format: 'MMM y',
             gridlines: { count: 5, color: 'transparent' },
             minorGridlines: { count: 0 },
         },
         vAxis: {
+            format: 'short',
             gridlines: { count: 0 },
             minorGridlines: { count: 0 },
             viewWindowMode: 'maximized',
@@ -42,6 +43,9 @@ export default function StockLineChart({ chartDataSeries }) {
 
     // Define the height of the chart range filter so we can pad for it.
     var filterHeight = 50
+
+    // Use given start date, if one was provided.
+    var plotStartDate = startDate == null ? chartDataSeries[1][0] : startDate
 
     return (
         // Apply bottom margin around this div container to account for the height of chart range filter.
@@ -79,8 +83,8 @@ export default function StockLineChart({ chartDataSeries }) {
                         controlWrapperParams: {
                             state: {
                                 range: {
-                                    // Set the range filter at beginning of 2020 (zero-indexed for month/day).
-                                    start: new Date(2020, 0, 0),
+                                    // Set the range filter at some position.
+                                    start: plotStartDate
                                 },
                             },
                         },

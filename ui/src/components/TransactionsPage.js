@@ -70,7 +70,6 @@ export default function TransactionsPage() {
     const [isLoading, setIsLoading] = useState(false);
     const [buySellList, setBuySellList] = useState([]);
     const [chartDataSeries, setChartDataSeries] = useState([]);
-    const [errorMessage, setErrorMessage] = useState("");
 
     document.body.style.backgroundColor = "black"
     // A flag to set so we ignore the second useEffect call, so data isn't fetched twice.
@@ -155,9 +154,10 @@ export default function TransactionsPage() {
             {(isLoading === true || chartDataSeries.length === 0) ? <LoadingSpinner /> :
                 <StockLineChart
                     chartDataSeries={chartDataSeries}
+                    chartTitle={'S&P500 Performance'}
+                    startDate={new Date(2020, 0, 0)}
                 />
             }
-            {errorMessage && <div className="error">{errorMessage}</div>}
             <h3 className="header-centered">Transactions List</h3>
             {/* Display all the transactions in a sortable table. */}
             {(isLoading === true || buySellList.length === 0) ? <LoadingSpinner /> :

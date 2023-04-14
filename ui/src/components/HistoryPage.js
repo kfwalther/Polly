@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import Select from 'react-select';
 import StockLineChart from "./StockLineChart";
 import LoadingSpinner from "./LoadingSpinner";
+import "./HistoryPage.css";
 
 // Construct the data table to be displayed on the chart.
 function convertValueHistoryToSeries(historyData) {
@@ -21,7 +22,6 @@ export default function HistoryPage() {
     const [stockData, setStockData] = useState([]);
     const [stockList, setStockList] = useState([]);
     const [chartDataSeries, setChartDataSeries] = useState([]);
-    const [errorMessage, setErrorMessage] = useState("");
 
     document.body.style.backgroundColor = "black"
     // A flag to set so we ignore the second useEffect call, so data isn't fetched twice.
@@ -59,7 +59,7 @@ export default function HistoryPage() {
                     console.log('Done fetching! Number of stocks retrieved: ' + stocks.length)
                     // If we got the list of stocks, filter out CASH position, and save them.
                     if (stocks != null && stocks.length > 0) {
-                        var onlyStocks = stocks.filter(s => s.ticker != "CASH")
+                        var onlyStocks = stocks.filter(s => s.ticker !== "CASH")
                         setStockData(onlyStocks)
                         var simpleList = onlyStocks.map(s => ({ value: s.ticker, label: s.ticker }))
                         setStockList(simpleList)
@@ -106,11 +106,14 @@ export default function HistoryPage() {
             {(isLoading === true || chartDataSeries.length === 0) ? <LoadingSpinner /> :
                 <StockLineChart
                     chartDataSeries={chartDataSeries}
+                    chartTitle={'Historical Performance'}
                 />
             }
-            {errorMessage && <div className="error">{errorMessage}</div>}
             {/* Show a drop-down list to allow user to specify which stock to plot. */}
-            <Select options={stockList} onChange={plotSelectedStock} />
+            <h3 className="stock-picker-label">Pick a ticker to plot:</h3>
+            <div className="stock-picker-container">
+                <Select options={stockList} onChange={plotSelectedStock} />
+            </div>
         </>
     );
 }
