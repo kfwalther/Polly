@@ -1,8 +1,10 @@
 import { useState, useEffect } from "react";
+import Select from 'react-select';
 import { TransactionsTable } from "./TransactionsTable";
 import { getDateFromUtcDateTime, toPercent, toUSD } from './Helpers';
 import StockLineChart from "./StockLineChart";
 import LoadingSpinner from "./LoadingSpinner";
+import "./TransactionsPage.css";
 
 // Helper function to calculate the win rate for our trades (buys/sells).
 function getWinRate(txns) {
@@ -23,52 +25,75 @@ function getBeatRate(txns) {
 }
 
 // Construct the data table to be displayed on the chart.
-function superImposeTradesOnPriceChart(chartData, txnData) {
-    var data = []
+function convertValueHistoryToSeries(historyData) {
+    var series = []
+    // Reformat object of date-price key-value pairs into series for plotting.
+    for (const [date, value] of Object.entries(historyData)) {
+        series.push([new Date(date), value])
+    }
+    return series
+}
+
+// Find the min/max of the stock data value (y-axis or second column).
+function findMinMax(stockData) {
+    const [min, max] = stockData.reduce(([min, max], [_, second]) => [
+        Math.min(min, second),
+        Math.max(max, second)
+    ], [stockData[0][1], stockData[0][1]]);
+    return [min, max]
+}
+
+// Construct the data table to be displayed on the chart.
+function superImposeTradesOnPriceChart(stockData, txnData) {
     var fullSeries = []
-    if ((chartData != null) && (chartData.sp500 != null)) {
-        // Put the S&P500 values in an array.
-        data = chartData.sp500.date.map((k, i) => [
-            new Date(k),
-            chartData.sp500.close[i],
-        ])
+    if (stockData != null) {
+        // Determine the min and max values for the y-axis, so we can properly space the txn flags when plotted.
+        const [min, max] = findMinMax(stockData)
+        // Calculate the txn flag spacing
+        var flagSpacing = (max - min) * 0.03
         // Iterate through each day market has been open.
-        for (let i = 0; i < chartData.sp500.date.length; i++) {
+        for (let i = 0; i < stockData.length; i++) {
             // Does current date have any txns?
-            if (txnData.some(t => getDateFromUtcDateTime(t.dateTime) === getDateFromUtcDateTime(chartData.sp500.date[i]))) {
+            if (txnData.some(t => getDateFromUtcDateTime(t.dateTime) === getDateFromUtcDateTime(stockData[i][0].toISOString()))) {
                 // Loop through each txn on this date.
-                var txns = txnData.filter(t => getDateFromUtcDateTime(t.dateTime) === getDateFromUtcDateTime(chartData.sp500.date[i]))
+                var txns = txnData.filter(t => getDateFromUtcDateTime(t.dateTime) === getDateFromUtcDateTime(stockData[i][0].toISOString()))
                 var numBuys = 0
                 var numSells = 0
                 for (var j = 0; j < txns.length; j++) {
-                    // Add a buy event flag positioned above the S&P500 line.
+                    // Add a buy event flag positioned above the plotted line.
                     if (txns[j].action === "Buy") {
                         numBuys++
-                        fullSeries.push([data[i][0], data[i][1], data[i][1] + (numBuys * 5),
-                        "Bought " + txns[j].ticker + " @ " + toUSD(txns[j].price) + "\nTotal Return:" + toPercent(txns[j].totalReturn),
+                        fullSeries.push([stockData[i][0], stockData[i][1], stockData[i][1] + (numBuys * flagSpacing),
+                        "Bought " + txns[j].ticker + " @ " + toUSD(txns[j].price) + "\nValue: " + toUSD(txns[j].value) + "\nTotal Return: " + toPercent(txns[j].totalReturn),
                             null, null])
-                        // Add a sell event flag positioned below the S&P500 line.
+                        // Add a sell event flag positioned below the plotted line.
                     } else if (txns[j].action === "Sell") {
                         numSells++
-                        fullSeries.push([data[i][0], data[i][1], null, null,
-                        data[i][1] - (numSells * 5),
-                        "Sold " + txns[j].ticker + " @ " + toUSD(txns[j].price) + "\nTotal Return:" + toPercent(txns[j].totalReturn)])
+                        fullSeries.push([stockData[i][0], stockData[i][1], null, null,
+                        stockData[i][1] - (numSells * flagSpacing),
+                        "Sold " + txns[j].ticker + " @ " + toUSD(txns[j].price) + "\nValue: " + toUSD(txns[j].value) + "\nTotal Return: " + toPercent(txns[j].totalReturn)])
                     }
                 }
             } else {
-                fullSeries.push([data[i][0], data[i][1], null, null, null, null])
+                fullSeries.push([stockData[i][0], stockData[i][1], null, null, null, null])
             }
         }
         // Add the column names at the beginning of the data series.
-        fullSeries.unshift(['Date', 'Price', 'Buy', { role: 'tooltip' }, 'Sell', { role: 'tooltip' }])
+        fullSeries.unshift([{ label: 'Date', type: 'date' }, { label: 'Price', type: 'number' },
+        { label: 'Buy', type: 'number' }, { role: 'tooltip' }, { label: 'Sell', type: 'number' }, { role: 'tooltip' }])
     }
+    console.log(fullSeries)
     return fullSeries
 }
 
 // Fetch the transaction data from the server, and return/render the transactions page.
 export default function TransactionsPage() {
     const [isLoading, setIsLoading] = useState(false);
+    const [plotDesc, setPlotDesc] = useState('Total Portfolio')
     const [buySellList, setBuySellList] = useState([]);
+    const [stockData, setStockData] = useState([]);
+    const [stockTickerList, setStockTickerList] = useState([]);
+    const [totalPortfolioData, setTotalPortfolioData] = useState([]);
     const [chartDataSeries, setChartDataSeries] = useState([]);
 
     document.body.style.backgroundColor = "black"
@@ -82,15 +107,22 @@ export default function TransactionsPage() {
             .then(json => json["transactions"])
     }
 
-    // Simple function to perform async fetch of S&P500 data.
-    function getSp500Data() {
-        return fetch('http://localhost:5000/sp500')
+    // Simple function to perform async fetch of history data.
+    function getSecurities() {
+        return fetch('http://localhost:5000/securities')
             .then(resp => resp.json())
+            .then(json => json["securities"])
+    }
+
+    function getHistoryData() {
+        return fetch("http://localhost:5000/history")
+            .then(resp => resp.json())
+            .then(json => json["history"])
     }
 
     // A function to setup a Promise to synchronously wait for all fetches to finish.
     function getAllData() {
-        return Promise.all([getTransactions(), getSp500Data()])
+        return Promise.all([getTransactions(), getSecurities(), getHistoryData()])
     }
 
     // Runs on mount (twice, by design), so use ignore flag so we don't fetch and filter twice.
@@ -103,18 +135,32 @@ export default function TransactionsPage() {
         if (!ignoreEffect) {
             // Fetch all the data and wait for it to populate here.
             getAllData()
-                .then(([txns, sp500Data]) => {
-                    console.log('Done fetching! Txns: ' + txns.length + ', SP500 Data: ' + sp500Data.sp500.close.length)
+                .then(([txns, stocks, historyData]) => {
+                    console.log('Done fetching! Txns: ' + txns.length + ', Stock Count: ' + stocks.length)
                     console.log('Filtering data...')
+                    var filteredTxnList = []
+                    var historySeries = []
                     if (txns != null && txns.length > 0) {
                         // Filter txns for only buy/sell actions.
-                        var filteredList = txns.filter(t => (t.action === "Buy" || t.action === "Sell"))
-                        setBuySellList(filteredList)
-                        // Generate the data series with trades super-imposed on the S&P500 price data.
-                        var series = superImposeTradesOnPriceChart(sp500Data, filteredList)
-                        setChartDataSeries(series)
-                        console.log('Done filtering!')
+                        filteredTxnList = txns.filter(t => (t.action === "Buy" || t.action === "Sell"))
+                        setBuySellList(filteredTxnList)
                     }
+                    // If we got the list of stocks, filter out CASH position, and save them.
+                    if (stocks != null && stocks.length > 0) {
+                        var onlyStocks = stocks.filter(s => s.ticker !== "CASH")
+                        setStockData(onlyStocks)
+                        var tickerList = onlyStocks.map(s => ({ value: s.ticker, label: s.ticker }))
+                        setStockTickerList(tickerList)
+                    }
+                    // If we got total portfolio history, convert it to a plot series, and save.
+                    if (historyData != null) {
+                        historySeries = convertValueHistoryToSeries(historyData)
+                        setTotalPortfolioData(historySeries)
+                    }
+                    // Generate the data series with trades super-imposed on the historical price data.
+                    var series = superImposeTradesOnPriceChart(historySeries, filteredTxnList)
+                    setChartDataSeries(series)
+                    console.log('Done filtering!')
                 })
         }
 
@@ -134,6 +180,23 @@ export default function TransactionsPage() {
         }
     }, [chartDataSeries]);
 
+    // Plot the selected stock in the line chart.
+    function plotSelectedStock(selection) {
+        setIsLoading(true);
+        console.log('Plotting ' + selection.value + '...')
+        // Update the title descriptor of the plot.
+        setPlotDesc(selection.value)
+        // Filter for only the specific stock's data, then convert it to a plottable series.
+        var dataToPlot = stockData.find(s => s.ticker === selection.value).valueHistory
+        var stockSeries = convertValueHistoryToSeries(dataToPlot)
+        // Filter the transactions for the specific stock's data.
+        var txnsToOverlay = buySellList.filter(t => (t.ticker === selection.value))
+        // Generate a full series of data with transactions overlayed on the stock data.
+        var series = superImposeTradesOnPriceChart(stockSeries, txnsToOverlay)
+        // When we save here, the useEffect will run and refresh the page.
+        setChartDataSeries(series)
+    }
+
     // Return this JSX content to be rendered.
     return (
         <>
@@ -150,14 +213,18 @@ export default function TransactionsPage() {
                     </tr>
                 </tbody>
             </table>
-            {/* Add a line chart to superimpose our trades on the S&P500 performance. */}
+            {/* Add a line chart to superimpose our trades on the portfolio's historical performance. */}
             {(isLoading === true || chartDataSeries.length === 0) ? <LoadingSpinner /> :
                 <StockLineChart
                     chartDataSeries={chartDataSeries}
-                    chartTitle={'S&P500 Performance'}
-                    startDate={new Date(2020, 0, 0)}
+                    chartTitle={'Historical Performance for ' + plotDesc}
                 />
             }
+            {/* Show a drop-down list to allow user to specify which stock to plot. */}
+            <h3 className="stock-picker-label">Pick a ticker to plot:</h3>
+            <div className="stock-picker-container">
+                <Select options={stockTickerList} onChange={plotSelectedStock} />
+            </div>
             <h3 className="header-centered">Transactions List</h3>
             {/* Display all the transactions in a sortable table. */}
             {(isLoading === true || buySellList.length === 0) ? <LoadingSpinner /> :

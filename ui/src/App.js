@@ -5,7 +5,6 @@ import { Header } from './components/Header';
 import { NavHeader } from './components/NavHeader';
 import { Routes, Route } from 'react-router-dom';
 import TransactionsPage from './components/TransactionsPage';
-import HistoryPage from './components/HistoryPage';
 
 function App() {
   // This is what gets rendered on the page.
@@ -19,7 +18,6 @@ function App() {
         <Route path="/*">
           <Route index element={<MainPage />} />
           <Route path='transactions' element={<TransactionsPage />} />
-          <Route path='history' element={<HistoryPage />} />
         </Route>
       </Routes>
     </>

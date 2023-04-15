@@ -12,8 +12,7 @@ export const NavHeader = () => {
                 <Nav className="nav-header">
                     {/* Use Link from react-router-dom to define the routing links. */}
                     <Link to="/" className="nav-item">Home</Link>
-                    <Link to="/transactions" className="nav-item">Transactions</Link>
-                    <Link to="/history" className="nav-item">Portfolio History</Link>
+                    <Link to="/transactions" className="nav-item">Transactions & Performance</Link>
                 </Nav>
             </Navbar>
         </Container>
