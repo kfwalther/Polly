@@ -150,7 +150,9 @@ export default function TransactionsPage() {
                     if (stocks != null && stocks.length > 0) {
                         var onlyStocks = stocks.filter(s => s.ticker !== "CASH")
                         setStockData(onlyStocks)
+                        // Get a list of tickers, sorted alphabetically, for the drop-down list labels.
                         var tickerList = onlyStocks.map(s => ({ value: s.ticker, label: s.ticker }))
+                        tickerList.sort((a, b) => a.label.localeCompare(b.label))
                         setStockTickerList(tickerList)
                     }
                     // If we got total portfolio history, convert it to a plot series, and save.
