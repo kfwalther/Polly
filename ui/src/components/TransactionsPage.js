@@ -46,7 +46,7 @@ function findMinMax(stockData) {
 // Construct the data table to be displayed on the chart.
 function superImposeTradesOnPriceChart(stockData, txnData) {
     var fullSeries = []
-    if (stockData != null) {
+    if (stockData != null && stockData.length > 0 && txnData != null && txnData.length > 0) {
         // Determine the min and max values for the y-axis, so we can properly space the txn flags when plotted.
         const [min, max] = findMinMax(stockData)
         // Calculate the txn flag spacing
@@ -82,7 +82,6 @@ function superImposeTradesOnPriceChart(stockData, txnData) {
         fullSeries.unshift([{ label: 'Date', type: 'date' }, { label: 'Price', type: 'number' },
         { label: 'Buy', type: 'number' }, { role: 'tooltip' }, { label: 'Sell', type: 'number' }, { role: 'tooltip' }])
     }
-    console.log(fullSeries)
     return fullSeries
 }
 
@@ -91,6 +90,7 @@ export default function TransactionsPage() {
     const [isLoading, setIsLoading] = useState(false);
     const [plotDesc, setPlotDesc] = useState('Total Portfolio')
     const [buySellList, setBuySellList] = useState([]);
+    const [txnTableData, setTxnTableData] = useState([]);
     const [stockData, setStockData] = useState([]);
     const [stockTickerList, setStockTickerList] = useState([]);
     const [totalPortfolioData, setTotalPortfolioData] = useState([]);
@@ -144,6 +144,7 @@ export default function TransactionsPage() {
                         // Filter txns for only buy/sell actions.
                         filteredTxnList = txns.filter(t => (t.action === "Buy" || t.action === "Sell"))
                         setBuySellList(filteredTxnList)
+                        setTxnTableData(filteredTxnList)
                     }
                     // If we got the list of stocks, filter out CASH position, and save them.
                     if (stocks != null && stocks.length > 0) {
@@ -191,6 +192,8 @@ export default function TransactionsPage() {
         var stockSeries = convertValueHistoryToSeries(dataToPlot)
         // Filter the transactions for the specific stock's data.
         var txnsToOverlay = buySellList.filter(t => (t.ticker === selection.value))
+        // Update the txn table with only these txns.
+        setTxnTableData(txnsToOverlay)
         // Generate a full series of data with transactions overlayed on the stock data.
         var series = superImposeTradesOnPriceChart(stockSeries, txnsToOverlay)
         // When we save here, the useEffect will run and refresh the page.
@@ -227,9 +230,9 @@ export default function TransactionsPage() {
             </div>
             <h3 className="header-centered">Transactions List</h3>
             {/* Display all the transactions in a sortable table. */}
-            {(isLoading === true || buySellList.length === 0) ? <LoadingSpinner /> :
+            {(isLoading === true || txnTableData.length === 0) ? <LoadingSpinner /> :
                 <TransactionsTable
-                    txnData={buySellList}
+                    txnData={txnTableData}
                 />
             }
         </>
