@@ -14,7 +14,7 @@ export default function StockLineChart({ chartDataSeries, chartTitle, startDate 
         colors: ['aqua'],
         crosshair: { orientation: 'vertical', trigger: 'focus', color: 'lightgrey' },
         curveType: 'function',
-        chartArea: { top: 25, bottom: 50, left: 65, right: 25 },
+        chartArea: { top: 25, bottom: 50, left: 65, right: 25, backgroundColor: '#0F0F0F' },
         hAxis: {
             format: 'MMM y',
             gridlines: { count: 5, color: 'transparent' },

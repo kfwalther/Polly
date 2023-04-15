@@ -3,6 +3,7 @@ package finance
 import (
 	"errors"
 	"log"
+	"math"
 	"sort"
 	"time"
 
@@ -14,22 +15,25 @@ import (
 // Definition of a security to hold the transactions for a particular stock/ETF.
 type Security struct {
 	id                       uint
-	Ticker                   string                `json:"ticker"`
-	SecurityType             string                `json:"securityType"`
-	MarketPrice              float64               `json:"marketPrice"`
-	MarketValue              float64               `json:"marketValue"`
-	DailyGain                float64               `json:"dailyGain"`
-	DailyGainPercentage      float64               `json:"dailyGainPercentage"`
-	UnitCostBasis            float64               `json:"unitCostBasis"`
-	TotalCostBasis           float64               `json:"totalCostBasis"`
-	NumShares                float64               `json:"numShares"`
-	RealizedGain             float64               `json:"realizedGain"`
-	UnrealizedGain           float64               `json:"unrealizedGain"`
-	UnrealizedGainPercentage float64               `json:"unrealizedGainPercentage"`
-	TotalGain                float64               `json:"totalGain"`
-	ValueHistory             map[time.Time]float64 `json:"valueHistory"`
-	priceHistory             quote.Quote
-	transactions             []Transaction
+	Ticker                   string  `json:"ticker"`
+	SecurityType             string  `json:"securityType"`
+	MarketPrice              float64 `json:"marketPrice"`
+	MarketValue              float64 `json:"marketValue"`
+	DailyGain                float64 `json:"dailyGain"`
+	DailyGainPercentage      float64 `json:"dailyGainPercentage"`
+	UnitCostBasis            float64 `json:"unitCostBasis"`
+	TotalCostBasis           float64 `json:"totalCostBasis"`
+	NumShares                float64 `json:"numShares"`
+	RealizedGain             float64 `json:"realizedGain"`
+	UnrealizedGain           float64 `json:"unrealizedGain"`
+	UnrealizedGainPercentage float64 `json:"unrealizedGainPercentage"`
+	TotalGain                float64 `json:"totalGain"`
+	ValueAllTimeHigh         float64 `json:"valueAllTimeHigh"`
+	// TODO: Calculate this and use it...
+	HoldingDays  uint                  `json:"holdingDays"`
+	ValueHistory map[time.Time]float64 `json:"valueHistory"`
+	priceHistory quote.Quote
+	transactions []Transaction
 }
 
 // Constructor for a new Security object.
@@ -58,6 +62,21 @@ func indexOf(target time.Time, arr []time.Time) int {
 
 func getUtcDate(inDateTime time.Time) time.Time {
 	return time.Date(inDateTime.Year(), inDateTime.Month(), inDateTime.Day(), 0, 0, 0, 0, time.UTC)
+}
+
+// A simple helper function to calculate and save the max value in this security's value history.
+func (s *Security) getMaxValueFromHistory() {
+	max := math.Inf(-1)
+	for _, v := range s.ValueHistory {
+		if v > max {
+			max = v
+		}
+	}
+	// If no data, set max to 0.
+	if max == math.Inf(-1) {
+		max = 0.0
+	}
+	s.ValueAllTimeHigh = max
 }
 
 func (s *Security) GetQuoteOfSP500(quoteDate time.Time, sp500Quotes quote.Quote) float64 {
@@ -131,30 +150,13 @@ func (s *Security) CalculateMetrics(histQuotes quote.Quote, sp500Quotes quote.Qu
 	// Note, for calculations below, Yahoo stock price history is already split-adjusted.
 	s.priceHistory = histQuotes
 
-	// // Upon first buy, grab historical quotes from that date forward to calculate running value total each day.
-	// if s.transactions[0].Action == "Buy" {
-	// 	// TODO: WTF WHY THIS RETURN NOTHING?!?!
-	// 	s.priceHistory, err = quote.NewQuoteFromYahoo(s.Ticker, s.transactions[0].DateTime.Format("2006-01-02"), time.Now().Format("2006-01-02"), quote.Daily, true)
-	// 	if err != nil {
-	// 		log.Printf("Can't query history for ticker %s: %s", s.Ticker, err)
-	// 		return
-	// 	} else {
-	// 		log.Printf("Successfully queried history for ticker: %s", s.Ticker)
-	// 	}
-	// } else {
-	// 	log.Printf("WARNING: First transaction for %s is not a Buy (%s), what is going on?!\n", s.Ticker, s.transactions[0].Action)
-	// 	return
-	// }
-
 	// TODO: Figure out what fields we can grab from this quote...
-	// if s.Ticker == "S" {
 	// 	log.Printf("Book Value: %f", q.BookValue)
 	// 	log.Printf("Fwd PE: %f", q.ForwardPE)
 	// 	log.Printf("Price / Book: %f", q.PriceToBook)
 	// 	log.Printf("Trailing PE: %f", q.TrailingPE)
 	// 	log.Printf("Market Cap: %d", q.MarketCap)
 	// 	log.Printf("Quote Source: %s", q.QuoteSource)
-	// }
 
 	// Get current market price.
 	s.DetermineCurrentPrice(q)
@@ -166,9 +168,7 @@ func (s *Security) CalculateMetrics(histQuotes quote.Quote, sp500Quotes quote.Qu
 
 	// Iterate through each date from first purchase.
 	for dIdx := 0; dIdx < len(s.priceHistory.Date); dIdx++ {
-		// if s.Ticker == "TSLA" {
-		// 	log.Printf("%v", s.priceHistory.Date[dIdx])
-		// }
+
 		// Was there a transaction on this date? (Keep iterating if multiple on this date)
 		for tIdx < len(s.transactions) &&
 			s.priceHistory.Date[dIdx].Equal(getUtcDate(s.transactions[tIdx].DateTime)) {
@@ -176,9 +176,7 @@ func (s *Security) CalculateMetrics(histQuotes quote.Quote, sp500Quotes quote.Qu
 			// Get a reference to the current txn.
 			t := &s.transactions[tIdx]
 			tIdx++
-			// if s.Ticker == "TSLA" {
-			// 	log.Printf("%s - %s", t.Action, t.DateTime.Format("2006-01-02"))
-			// }
+
 			// For buys, increment number of shares.
 			if t.Action == "Buy" {
 				curShares += t.Shares
@@ -254,9 +252,9 @@ func (s *Security) CalculateMetrics(histQuotes quote.Quote, sp500Quotes quote.Qu
 		}
 	}
 
-	// if s.Ticker == "TSLA" {
-	// 	log.Printf("%v", s.ValueHistory)
-	// }
+	// Now that we have full value history for this security, calculate the all-time high.
+	s.getMaxValueFromHistory()
+
 	// Calculate cost bases and unrealized gains with any remaining buy shares in the buy queue.
 	for _, txn := range buyQ {
 		s.NumShares += txn.Shares

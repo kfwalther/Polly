@@ -34,6 +34,14 @@ function convertValueHistoryToSeries(historyData) {
     return series
 }
 
+// Find the max of the stock data value (y-axis or second column).
+function findMax(stockData) {
+    const max = stockData.reduce(([max], [_, second]) => [
+        Math.max(max, second)
+    ], [stockData[0][1]]);
+    return max
+}
+
 // Find the min/max of the stock data value (y-axis or second column).
 function findMinMax(stockData) {
     const [min, max] = stockData.reduce(([min, max], [_, second]) => [
@@ -87,13 +95,23 @@ function superImposeTradesOnPriceChart(stockData, txnData) {
 
 // Fetch the transaction data from the server, and return/render the transactions page.
 export default function TransactionsPage() {
+    // Define an isLoading flag.
     const [isLoading, setIsLoading] = useState(false);
+    // Define a plot title descriptor.
     const [plotDesc, setPlotDesc] = useState('Total Portfolio')
+    // Define the current and max value plotted on the chart.
+    const [curValue, setCurValue] = useState(0.0)
+    const [maxValue, setMaxValue] = useState(0.0)
+    // This is where we store the complete txns list of buys and sells.
     const [buySellList, setBuySellList] = useState([]);
+    // This is the currently displayed txn data for the table.
     const [txnTableData, setTxnTableData] = useState([]);
+    // This is the full list of Security objects from the backend.
     const [stockData, setStockData] = useState([]);
+    // A list of stock tickers to display in the drop-down list.
     const [stockTickerList, setStockTickerList] = useState([]);
     const [totalPortfolioData, setTotalPortfolioData] = useState([]);
+    // The current data series plotted on the graph.
     const [chartDataSeries, setChartDataSeries] = useState([]);
 
     document.body.style.backgroundColor = "black"
@@ -158,6 +176,9 @@ export default function TransactionsPage() {
                     // If we got total portfolio history, convert it to a plot series, and save.
                     if (historyData != null) {
                         historySeries = convertValueHistoryToSeries(historyData)
+                        // Get the current and all-time high portfolio value.
+                        setCurValue(historySeries[historySeries.length - 1][1])
+                        setMaxValue(findMax(historySeries))
                         setTotalPortfolioData(historySeries)
                     }
                     // Generate the data series with trades super-imposed on the historical price data.
@@ -190,8 +211,11 @@ export default function TransactionsPage() {
         // Update the title descriptor of the plot.
         setPlotDesc(selection.value)
         // Filter for only the specific stock's data, then convert it to a plottable series.
-        var dataToPlot = stockData.find(s => s.ticker === selection.value).valueHistory
-        var stockSeries = convertValueHistoryToSeries(dataToPlot)
+        var stockToPlot = stockData.find(s => s.ticker === selection.value)
+        var stockSeries = convertValueHistoryToSeries(stockToPlot.valueHistory)
+        // Save the current and all-time high value.
+        setCurValue(stockToPlot.marketValue)
+        setMaxValue(stockToPlot.valueAllTimeHigh)
         // Filter the transactions for the specific stock's data.
         var txnsToOverlay = buySellList.filter(t => (t.ticker === selection.value))
         // Update the txn table with only these txns.
@@ -218,6 +242,8 @@ export default function TransactionsPage() {
                     </tr>
                 </tbody>
             </table>
+            {/* Add some metrics below the summary data. */}
+            <span className="metrics-span">{'Current Value: ' + toUSD(curValue) + ' | All-Time High: ' + toUSD(maxValue)}</span>
             {/* Add a line chart to superimpose our trades on the portfolio's historical performance. */}
             {(isLoading === true || chartDataSeries.length === 0) ? <LoadingSpinner /> :
                 <StockLineChart
