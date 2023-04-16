@@ -17,32 +17,6 @@ table {
     margin: auto;
 }
 
-.summary-table {
-    width: auto;
-    margin-top: 15px;
-    margin-left: 20px;
-    border-collapse: collapse;
-}
-
-.summary-cell {
-    background-color: black;
-    border-color: black;
-    margin: 0;
-    padding: 0;
-    color: white;
-}
-
-.summary-deltas {
-    background-color: black;
-    border-color: black;
-    font-size: 20px;
-    margin: 0;
-    padding-top: 0;
-    padding-bottom: 0;
-    padding-right: 5;
-    padding-left: 0;
-}
-
 .header-centered {
     text-align: center;
     justify-content: center;

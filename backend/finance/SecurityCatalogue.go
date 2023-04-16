@@ -221,6 +221,8 @@ func (sc *SecurityCatalogue) Calculate() {
 			sc.summary.TotalSecurities++
 		}
 	}
+	// Store the last updated time, and percentage gain.
+	sc.summary.LastUpdated = time.Now()
 	sc.summary.PercentageGain = ((sc.summary.TotalMarketValue - sc.summary.TotalCostBasis) / sc.summary.TotalCostBasis) * 100.0
 	log.Println("---------------------------------")
 	log.Printf("Total Market Value: $%f", sc.summary.TotalMarketValue)
