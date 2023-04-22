@@ -58,13 +58,13 @@ export default class MainPage extends React.Component {
         this.tickerMap = new Map(
             // Filter out securities we no longer own.
             this.state.stockList.filter(s => (parseFloat(s.marketValue) > 0.0)
-        ).sort(
-            // Sort the remaining by current value
-            (a, b) => b.marketValue - a.marketValue
-        ).map(
-            // Map the sorted tickers to colors (rolling over after 31).
-            (s, idx) => [s.ticker, PieChartColors[idx % 31]]
-        ))
+            ).sort(
+                // Sort the remaining by current value
+                (a, b) => b.marketValue - a.marketValue
+            ).map(
+                // Map the sorted tickers to colors (rolling over after 31).
+                (s, idx) => [s.ticker, PieChartColors[idx % 31]]
+            ))
     }
 
     // Returns the JSX to display the stock main page.
@@ -129,6 +129,7 @@ export default class MainPage extends React.Component {
                 {/* Display all the stocks/ETFs in a sortable table. */}
                 <PortfolioHoldingsTable
                     holdingsData={this.state.isCurrentOnlyChecked ? this.state.stockList.filter(s => (s.marketValue > 0.0)) : this.state.stockList}
+                    totalPortfolioValue={this.state.portfolioSummary.totalMarketValue}
                 />
             </>
         )

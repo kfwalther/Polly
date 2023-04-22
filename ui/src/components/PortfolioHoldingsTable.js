@@ -2,7 +2,7 @@ import React from "react";
 import { toPercent, toUSD } from "./Helpers";
 import { StockTable, TABLE_GREEN, TABLE_RED } from "./StockTable"
 
-export function PortfolioHoldingsTable({ holdingsData }) {
+export function PortfolioHoldingsTable({ holdingsData, totalPortfolioValue }) {
 
     // Define the column names and format for our holdings table.
     const holdingsCols = React.useMemo(
@@ -29,12 +29,10 @@ export function PortfolioHoldingsTable({ holdingsData }) {
                 sortType: 'basic',
             },
             {
-                Header: '1D Gain %',
-                accessor: 'dailyGainPercentage',
-                Cell: props =>
-                    <div style={{ color: props.value >= 0 ? TABLE_GREEN : TABLE_RED }} >
-                        {toPercent(props.value)}
-                    </div>,
+                id: 'allocation',
+                Header: 'Allocation %',
+                accessor: 'marketValue',
+                Cell: props => <>{toPercent(props.value / totalPortfolioValue * 100)}</>,
                 sortType: 'basic',
             },
             {
@@ -43,6 +41,15 @@ export function PortfolioHoldingsTable({ holdingsData }) {
                 Cell: props =>
                     <div style={{ color: props.value >= 0 ? TABLE_GREEN : TABLE_RED }} >
                         {toUSD(props.value)}
+                    </div>,
+                sortType: 'basic',
+            },
+            {
+                Header: '1D Gain %',
+                accessor: 'dailyGainPercentage',
+                Cell: props =>
+                    <div style={{ color: props.value >= 0 ? TABLE_GREEN : TABLE_RED }} >
+                        {toPercent(props.value)}
                     </div>,
                 sortType: 'basic',
             },
@@ -65,6 +72,7 @@ export function PortfolioHoldingsTable({ holdingsData }) {
                 sortType: 'basic',
             },
             {
+                id: 'marketValue',
                 Header: 'Market Value',
                 accessor: 'marketValue',
                 Cell: props => <>{toUSD(props.value)}</>,
@@ -97,6 +105,7 @@ export function PortfolioHoldingsTable({ holdingsData }) {
             {
                 Header: 'Number of Shares',
                 accessor: 'numShares',
+                Cell: props => <>{parseFloat(props.value.toFixed(3))}</>,
                 sortType: 'basic',
             },
         ], []
