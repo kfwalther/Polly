@@ -158,12 +158,12 @@ func (sc *SecurityCatalogue) RefreshStockHistory(ticker string, initialDate stri
 			// Are we up to date on the quotes? More than 3 days have passed?
 			latestDate := sc.dbClient.GetLatestQuote(ticker)
 			if time.Now().Sub(latestDate).Hours() > 72 {
-				sc.RetrieveAndStoreStockData(ticker, latestDate.Format("2006-01-02"), time.Now().Format("2006-01-02"))
+				sc.RetrieveAndStoreStockData(ticker, latestDate.Add(24*time.Hour).UTC().Format("2006-01-02"), time.Now().UTC().Format("2006-01-02"))
 			}
 		}
 	} else {
 		// Ticker doesn't exist in DB yet, query all its data.
-		sc.RetrieveAndStoreStockData(ticker, initialDate, time.Now().Format("2006-01-02"))
+		sc.RetrieveAndStoreStockData(ticker, initialDate, time.Now().UTC().Format("2006-01-02"))
 	}
 }
 
@@ -186,7 +186,7 @@ func (sc *SecurityCatalogue) Calculate() {
 		if s.Ticker != "CASH" {
 			s.PreProcess()
 			// Make sure the stock's history data is up-to-date.
-			sc.RefreshStockHistory(s.Ticker, s.transactions[0].DateTime.Format("2006-01-02"), true)
+			sc.RefreshStockHistory(s.Ticker, s.transactions[0].DateTime.Format("2006-01-02"), s.CurrentlyHeld)
 		}
 	}
 

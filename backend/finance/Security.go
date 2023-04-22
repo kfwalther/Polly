@@ -24,6 +24,7 @@ type Security struct {
 	UnitCostBasis            float64               `json:"unitCostBasis"`
 	TotalCostBasis           float64               `json:"totalCostBasis"`
 	NumShares                float64               `json:"numShares"`
+	CurrentlyHeld            bool                  `json:"currentlyHeld"`
 	RealizedGain             float64               `json:"realizedGain"`
 	UnrealizedGain           float64               `json:"unrealizedGain"`
 	UnrealizedGainPercentage float64               `json:"unrealizedGainPercentage"`
@@ -67,6 +68,10 @@ func indexOf(target time.Time, arr []time.Time) int {
 
 func getUtcDate(inDateTime time.Time) time.Time {
 	return time.Date(inDateTime.Year(), inDateTime.Month(), inDateTime.Day(), 0, 0, 0, 0, time.UTC)
+}
+
+func datesEqual(inDate1 time.Time, inDate2 time.Time) bool {
+	return inDate1.Format("2006-01-02") == inDate2.Format("2006-01-02")
 }
 
 // A simple helper function to calculate and save the max value in this security's value history.
@@ -133,6 +138,25 @@ func (s *Security) PreProcess() {
 	sort.Slice(s.transactions, func(i, j int) bool {
 		return s.transactions[i].DateTime.Before(s.transactions[j].DateTime)
 	})
+	// Calculate number of shares currently owned, and split multiple.
+	s.splitMultiple = 1.0
+	curShares := 0.0
+	for _, txn := range s.transactions {
+		if txn.Action == "Buy" {
+			curShares += txn.Shares
+		} else if txn.Action == "Sell" {
+			curShares -= txn.Shares
+		} else if txn.Action == "Split" {
+			curShares *= txn.Shares
+			s.splitMultiple *= txn.Shares
+		}
+	}
+	// Do we currently hold this stock?
+	if curShares > 0.0 {
+		s.CurrentlyHeld = true
+	} else {
+		s.CurrentlyHeld = false
+	}
 }
 
 func (s *Security) CalculateTransactionData(txnIdx int, curShares float64) float64 {
@@ -214,15 +238,6 @@ func (s *Security) CalculateMetrics(histQuotes quote.Quote, sp500Quotes quote.Qu
 	if s.Ticker == "CASH" {
 		return
 	}
-	s.splitMultiple = 1.0
-	if _, ok := StockSplits[s.Ticker]; ok {
-		// Iterate thru all transactions to calculate the total split multiple for this stock.
-		for _, txn := range s.transactions {
-			if txn.Action == "Split" {
-				s.splitMultiple *= txn.Shares
-			}
-		}
-	}
 	// Reset the slice to use as a FIFO queue for calculating metrics.
 	s.buyQ = make([]Transaction, 0)
 	// Get the current info for the given ticker.
@@ -257,7 +272,7 @@ func (s *Security) CalculateMetrics(histQuotes quote.Quote, sp500Quotes quote.Qu
 	if len(s.priceHistory.Date) > 0 && s.MarketPrice != 0.0 {
 		for dIdx := 0; dIdx < len(s.priceHistory.Date); dIdx++ {
 			// Was there a transaction on this date? (Keep iterating if multiple on this date)
-			for tIdx < len(s.transactions) && s.priceHistory.Date[dIdx].Equal(getUtcDate(s.transactions[tIdx].DateTime)) {
+			for tIdx < len(s.transactions) && datesEqual(s.priceHistory.Date[dIdx], s.transactions[tIdx].DateTime) {
 				// Calculate metrics for this individual txn, and any realized gain.
 				curShares = s.CalculateTransactionData(tIdx, curShares)
 				tIdx++
