@@ -278,11 +278,10 @@ func (s *Security) CalculateMetrics(histQuotes quote.Quote, sp500Quotes quote.Qu
 				tIdx++
 			}
 			// Save the value of this stock in our portfolio on this date (if still owned).
-			if curShares > 0 {
+			if curShares > 0 || tIdx < len(s.transactions) {
 				s.ValueHistory[s.priceHistory.Date[dIdx]] = curShares * s.priceHistory.Close[dIdx] * s.splitMultiple
 			} else {
-				// If share count is zero, we need not calculate any more dates for this stock.
-				// TODO: Does this logic hold if we sell all then buy some again later?
+				// If share count is zero, and no more transactions, we need not calculate any more dates for this stock.
 				break
 			}
 		}
