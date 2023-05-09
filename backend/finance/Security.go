@@ -243,7 +243,7 @@ func (s *Security) CalculateMetrics(histQuotes quote.Quote, sp500Quotes quote.Qu
 	// Get the current info for the given ticker.
 	q, err := equity.Get(s.Ticker)
 	if err != nil {
-		log.Printf("Could not retrieve info from Yahoo for ticker %s", s.Ticker)
+		log.Printf("Could not retrieve info from Yahoo for ticker %s : %v", s.Ticker, err)
 		q = nil
 	} else if q == nil || q.RegularMarketPrice == 0.0 {
 		log.Printf("Yahoo Finance query returned no data for ticker %s", s.Ticker)

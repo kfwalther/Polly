@@ -11,6 +11,10 @@ Install Go by downloading the installer from [**here**](https://go.dev/dl/). Onc
 
 Download the JSON credentials file to target machine (if credentials.json is not already present). You can download the JSON file from the Google Cloud API [**Credentials**](https://console.cloud.google.com/apis/credentials) page, under the **OAuth 2.0 Client IDs** section.
 
+### Install and setup MongoDB
+
+The web backend depends on a MongoDB database to store the wealth of information pulled from Yahoo Finance. Download and install MongoDB (Community Edition) for Windows [**here**](https://www.mongodb.com/docs/manual/tutorial/install-mongodb-on-windows/). Once installed, start MongoDBCompass, connect to the MongoDB server, and create a new time-series database named `polly-data-prod`.
+
 ### Run the backend server
 
 Run the `go-server.exe` executable from the command line. When running for the first time (or the first time in a while), app will present a URL to
