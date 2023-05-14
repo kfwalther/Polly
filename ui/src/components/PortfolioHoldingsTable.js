@@ -29,6 +29,12 @@ export function PortfolioHoldingsTable({ holdingsData, totalPortfolioValue }) {
                 sortType: 'basic',
             },
             {
+                Header: 'P/S (Fwd)',
+                accessor: 'priceToSalesNtm',
+                Cell: props => <>{props.value !== 0.0 ? parseFloat(props.value.toFixed(3)) : '----'}</>,
+                sortType: 'basic',
+            },
+            {
                 Header: 'Rev Growth % (YoY)',
                 accessor: 'revenueGrowthPercentageYoy',
                 Cell: props =>

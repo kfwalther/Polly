@@ -15,8 +15,6 @@ import (
 	"github.com/kfwalther/Polly/backend/data"
 	"github.com/kfwalther/Polly/backend/finance"
 	"golang.org/x/oauth2/google"
-	"google.golang.org/api/option"
-	"google.golang.org/api/sheets/v4"
 )
 
 // Program entry point.
@@ -34,46 +32,28 @@ func main() {
 	}
 	client := auth.GetClient(config)
 
-	srv, err := sheets.NewService(ctx, option.WithHTTPClient(client))
-	if err != nil {
-		log.Fatalf("Unable to retrieve Sheets client: %v", err)
-	}
+	// Get the spreadsheet IDs from the input file.
+	sheetIdFile := "../portfolio-sheet-id.txt"
+	// Initialize the Google sheet interface.
+	googleSheetMgr := finance.NewGoogleSheetManager(client, &ctx, sheetIdFile)
 
-	// Get the spreadsheet ID from the input file.
-	portfolioIdFile := "../portfolio-sheet-id.txt"
-	spreadsheetId, err := os.ReadFile(portfolioIdFile)
-	if err != nil {
-		log.Fatalf("Can't read file (%s): %s", portfolioIdFile, err)
-	}
-
-	// Specify the sheet and columns.
-	readRange := "TransactionList!A2:G"
-	resp, err := srv.Spreadsheets.Values.Get(string(spreadsheetId), readRange).Do()
-	if err != nil {
-		log.Fatalf("Unable to retrieve data from sheet. If token error, "+
-			"delete auth_token file and retry: %v", err)
-	}
-
+	// Specify the sheet and columns, and read from transactions sheet.
+	txns := googleSheetMgr.GetTransactionData()
 	// Set gin web server to release mode. Comment out to enable debug logging.
 	gin.SetMode(gin.ReleaseMode)
-
 	// Setup the Go web server, with default logger.
 	router := gin.Default()
 	router.Use(cors.Default())
-	// Check if we parsed any data from the spreadsheet.
-	if len(resp.Values) == 0 {
-		log.Fatalf("No data found in spreadsheet... Exiting!")
-	}
 
 	// Connect to our MongoDB instance.
 	dbClient := data.NewMongoDbClient()
 	dbClient.ConnectMongoDb("polly-data-prod")
 	// Name the python script to use with yfinance to grab extended stock info.
 	pyScript := "yahooFinanceHelper.py"
-	catalogue := finance.NewSecurityCatalogue(dbClient, pyScript)
+	catalogue := finance.NewSecurityCatalogue(googleSheetMgr, dbClient, pyScript)
 	// Process the imported data to organize it by ticker.
-	(*catalogue).ProcessImport(resp.Values)
-	fmt.Println("Number of transactions processed: " + strconv.Itoa(len(resp.Values)))
+	(*catalogue).ProcessImport(txns.Values)
+	fmt.Println("Number of transactions processed: " + strconv.Itoa(len(txns.Values)))
 	// Calculate metrics for each stock.
 	catalogue.Calculate()
 	// Create a controller to manage front-end interaction.

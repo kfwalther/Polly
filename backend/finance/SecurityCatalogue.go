@@ -73,6 +73,7 @@ var StockSplits = map[string][]Transaction{
 type SecurityCatalogue struct {
 	yFinInterface    *YahooFinanceExtension
 	sp500quotes      quote.Quote
+	sheetMgr         *GoogleSheetManager
 	dbClient         *data.MongoDbClient
 	summary          *PortfolioSummary
 	securities       map[string]*Security
@@ -80,12 +81,13 @@ type SecurityCatalogue struct {
 }
 
 // Constructor for a new SecurityCatalogue object, initializing the map.
-func NewSecurityCatalogue(dbClient *data.MongoDbClient, pyScript string) *SecurityCatalogue {
+func NewSecurityCatalogue(sheetMgr *GoogleSheetManager, dbClient *data.MongoDbClient, pyScript string) *SecurityCatalogue {
 	var sc SecurityCatalogue
 	sc.yFinInterface = NewYahooFinanceExtension(pyScript)
 	sc.securities = make(map[string]*Security)
 	sc.PortfolioHistory = make(map[time.Time]float64)
 	sc.summary = NewPortfolioSummary()
+	sc.sheetMgr = sheetMgr
 	sc.dbClient = dbClient
 	return &sc
 }
@@ -185,7 +187,7 @@ func (sc *SecurityCatalogue) Calculate() {
 	// Preprocess all the securities, and add the stocks to a list to grab their historical info.
 	for _, s := range sc.securities {
 		if s.Ticker != "CASH" {
-			s.PreProcess(sc.yFinInterface)
+			s.PreProcess(sc.yFinInterface, sc.sheetMgr)
 			// Make sure the stock's history data is up-to-date.
 			sc.RefreshStockHistory(s.Ticker, s.transactions[0].DateTime.Format("2006-01-02"), s.CurrentlyHeld)
 		}

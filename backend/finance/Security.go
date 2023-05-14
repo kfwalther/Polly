@@ -5,6 +5,7 @@ import (
 	"log"
 	"math"
 	"sort"
+	"strconv"
 	"time"
 
 	"github.com/markcheno/go-quote"
@@ -31,9 +32,13 @@ type Security struct {
 	TotalGain                  float64               `json:"totalGain"`
 	ValueAllTimeHigh           float64               `json:"valueAllTimeHigh"`
 	HoldingDays                uint                  `json:"holdingDays"` // TODO: Calculate this and use it...
+	CurrentQuarter             string                `json:"currentQuarter"`
 	MarketCap                  float64               `json:"marketCap"`
+	RevenueTtm                 float64               `json:"revenueTtm"`
+	RevenueFullYearEstimate    float64               `json:"revenueFullYearEstimate"`
 	GrossMargin                float64               `json:"grossMargin"`
 	PriceToSalesTtm            float64               `json:"priceToSalesTtm"`
+	PriceToSalesNtm            float64               `json:"priceToSalesNtm"`
 	RevenueGrowthPercentageYoy float64               `json:"revenueGrowthPercentageYoy"`
 	ValueHistory               map[time.Time]float64 `json:"valueHistory"`
 	// Some arrays/objects to support metric calculation.
@@ -129,7 +134,7 @@ func (s *Security) DetermineCurrentPrice(q *finance.Equity) {
 }
 
 // Sorts the transactions for this security, and adds in any stock splits we need to account for.
-func (s *Security) PreProcess(yFinInterface *YahooFinanceExtension) {
+func (s *Security) PreProcess(yFinInterface *YahooFinanceExtension, sheetMgr *GoogleSheetManager) {
 	// Ignore ticker CASH for now, may use this later.
 	if s.Ticker == "CASH" {
 		return
@@ -161,21 +166,36 @@ func (s *Security) PreProcess(yFinInterface *YahooFinanceExtension) {
 		// Grab extended data about the stock using Yahoo finance web scraper.
 		// TODO: Move this to parallel operation below?
 		if s.SecurityType == "Stock" {
-			log.Printf("Grabbing %s...", s.Ticker)
+			var err error
+			log.Printf("Grabbing %s from Yahoo...", s.Ticker)
 			extData := *yFinInterface.GetTickerData(s.Ticker)
 			log.Printf("Got %s", s.Ticker)
 			ok := true
+			// Check if Yahoo returned any data.
+			if s.PriceToSalesTtm, ok = extData["priceToSalesTrailing12Months"].(float64); !ok {
+				s.PriceToSalesTtm = 0.0
+			}
 			if s.MarketCap, ok = extData["marketCap"].(float64); !ok {
 				s.MarketCap = 0.0
 			}
 			if s.GrossMargin, ok = extData["grossMargins"].(float64); !ok {
 				s.GrossMargin = 0.0
 			}
-			if s.PriceToSalesTtm, ok = extData["priceToSalesTrailing12Months"].(float64); !ok {
-				s.PriceToSalesTtm = 0.0
-			}
 			if s.RevenueGrowthPercentageYoy, ok = extData["revenueGrowth"].(float64); !ok {
 				s.RevenueGrowthPercentageYoy = 0.0
+			}
+			log.Printf("Grabbing %s from Revenue sheet...", s.Ticker)
+			sheetData := sheetMgr.GetRevenueData(s.Ticker)
+			if sheetData != nil {
+				// We save these revenue values in thousands (not $M or $B).
+				s.CurrentQuarter = sheetData.Values[1][0].(string)
+				if s.RevenueTtm, err = strconv.ParseFloat(sheetData.Values[0][0].(string), 64); err != nil {
+					log.Printf("WARNING: Unable to parse Revenue TTM from %s sheet: %v", s.Ticker, err)
+				}
+				if s.RevenueFullYearEstimate, err = strconv.ParseFloat(sheetData.Values[3][0].(string), 64); err != nil {
+					log.Printf("WARNING: Unable to parse Revenue full year estimate from %s sheet: %v", s.Ticker, err)
+				}
+				log.Printf("Revenue TTM: %v", sheetData.Values[0][0])
 			}
 		}
 	} else {
@@ -321,6 +341,7 @@ func (s *Security) CalculateMetrics(histQuotes quote.Quote, sp500Quotes quote.Qu
 		}
 	}
 
+	// Calculate additional metrics for currently-held equities.
 	if s.NumShares > 0 {
 		// Unit cost basis
 		s.UnitCostBasis = s.TotalCostBasis / s.NumShares
@@ -329,6 +350,12 @@ func (s *Security) CalculateMetrics(histQuotes quote.Quote, sp500Quotes quote.Qu
 		// Unrealized gain (and percentage)
 		s.UnrealizedGain = s.MarketValue - s.TotalCostBasis
 		s.UnrealizedGainPercentage = (s.UnrealizedGain / s.TotalCostBasis) * 100.0
+		// Financials (P/S ratios)
+		s.MarketCap = float64(q.MarketCap)
+		if s.RevenueTtm != 0.0 {
+			s.PriceToSalesTtm = s.MarketCap / (s.RevenueTtm * 1000)
+			s.PriceToSalesNtm = s.MarketCap / (s.RevenueFullYearEstimate * 1000)
+		}
 	}
 	// Get the total gain.
 	s.TotalGain = s.UnrealizedGain + s.RealizedGain
