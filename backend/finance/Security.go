@@ -14,24 +14,28 @@ import (
 
 // Definition of a security to hold the transactions for a particular stock/ETF.
 type Security struct {
-	id                       uint
-	Ticker                   string                `json:"ticker"`
-	SecurityType             string                `json:"securityType"`
-	MarketPrice              float64               `json:"marketPrice"`
-	MarketValue              float64               `json:"marketValue"`
-	DailyGain                float64               `json:"dailyGain"`
-	DailyGainPercentage      float64               `json:"dailyGainPercentage"`
-	UnitCostBasis            float64               `json:"unitCostBasis"`
-	TotalCostBasis           float64               `json:"totalCostBasis"`
-	NumShares                float64               `json:"numShares"`
-	CurrentlyHeld            bool                  `json:"currentlyHeld"`
-	RealizedGain             float64               `json:"realizedGain"`
-	UnrealizedGain           float64               `json:"unrealizedGain"`
-	UnrealizedGainPercentage float64               `json:"unrealizedGainPercentage"`
-	TotalGain                float64               `json:"totalGain"`
-	ValueAllTimeHigh         float64               `json:"valueAllTimeHigh"`
-	HoldingDays              uint                  `json:"holdingDays"` // TODO: Calculate this and use it...
-	ValueHistory             map[time.Time]float64 `json:"valueHistory"`
+	id                         uint
+	Ticker                     string                `json:"ticker"`
+	SecurityType               string                `json:"securityType"`
+	MarketPrice                float64               `json:"marketPrice"`
+	MarketValue                float64               `json:"marketValue"`
+	DailyGain                  float64               `json:"dailyGain"`
+	DailyGainPercentage        float64               `json:"dailyGainPercentage"`
+	UnitCostBasis              float64               `json:"unitCostBasis"`
+	TotalCostBasis             float64               `json:"totalCostBasis"`
+	NumShares                  float64               `json:"numShares"`
+	CurrentlyHeld              bool                  `json:"currentlyHeld"`
+	RealizedGain               float64               `json:"realizedGain"`
+	UnrealizedGain             float64               `json:"unrealizedGain"`
+	UnrealizedGainPercentage   float64               `json:"unrealizedGainPercentage"`
+	TotalGain                  float64               `json:"totalGain"`
+	ValueAllTimeHigh           float64               `json:"valueAllTimeHigh"`
+	HoldingDays                uint                  `json:"holdingDays"` // TODO: Calculate this and use it...
+	MarketCap                  float64               `json:"marketCap"`
+	GrossMargin                float64               `json:"grossMargin"`
+	PriceToSalesTtm            float64               `json:"priceToSalesTtm"`
+	RevenueGrowthPercentageYoy float64               `json:"revenueGrowthPercentageYoy"`
+	ValueHistory               map[time.Time]float64 `json:"valueHistory"`
 	// Some arrays/objects to support metric calculation.
 	buyQ          []Transaction
 	priceHistory  quote.Quote
@@ -125,7 +129,7 @@ func (s *Security) DetermineCurrentPrice(q *finance.Equity) {
 }
 
 // Sorts the transactions for this security, and adds in any stock splits we need to account for.
-func (s *Security) PreProcess() {
+func (s *Security) PreProcess(yFinInterface *YahooFinanceExtension) {
 	// Ignore ticker CASH for now, may use this later.
 	if s.Ticker == "CASH" {
 		return
@@ -154,6 +158,26 @@ func (s *Security) PreProcess() {
 	// Do we currently hold this stock?
 	if curShares > 0.0 {
 		s.CurrentlyHeld = true
+		// Grab extended data about the stock using Yahoo finance web scraper.
+		// TODO: Move this to parallel operation below?
+		if s.SecurityType == "Stock" {
+			log.Printf("Grabbing %s...", s.Ticker)
+			extData := *yFinInterface.GetTickerData(s.Ticker)
+			log.Printf("Got %s", s.Ticker)
+			ok := true
+			if s.MarketCap, ok = extData["marketCap"].(float64); !ok {
+				s.MarketCap = 0.0
+			}
+			if s.GrossMargin, ok = extData["grossMargins"].(float64); !ok {
+				s.GrossMargin = 0.0
+			}
+			if s.PriceToSalesTtm, ok = extData["priceToSalesTrailing12Months"].(float64); !ok {
+				s.PriceToSalesTtm = 0.0
+			}
+			if s.RevenueGrowthPercentageYoy, ok = extData["revenueGrowth"].(float64); !ok {
+				s.RevenueGrowthPercentageYoy = 0.0
+			}
+		}
 	} else {
 		s.CurrentlyHeld = false
 	}
@@ -253,14 +277,6 @@ func (s *Security) CalculateMetrics(histQuotes quote.Quote, sp500Quotes quote.Qu
 	// Note, for calculations below, Yahoo stock price history is already split-adjusted.
 	s.priceHistory = histQuotes
 	s.sp500History = sp500Quotes
-
-	// TODO: Figure out what fields we can grab from this quote...
-	// 	log.Printf("Book Value: %f", q.BookValue)
-	// 	log.Printf("Fwd PE: %f", q.ForwardPE)
-	// 	log.Printf("Price / Book: %f", q.PriceToBook)
-	// 	log.Printf("Trailing PE: %f", q.TrailingPE)
-	// 	log.Printf("Market Cap: %d", q.MarketCap)
-	// 	log.Printf("Quote Source: %s", q.QuoteSource)
 
 	// Get current market price.
 	s.DetermineCurrentPrice(q)

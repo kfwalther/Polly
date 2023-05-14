@@ -71,7 +71,7 @@ var StockSplits = map[string][]Transaction{
 
 // Definition of a security catalogue to house a portfolio of stock/ETF info in a map.
 type SecurityCatalogue struct {
-	id               uint
+	yFinInterface    *YahooFinanceExtension
 	sp500quotes      quote.Quote
 	dbClient         *data.MongoDbClient
 	summary          *PortfolioSummary
@@ -80,8 +80,9 @@ type SecurityCatalogue struct {
 }
 
 // Constructor for a new SecurityCatalogue object, initializing the map.
-func NewSecurityCatalogue(dbClient *data.MongoDbClient) *SecurityCatalogue {
+func NewSecurityCatalogue(dbClient *data.MongoDbClient, pyScript string) *SecurityCatalogue {
 	var sc SecurityCatalogue
+	sc.yFinInterface = NewYahooFinanceExtension(pyScript)
 	sc.securities = make(map[string]*Security)
 	sc.PortfolioHistory = make(map[time.Time]float64)
 	sc.summary = NewPortfolioSummary()
@@ -184,7 +185,7 @@ func (sc *SecurityCatalogue) Calculate() {
 	// Preprocess all the securities, and add the stocks to a list to grab their historical info.
 	for _, s := range sc.securities {
 		if s.Ticker != "CASH" {
-			s.PreProcess()
+			s.PreProcess(sc.yFinInterface)
 			// Make sure the stock's history data is up-to-date.
 			sc.RefreshStockHistory(s.Ticker, s.transactions[0].DateTime.Format("2006-01-02"), s.CurrentlyHeld)
 		}

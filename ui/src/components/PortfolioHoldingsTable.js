@@ -23,6 +23,30 @@ export function PortfolioHoldingsTable({ holdingsData, totalPortfolioValue }) {
                 sortType: 'basic',
             },
             {
+                Header: 'P/S (TTM)',
+                accessor: 'priceToSalesTtm',
+                Cell: props => <>{props.value !== 0.0 ? parseFloat(props.value.toFixed(3)) : '----'}</>,
+                sortType: 'basic',
+            },
+            {
+                Header: 'Rev Growth % (YoY)',
+                accessor: 'revenueGrowthPercentageYoy',
+                Cell: props =>
+                    <div style={{ color: (props.value > 0.3) ? TABLE_GREEN : ((props.value < 0.0) ? TABLE_RED : 'white') }} >
+                        {props.value !== 0.0 ? toPercent(props.value * 100) : '----'}
+                    </div>,
+                sortType: 'basic',
+            },
+            {
+                Header: 'Gross Margin %',
+                accessor: 'grossMargin',
+                Cell: props =>
+                    <div style={{ color: (props.value > 0.7) ? TABLE_GREEN : ((props.value < .4) ? TABLE_RED : 'white') }} >
+                        {props.value !== 0.0 ? toPercent(props.value * 100) : '----'}
+                    </div>,
+                sortType: 'basic',
+            },
+            {
                 Header: 'Avg Cost',
                 accessor: 'unitCostBasis',
                 Cell: props => <>{toUSD(props.value)}</>,

@@ -68,8 +68,9 @@ func main() {
 	// Connect to our MongoDB instance.
 	dbClient := data.NewMongoDbClient()
 	dbClient.ConnectMongoDb("polly-data-prod")
-
-	catalogue := finance.NewSecurityCatalogue(dbClient)
+	// Name the python script to use with yfinance to grab extended stock info.
+	pyScript := "yahooFinanceHelper.py"
+	catalogue := finance.NewSecurityCatalogue(dbClient, pyScript)
 	// Process the imported data to organize it by ticker.
 	(*catalogue).ProcessImport(resp.Values)
 	fmt.Println("Number of transactions processed: " + strconv.Itoa(len(resp.Values)))
