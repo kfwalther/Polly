@@ -47,6 +47,13 @@ type Security struct {
 	sp500History  quote.Quote
 	splitMultiple float64
 	transactions  []Transaction
+	// Financial history data
+	revenueUnits                   string
+	quarterlyDates                 []string
+	quarterlyRevenue               []float64
+	quarterlyGrossProfitPercentage []float64
+	quarterlyPercentSM             []float64
+	quarterlyPercentSBC            []float64
 }
 
 // Constructor for a new Security object.
@@ -62,6 +69,12 @@ func NewSecurity(tkr string, secType string) (*Security, error) {
 	s.transactions = make([]Transaction, 0)
 	// Create a slice to use as a FIFO queue for calculating metrics.
 	s.buyQ = make([]Transaction, 0)
+	// Create slices for the financial data.
+	s.quarterlyDates = make([]string, 0)
+	s.quarterlyRevenue = make([]float64, 0)
+	s.quarterlyGrossProfitPercentage = make([]float64, 0)
+	s.quarterlyPercentSM = make([]float64, 0)
+	s.quarterlyPercentSBC = make([]float64, 0)
 	return &s, nil
 }
 
@@ -133,6 +146,54 @@ func (s *Security) DetermineCurrentPrice(q *finance.Equity) {
 	}
 }
 
+// Process the financial history data for one stock from the growth stock spreadsheet.
+func (s *Security) processFinancialHistoryData(data [][]interface{}) {
+	numQs := 0
+	// Iterate thru each date we have data for (until blank). Format is YYYYMMDD
+	for i := 1; i < len(data[0]); i++ {
+		if data[0][i] != "" {
+			s.quarterlyDates = append(s.quarterlyDates, data[0][i].(string))
+			numQs++
+		} else {
+			break
+		}
+	}
+
+	// Iterate through the indices we have data for, filling in the rest of the financials arrays.
+	for _, row := range data {
+		// Read revenue history, and account for revenue units in millions where necessary.
+		if row[0].(string) == "Total Revenue" {
+			multiplier := 1.0
+			if s.revenueUnits == "M" {
+				multiplier = 1000.0
+			}
+			for i := 1; i <= numQs; i++ {
+				val, _ := strconv.ParseFloat(row[i].(string), 64)
+				s.quarterlyRevenue = append(s.quarterlyRevenue, val*multiplier)
+			}
+			// Calculate last 4 Qs of revenue (TTM), and revenue growth YoY.
+			s.RevenueTtm = s.quarterlyRevenue[numQs-1] + s.quarterlyRevenue[numQs-2] + s.quarterlyRevenue[numQs-3] + s.quarterlyRevenue[numQs-4]
+			s.RevenueGrowthPercentageYoy = (s.quarterlyRevenue[numQs-1] - s.quarterlyRevenue[numQs-5]) / s.quarterlyRevenue[numQs-5]
+		}
+		// Read all gross margin history.
+		if row[0].(string) == "Gross Margins (%)" {
+			for i := 1; i <= numQs; i++ {
+				val, _ := strconv.ParseFloat(row[i].(string), 64)
+				s.quarterlyGrossProfitPercentage = append(s.quarterlyGrossProfitPercentage, val)
+			}
+			// Record latest gross margin, we make a percentage on front-end.
+			s.GrossMargin = s.quarterlyGrossProfitPercentage[numQs-1] / 100
+		}
+		// Read Sales & Marketing as a percentage of revenue history.
+		if row[0].(string) == "S&M / Revenue (%)" {
+			for i := 1; i <= numQs; i++ {
+				val, _ := strconv.ParseFloat(row[i].(string), 64)
+				s.quarterlyPercentSM = append(s.quarterlyPercentSM, val)
+			}
+		}
+	}
+}
+
 // Sorts the transactions for this security, and adds in any stock splits we need to account for.
 func (s *Security) PreProcess(yFinInterface *YahooFinanceExtension, sheetMgr *GoogleSheetManager) {
 	// Ignore ticker CASH for now, may use this later.
@@ -169,7 +230,6 @@ func (s *Security) PreProcess(yFinInterface *YahooFinanceExtension, sheetMgr *Go
 			var err error
 			log.Printf("Grabbing %s from Yahoo...", s.Ticker)
 			extData := *yFinInterface.GetTickerData(s.Ticker)
-			log.Printf("Got %s", s.Ticker)
 			ok := true
 			// Check if Yahoo returned any data.
 			if s.PriceToSalesTtm, ok = extData["priceToSalesTrailing12Months"].(float64); !ok {
@@ -184,18 +244,16 @@ func (s *Security) PreProcess(yFinInterface *YahooFinanceExtension, sheetMgr *Go
 			if s.RevenueGrowthPercentageYoy, ok = extData["revenueGrowth"].(float64); !ok {
 				s.RevenueGrowthPercentageYoy = 0.0
 			}
-			log.Printf("Grabbing %s from Revenue sheet...", s.Ticker)
 			sheetData := sheetMgr.GetRevenueData(s.Ticker)
 			if sheetData != nil {
-				// We save these revenue values in thousands (not $M or $B).
+				log.Printf("Grabbing %s from Revenue sheet...", s.Ticker)
+				s.revenueUnits = sheetData.Values[0][0].(string)
 				s.CurrentQuarter = sheetData.Values[1][0].(string)
-				if s.RevenueTtm, err = strconv.ParseFloat(sheetData.Values[0][0].(string), 64); err != nil {
-					log.Printf("WARNING: Unable to parse Revenue TTM from %s sheet: %v", s.Ticker, err)
-				}
+				// We save these revenue values in thousands (not $M or $B).
 				if s.RevenueFullYearEstimate, err = strconv.ParseFloat(sheetData.Values[3][0].(string), 64); err != nil {
 					log.Printf("WARNING: Unable to parse Revenue full year estimate from %s sheet: %v", s.Ticker, err)
 				}
-				log.Printf("Revenue TTM: %v", sheetData.Values[0][0])
+				s.processFinancialHistoryData(sheetMgr.GetAllRevenueData(s.Ticker).Values)
 			}
 		}
 	} else {
@@ -203,6 +261,7 @@ func (s *Security) PreProcess(yFinInterface *YahooFinanceExtension, sheetMgr *Go
 	}
 }
 
+// Calculate stock holdings info and stats based on individual transactions.
 func (s *Security) CalculateTransactionData(txnIdx int, curShares float64) float64 {
 	// Get a reference to the current txn.
 	t := &s.transactions[txnIdx]
@@ -354,6 +413,8 @@ func (s *Security) CalculateMetrics(histQuotes quote.Quote, sp500Quotes quote.Qu
 		s.MarketCap = float64(q.MarketCap)
 		if s.RevenueTtm != 0.0 {
 			s.PriceToSalesTtm = s.MarketCap / (s.RevenueTtm * 1000)
+		}
+		if s.RevenueFullYearEstimate != 0.0 {
 			s.PriceToSalesNtm = s.MarketCap / (s.RevenueFullYearEstimate * 1000)
 		}
 	}

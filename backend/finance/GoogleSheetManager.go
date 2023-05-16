@@ -13,8 +13,9 @@ import (
 
 // A class to support calling yfinance python package to query extended data about individual symbols.
 type GoogleSheetManager struct {
-	sheetIds []string
-	service  *sheets.Service
+	sheetIds                []string
+	service                 *sheets.Service
+	growthStocksSpreadsheet *sheets.Spreadsheet
 }
 
 // Constructor for a new GoogleSheetManager.
@@ -37,6 +38,12 @@ func NewGoogleSheetManager(httpClient *http.Client, ctx *context.Context, sheetI
 		log.Fatalf("Spreadsheet ID file (%s) only has %v IDs. Expecting 2.", sheetIdFile, len(ids))
 	}
 	mgr.sheetIds = ids
+	// Grab the growth stock spreadsheet now.
+	mgr.growthStocksSpreadsheet, err = mgr.service.Spreadsheets.Get(ids[1]).Do()
+	if err != nil {
+		log.Fatalf("Unable to get spreadsheet (ID: %s). If token error, "+
+			"delete auth_token file and retry: %v", ids[1], err)
+	}
 	return &mgr
 }
 
@@ -62,13 +69,21 @@ func (mgr *GoogleSheetManager) GetRevenueData(ticker string) *sheets.ValueRange 
 	return nil
 }
 
-func (mgr *GoogleSheetManager) sheetExists(sheetId string, sheetName string) bool {
-	spreadsheet, err := mgr.service.Spreadsheets.Get(sheetId).Do()
-	if err != nil {
-		log.Fatalf("Unable to check if sheet exists (spreadsheet ID: %s). If token error, "+
-			"delete auth_token file and retry: %v", sheetId, err)
+func (mgr *GoogleSheetManager) GetAllRevenueData(ticker string) *sheets.ValueRange {
+	// Check if sheet exists for this ticker.
+	if mgr.sheetExists(mgr.sheetIds[1], ticker) {
+		resp := mgr.getSheetData(mgr.sheetIds[1], ticker+"!A6:27")
+		// Check if we parsed any data from the spreadsheet.
+		if len(resp.Values) > 0 {
+			return resp
+		}
+		log.Printf("WARNING: No revenue data for %s found in spreadsheet!", ticker)
 	}
-	for _, sheet := range spreadsheet.Sheets {
+	return nil
+}
+
+func (mgr *GoogleSheetManager) sheetExists(sheetId string, sheetName string) bool {
+	for _, sheet := range mgr.growthStocksSpreadsheet.Sheets {
 		if sheet.Properties.Title == sheetName {
 			return true
 		}
