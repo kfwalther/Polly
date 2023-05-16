@@ -86,11 +86,6 @@ export default class MainPage extends React.Component {
                 <PortfolioSummary summaryData={this.state.portfolioSummary} />
                 <br></br>
                 <h3 className="header-centered">Portfolio Composition</h3>
-                <Checkbox
-                    label="Stocks Only"
-                    checked={this.state.isStocksOnlyChecked}
-                    onClick={this.onStocksOnlyCheckboxClick}
-                />
                 {/* Put the two pie charts in a div container so they sit horizontally adjacent. */}
                 <div className="charts-container">
                     <div className="chart-marketvalue">
@@ -121,14 +116,27 @@ export default class MainPage extends React.Component {
                     chartOptions={barChartOptions}
                 />
                 <Checkbox
-                    label="Show Current Holdings Only"
+                    label="Stocks Only"
+                    checked={this.state.isStocksOnlyChecked}
+                    onClick={this.onStocksOnlyCheckboxClick}
+                    marginLeftVal="20px"
+                />
+                <Checkbox
+                    label="Current Holdings Only"
                     checked={this.state.isCurrentOnlyChecked}
                     onClick={this.onCurrentOnlyCheckboxClick}
-                    marginLeft="10px"
+                    marginLeftVal="20px"
                 />
-                {/* Display all the stocks/ETFs in a sortable table. */}
+                {/* Display all the stocks/ETFs in a sortable table, account for user filtering selections. */}
                 <PortfolioHoldingsTable
-                    holdingsData={this.state.isCurrentOnlyChecked ? this.state.stockList.filter(s => (s.marketValue > 0.0)) : this.state.stockList}
+                    holdingsData={this.state.isCurrentOnlyChecked ?
+                        this.state.isStocksOnlyChecked ?
+                            this.state.stockList.filter(s => s.currentlyHeld && s.securityType === "Stock") :
+                            this.state.stockList.filter(s => s.currentlyHeld) :
+                        this.state.isStocksOnlyChecked ?
+                            this.state.stockList.filter(s => s.securityType === "Stock") :
+                            this.state.stockList
+                    }
                     totalPortfolioValue={this.state.portfolioSummary.totalMarketValue}
                 />
             </>

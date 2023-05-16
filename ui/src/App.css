@@ -15,6 +15,7 @@
 table {
     border-collapse: collapse;
     margin: auto;
+    margin-top: 15px;
 }
 
 .header-centered {
@@ -32,6 +33,11 @@ table {
     height: 30px;
     vertical-align: middle;
     color: white;
+}
+
+.checkbox-wrapper {
+    padding-top: 2px;
+    padding-bottom: 5px;
 }
 
 .piechart-container {

@@ -35,7 +35,13 @@ export function PortfolioHoldingsTable({ holdingsData, totalPortfolioValue }) {
                 sortType: 'basic',
             },
             {
-                Header: 'Rev Growth % (YoY)',
+                Header: 'Cur Q',
+                accessor: 'currentQuarter',
+                Cell: props => <>{props.value}</>,
+                sortType: 'basic',
+            },
+            {
+                Header: 'Rev Inc % (YoY)',
                 accessor: 'revenueGrowthPercentageYoy',
                 Cell: props =>
                     <div style={{ color: (props.value > 0.3) ? TABLE_GREEN : ((props.value < 0.0) ? TABLE_RED : 'white') }} >
@@ -84,7 +90,7 @@ export function PortfolioHoldingsTable({ holdingsData, totalPortfolioValue }) {
                 sortType: 'basic',
             },
             {
-                Header: 'Unrealized Gain',
+                Header: 'Unrealzd Gain',
                 accessor: 'unrealizedGain',
                 Cell: props =>
                     <div style={{ color: props.value >= 0 ? TABLE_GREEN : TABLE_RED }} >
@@ -93,7 +99,7 @@ export function PortfolioHoldingsTable({ holdingsData, totalPortfolioValue }) {
                 sortType: 'basic',
             },
             {
-                Header: 'Unrealized Gain %',
+                Header: 'Unrealzd Gain %',
                 accessor: 'unrealizedGainPercentage',
                 Cell: props =>
                     <div style={{ color: props.value >= 0 ? TABLE_GREEN : TABLE_RED }} >
@@ -133,7 +139,7 @@ export function PortfolioHoldingsTable({ holdingsData, totalPortfolioValue }) {
                 sortType: 'basic',
             },
             {
-                Header: 'Number of Shares',
+                Header: 'Num Shares',
                 accessor: 'numShares',
                 Cell: props => <>{parseFloat(props.value.toFixed(3))}</>,
                 sortType: 'basic',
