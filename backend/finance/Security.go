@@ -149,6 +149,9 @@ func (s *Security) DetermineCurrentPrice(q *finance.Equity) {
 // Process the financial history data for one stock from the growth stock spreadsheet.
 func (s *Security) processFinancialHistoryData(data [][]interface{}) {
 	numQs := 0
+	if data == nil {
+		return
+	}
 	// Iterate thru each date we have data for (until blank). Format is YYYYMMDD
 	for i := 1; i < len(data[0]); i++ {
 		if data[0][i] != "" {
