@@ -162,36 +162,39 @@ func (s *Security) processFinancialHistoryData(data [][]interface{}) {
 		}
 	}
 
-	// Iterate through the indices we have data for, filling in the rest of the financials arrays.
-	for _, row := range data {
-		// Read revenue history, and account for revenue units in millions where necessary.
-		if row[0].(string) == "Total Revenue" {
-			multiplier := 1.0
-			if s.revenueUnits == "M" {
-				multiplier = 1000.0
+	// Check if any quarterly history data found.
+	if numQs > 1 {
+		// Iterate through the indices we have data for, filling in the rest of the financials arrays.
+		for _, row := range data {
+			// Read revenue history, and account for revenue units in millions where necessary.
+			if row[0].(string) == "Total Revenue" {
+				multiplier := 1.0
+				if s.revenueUnits == "M" {
+					multiplier = 1000.0
+				}
+				for i := 1; i <= numQs; i++ {
+					val, _ := strconv.ParseFloat(row[i].(string), 64)
+					s.quarterlyRevenue = append(s.quarterlyRevenue, val*multiplier)
+				}
+				// Calculate last 4 Qs of revenue (TTM), and revenue growth YoY.
+				s.RevenueTtm = s.quarterlyRevenue[numQs-1] + s.quarterlyRevenue[numQs-2] + s.quarterlyRevenue[numQs-3] + s.quarterlyRevenue[numQs-4]
+				s.RevenueGrowthPercentageYoy = (s.quarterlyRevenue[numQs-1] - s.quarterlyRevenue[numQs-5]) / s.quarterlyRevenue[numQs-5]
 			}
-			for i := 1; i <= numQs; i++ {
-				val, _ := strconv.ParseFloat(row[i].(string), 64)
-				s.quarterlyRevenue = append(s.quarterlyRevenue, val*multiplier)
+			// Read all gross margin history.
+			if row[0].(string) == "Gross Margins (%)" {
+				for i := 1; i <= numQs; i++ {
+					val, _ := strconv.ParseFloat(row[i].(string), 64)
+					s.quarterlyGrossProfitPercentage = append(s.quarterlyGrossProfitPercentage, val)
+				}
+				// Record latest gross margin, we make a percentage on front-end.
+				s.GrossMargin = s.quarterlyGrossProfitPercentage[numQs-1] / 100
 			}
-			// Calculate last 4 Qs of revenue (TTM), and revenue growth YoY.
-			s.RevenueTtm = s.quarterlyRevenue[numQs-1] + s.quarterlyRevenue[numQs-2] + s.quarterlyRevenue[numQs-3] + s.quarterlyRevenue[numQs-4]
-			s.RevenueGrowthPercentageYoy = (s.quarterlyRevenue[numQs-1] - s.quarterlyRevenue[numQs-5]) / s.quarterlyRevenue[numQs-5]
-		}
-		// Read all gross margin history.
-		if row[0].(string) == "Gross Margins (%)" {
-			for i := 1; i <= numQs; i++ {
-				val, _ := strconv.ParseFloat(row[i].(string), 64)
-				s.quarterlyGrossProfitPercentage = append(s.quarterlyGrossProfitPercentage, val)
-			}
-			// Record latest gross margin, we make a percentage on front-end.
-			s.GrossMargin = s.quarterlyGrossProfitPercentage[numQs-1] / 100
-		}
-		// Read Sales & Marketing as a percentage of revenue history.
-		if row[0].(string) == "S&M / Revenue (%)" {
-			for i := 1; i <= numQs; i++ {
-				val, _ := strconv.ParseFloat(row[i].(string), 64)
-				s.quarterlyPercentSM = append(s.quarterlyPercentSM, val)
+			// Read Sales & Marketing as a percentage of revenue history.
+			if row[0].(string) == "S&M / Revenue (%)" {
+				for i := 1; i <= numQs; i++ {
+					val, _ := strconv.ParseFloat(row[i].(string), 64)
+					s.quarterlyPercentSM = append(s.quarterlyPercentSM, val)
+				}
 			}
 		}
 	}
