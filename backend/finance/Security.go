@@ -15,32 +15,34 @@ import (
 
 // Definition of a security to hold the transactions for a particular stock/ETF.
 type Security struct {
-	id                         uint
-	Ticker                     string                `json:"ticker"`
-	SecurityType               string                `json:"securityType"`
-	MarketPrice                float64               `json:"marketPrice"`
-	MarketValue                float64               `json:"marketValue"`
-	DailyGain                  float64               `json:"dailyGain"`
-	DailyGainPercentage        float64               `json:"dailyGainPercentage"`
-	UnitCostBasis              float64               `json:"unitCostBasis"`
-	TotalCostBasis             float64               `json:"totalCostBasis"`
-	NumShares                  float64               `json:"numShares"`
-	CurrentlyHeld              bool                  `json:"currentlyHeld"`
-	RealizedGain               float64               `json:"realizedGain"`
-	UnrealizedGain             float64               `json:"unrealizedGain"`
-	UnrealizedGainPercentage   float64               `json:"unrealizedGainPercentage"`
-	TotalGain                  float64               `json:"totalGain"`
-	ValueAllTimeHigh           float64               `json:"valueAllTimeHigh"`
-	HoldingDays                uint                  `json:"holdingDays"` // TODO: Calculate this and use it...
-	CurrentQuarter             string                `json:"currentQuarter"`
-	MarketCap                  float64               `json:"marketCap"`
-	RevenueTtm                 float64               `json:"revenueTtm"`
-	RevenueFullYearEstimate    float64               `json:"revenueFullYearEstimate"`
-	GrossMargin                float64               `json:"grossMargin"`
-	PriceToSalesTtm            float64               `json:"priceToSalesTtm"`
-	PriceToSalesNtm            float64               `json:"priceToSalesNtm"`
-	RevenueGrowthPercentageYoy float64               `json:"revenueGrowthPercentageYoy"`
-	ValueHistory               map[time.Time]float64 `json:"valueHistory"`
+	id                              uint
+	Ticker                          string                `json:"ticker"`
+	SecurityType                    string                `json:"securityType"`
+	MarketPrice                     float64               `json:"marketPrice"`
+	MarketValue                     float64               `json:"marketValue"`
+	DailyGain                       float64               `json:"dailyGain"`
+	DailyGainPercentage             float64               `json:"dailyGainPercentage"`
+	UnitCostBasis                   float64               `json:"unitCostBasis"`
+	TotalCostBasis                  float64               `json:"totalCostBasis"`
+	NumShares                       float64               `json:"numShares"`
+	CurrentlyHeld                   bool                  `json:"currentlyHeld"`
+	RealizedGain                    float64               `json:"realizedGain"`
+	UnrealizedGain                  float64               `json:"unrealizedGain"`
+	UnrealizedGainPercentage        float64               `json:"unrealizedGainPercentage"`
+	TotalGain                       float64               `json:"totalGain"`
+	ValueAllTimeHigh                float64               `json:"valueAllTimeHigh"`
+	HoldingDays                     uint                  `json:"holdingDays"` // TODO: Calculate this and use it...
+	CurrentQuarter                  string                `json:"currentQuarter"`
+	MarketCap                       float64               `json:"marketCap"`
+	RevenueTtm                      float64               `json:"revenueTtm"`
+	RevenueCurrentYearEstimate      float64               `json:"revenueCurrentYearEstimate"`
+	RevenueNextYearEstimate         float64               `json:"revenueNextYearEstimate"`
+	GrossMargin                     float64               `json:"grossMargin"`
+	PriceToSalesTtm                 float64               `json:"priceToSalesTtm"`
+	PriceToSalesNtm                 float64               `json:"priceToSalesNtm"`
+	RevenueGrowthPercentageYoy      float64               `json:"revenueGrowthPercentageYoy"`
+	RevenueGrowthPercentageNextYear float64               `json:"revenueGrowthPercentageNextYear"`
+	ValueHistory                    map[time.Time]float64 `json:"valueHistory"`
 	// Some arrays/objects to support metric calculation.
 	buyQ          []Transaction
 	priceHistory  quote.Quote
@@ -256,8 +258,11 @@ func (s *Security) PreProcess(yFinInterface *YahooFinanceExtension, sheetMgr *Go
 				s.revenueUnits = sheetData.Values[0][0].(string)
 				s.CurrentQuarter = sheetData.Values[1][0].(string)
 				// We save these revenue values in thousands (not $M or $B).
-				if s.RevenueFullYearEstimate, err = strconv.ParseFloat(sheetData.Values[3][0].(string), 64); err != nil {
-					log.Printf("WARNING: Unable to parse Revenue full year estimate from %s sheet: %v", s.Ticker, err)
+				if s.RevenueCurrentYearEstimate, err = strconv.ParseFloat(sheetData.Values[3][0].(string), 64); err != nil {
+					log.Printf("WARNING: Unable to parse current year Revenue estimate from %s sheet: %v", s.Ticker, err)
+				}
+				if s.RevenueNextYearEstimate, err = strconv.ParseFloat(sheetData.Values[4][0].(string), 64); err != nil {
+					log.Printf("WARNING: Unable to parse next year Revenue estimate from %s sheet: %v", s.Ticker, err)
 				}
 				s.processFinancialHistoryData(sheetMgr.GetAllRevenueData(s.Ticker).Values)
 			}
@@ -415,13 +420,14 @@ func (s *Security) CalculateMetrics(histQuotes quote.Quote, sp500Quotes quote.Qu
 		// Unrealized gain (and percentage)
 		s.UnrealizedGain = s.MarketValue - s.TotalCostBasis
 		s.UnrealizedGainPercentage = (s.UnrealizedGain / s.TotalCostBasis) * 100.0
-		// Financials (P/S ratios)
+		// Financials (market cap, P/S ratios, revenue % increase estimates)
 		s.MarketCap = float64(q.MarketCap)
 		if s.RevenueTtm != 0.0 {
 			s.PriceToSalesTtm = s.MarketCap / (s.RevenueTtm * 1000)
 		}
-		if s.RevenueFullYearEstimate != 0.0 {
-			s.PriceToSalesNtm = s.MarketCap / (s.RevenueFullYearEstimate * 1000)
+		if s.RevenueCurrentYearEstimate != 0.0 {
+			s.PriceToSalesNtm = s.MarketCap / (s.RevenueCurrentYearEstimate * 1000)
+			s.RevenueGrowthPercentageNextYear = (s.RevenueNextYearEstimate - s.RevenueCurrentYearEstimate) / s.RevenueCurrentYearEstimate
 		}
 	}
 	// Get the total gain.

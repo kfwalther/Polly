@@ -50,6 +50,15 @@ export function PortfolioHoldingsTable({ holdingsData, totalPortfolioValue }) {
                 sortType: 'basic',
             },
             {
+                Header: 'Est Rev Inc +1Y',
+                accessor: 'revenueGrowthPercentageNextYear',
+                Cell: props =>
+                    <div style={{ color: (props.value > 0.3) ? TABLE_GREEN : ((props.value < 0.0) ? TABLE_RED : 'white') }} >
+                        {props.value !== 0.0 ? toPercent(props.value * 100) : '----'}
+                    </div>,
+                sortType: 'basic',
+            },
+            {
                 Header: 'Gross Margin %',
                 accessor: 'grossMargin',
                 Cell: props =>

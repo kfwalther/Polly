@@ -59,7 +59,7 @@ func (mgr *GoogleSheetManager) GetTransactionData() *sheets.ValueRange {
 func (mgr *GoogleSheetManager) GetRevenueData(ticker string) *sheets.ValueRange {
 	// Check if sheet exists for this ticker.
 	if mgr.sheetExists(mgr.sheetIds[1], ticker) {
-		resp := mgr.getSheetData(mgr.sheetIds[1], ticker+"!B1:B4")
+		resp := mgr.getSheetData(mgr.sheetIds[1], ticker+"!B1:B5")
 		// Check if we parsed any data from the spreadsheet.
 		if len(resp.Values) > 0 {
 			return resp
@@ -72,7 +72,7 @@ func (mgr *GoogleSheetManager) GetRevenueData(ticker string) *sheets.ValueRange 
 func (mgr *GoogleSheetManager) GetAllRevenueData(ticker string) *sheets.ValueRange {
 	// Check if sheet exists for this ticker.
 	if mgr.sheetExists(mgr.sheetIds[1], ticker) {
-		resp := mgr.getSheetData(mgr.sheetIds[1], ticker+"!A6:27")
+		resp := mgr.getSheetData(mgr.sheetIds[1], ticker+"!A7:28")
 		// Check if we parsed any data from the spreadsheet.
 		if len(resp.Values) > 0 {
 			return resp
