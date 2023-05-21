@@ -5,6 +5,7 @@ import StockBarChart from './StockBarChart'
 import Checkbox from './Checkbox'
 import PortfolioSummary from './PortfolioSummary';
 import { PortfolioHoldingsTable } from './PortfolioHoldingsTable'
+import PortfolioMapChart from './PortfolioMapChart'
 
 // Defines the Main Page of our app.
 export default class MainPage extends React.Component {
@@ -80,6 +81,7 @@ export default class MainPage extends React.Component {
             hAxis: { showTextEvery: 1, maxAlternation: 1, slantedText: true, slantedTextAngle: 45, textStyle: { fontSize: 12, bold: true, color: 'grey' } },
             bar: { groupWidth: '40%' }
         }
+
         // Render the stock charts and tables for the main page.
         return (
             <>
@@ -114,6 +116,10 @@ export default class MainPage extends React.Component {
                 <StockBarChart
                     chartData={this.state.stockList}
                     chartOptions={barChartOptions}
+                />
+                {/* Display our current holdings in a portfolio map chart also. */}
+                <PortfolioMapChart
+                    chartData={this.state.stockList}
                 />
                 <Checkbox
                     label="Stocks Only"
