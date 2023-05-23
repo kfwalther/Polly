@@ -4,24 +4,25 @@ package auth
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"golang.org/x/oauth2"
 )
 
 // Retrieve a token, saves the token, then returns the generated client.
-func GetClient(config *oauth2.Config) *http.Client {
+func GetClient(config *oauth2.Config, tokenFile string) *http.Client {
 	// The file token.json stores the user's access and refresh tokens, and is
 	// created automatically when the authorization flow completes for the first
 	// time.
-	tokFile := "../auth_token.json"
-	tok, err := tokenFromFile(tokFile)
+	tok, err := tokenFromFile(tokenFile)
 	if err != nil {
 		tok = getTokenFromWeb(config)
-		saveToken(tokFile, tok)
+		saveToken(tokenFile, tok)
 	}
 	return config.Client(context.Background(), tok)
 }
@@ -53,6 +54,12 @@ func tokenFromFile(file string) (*oauth2.Token, error) {
 	defer f.Close()
 	tok := &oauth2.Token{}
 	err = json.NewDecoder(f).Decode(tok)
+	// If we got a token, check if OAuth token has expired.
+	if err == nil && time.Now().After(tok.Expiry) {
+		// If expired, delete the token file, and return an error.
+		os.Remove(file)
+		err = errors.New("token expired, deleted old token file")
+	}
 	return tok, err
 }
 

@@ -20,6 +20,7 @@ import (
 // Program entry point.
 func main() {
 	ctx := context.Background()
+	// Get the GCP credentials file.
 	b, err := os.ReadFile("../credentials.json")
 	if err != nil {
 		log.Fatalf("Unable to read client secret file: %v", err)
@@ -30,7 +31,10 @@ func main() {
 	if err != nil {
 		log.Fatalf("Unable to parse client secret file to config: %v", err)
 	}
-	client := auth.GetClient(config)
+	// Define the file to store our auth token.
+	tokenFile := "../auth_token.json"
+	// Get the HTTP client, providing the OAuth config, and token file.
+	client := auth.GetClient(config, tokenFile)
 
 	// Get the spreadsheet IDs from the input file.
 	sheetIdFile := "../portfolio-sheet-id.txt"
