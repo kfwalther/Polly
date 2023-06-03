@@ -11,9 +11,15 @@ import json
 import sys
 import yfinance as yf
 
-# Get the input symbol.
-symbol = sys.argv[1].strip()
+# Get the input symbols.
+symbols = sys.argv[1].strip()
 # Check if a symbol was provided, then query Yahoo finance.
-if symbol and not symbol.isspace():
-    stock = yf.Ticker(symbol)
-    print(json.dumps(stock.info, indent=4))
+if symbols and not symbols.isspace():
+    # Put spaces b/w symbols instead of commas.
+    symbolsSpaced = ' '.join(symbols.split(','))
+    # Get the info for all symbols.
+    stockInfoDict = yf.Tickers(symbolsSpaced)
+    # Use dict-comprehension to pull out the 'info' portion of the Ticker object into new dict.
+    reducedStockInfoDict = {ticker: stockInfo.info for ticker, stockInfo in stockInfoDict.tickers.items()}
+    # Iterate thru the list of Ticker objects, and dump their JSON-formatted info.
+    print(json.dumps(reducedStockInfoDict, indent=4))

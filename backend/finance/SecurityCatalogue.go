@@ -2,6 +2,7 @@ package finance
 
 import (
 	"log"
+	"strings"
 	"sync"
 	"time"
 
@@ -67,6 +68,18 @@ var StockSplits = map[string][]Transaction{
 			Action:   "Split",
 			Shares:   0.5},
 	},
+}
+
+// Define a list of delisted stocks no longer on exchanges so we don't query Yahoo for these.
+var DelistedTickers = map[string][]string{
+	// Went bankrupt in 2022
+	"VYGVF": {"Voyager Digital Ltd."},
+	// Bought by AMD
+	"XLNX": {"Xilinx Inc."},
+	// Delisted mutual fund in 2022
+	"PONDX": {"PIMCO Income Fund Class D"},
+	// This represents cash transactions in our tracker, ignore as a ticker.
+	"CASH": {"Placeholder symbol"},
 }
 
 // Definition of a security catalogue to house a portfolio of stock/ETF info in a map.
@@ -184,10 +197,24 @@ func (sc *SecurityCatalogue) Calculate() {
 	// Grab the historical S&P 500 data to compare against (2015 to present).
 	sc.RefreshStockHistory("SPY", "2015-01-01", true)
 	sc.sp500quotes = sc.dbClient.GetTickerData("SPY")
+
+	// Get the tickers for all securities we've ever owned in comma-separated list.
+	tickers := make([]string, 0, len(sc.securities))
+	for t := range sc.securities {
+		// Don't include any delisted securities.
+		if _, ok := DelistedTickers[t]; !ok {
+			tickers = append(tickers, t)
+		}
+	}
+	tickerList := strings.Join(tickers, ",")
+	log.Printf("Querying Yahoo finance for %d equities...\n", len(tickers))
+	// Use Python yFinance module to query data for all tickers at once.
+	allStocksData := sc.yFinInterface.GetTickerData(tickerList)
+
 	// Preprocess all the securities, and add the stocks to a list to grab their historical info.
 	for _, s := range sc.securities {
-		if s.Ticker != "CASH" {
-			s.PreProcess(sc.yFinInterface, sc.sheetMgr)
+		if _, ok := DelistedTickers[s.Ticker]; !ok {
+			s.PreProcess(sc.sheetMgr, allStocksData)
 			// Make sure the stock's history data is up-to-date.
 			sc.RefreshStockHistory(s.Ticker, s.transactions[0].DateTime.Format("2006-01-02"), s.CurrentlyHeld)
 		}

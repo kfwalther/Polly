@@ -9,8 +9,6 @@ import (
 	"time"
 
 	"github.com/markcheno/go-quote"
-	"github.com/piquette/finance-go"
-	"github.com/piquette/finance-go/equity"
 )
 
 // Definition of a security to hold the transactions for a particular stock/ETF.
@@ -19,6 +17,7 @@ type Security struct {
 	Ticker                          string                `json:"ticker"`
 	SecurityType                    string                `json:"securityType"`
 	MarketPrice                     float64               `json:"marketPrice"`
+	MarketPrevClosePrice            float64               `json:"marketPrevClosePrice"`
 	MarketValue                     float64               `json:"marketValue"`
 	DailyGain                       float64               `json:"dailyGain"`
 	DailyGainPercentage             float64               `json:"dailyGainPercentage"`
@@ -131,23 +130,6 @@ func (s *Security) GetQuoteOfSP500(quoteDate time.Time) float64 {
 	}
 }
 
-// Grab the current market price of this ticker symbol using quote from the web.
-func (s *Security) DetermineCurrentPrice(q *finance.Equity) {
-	// Account for stocks that no longer exist (Yahoo returns nil).
-	if q != nil {
-		// Based on the market's current state, grab the proper current quoted price.
-		if q.MarketState == "PRE" && q.PreMarketPrice > 0.0 {
-			s.MarketPrice = q.PreMarketPrice
-		} else if q.MarketState == "POST" && q.PostMarketPrice > 0.0 {
-			s.MarketPrice = q.PostMarketPrice
-		} else {
-			s.MarketPrice = q.RegularMarketPrice
-		}
-	} else {
-		s.MarketPrice = 0.0
-	}
-}
-
 // Process the financial history data for one stock from the growth stock spreadsheet.
 func (s *Security) processFinancialHistoryData(data [][]interface{}) {
 	numQs := 0
@@ -203,7 +185,7 @@ func (s *Security) processFinancialHistoryData(data [][]interface{}) {
 }
 
 // Sorts the transactions for this security, and adds in any stock splits we need to account for.
-func (s *Security) PreProcess(yFinInterface *YahooFinanceExtension, sheetMgr *GoogleSheetManager) {
+func (s *Security) PreProcess(sheetMgr *GoogleSheetManager, stockDataMap *map[string]interface{}) {
 	// Ignore ticker CASH for now, may use this later.
 	if s.Ticker == "CASH" {
 		return
@@ -229,27 +211,50 @@ func (s *Security) PreProcess(yFinInterface *YahooFinanceExtension, sheetMgr *Go
 			s.splitMultiple *= txn.Shares
 		}
 	}
+	var stockData map[string]interface{} = nil
+	// If Yahoo returned data for this security, try to extract it from the JSON map.
+	if stockMapEntry, ok := (*stockDataMap)[s.Ticker]; ok {
+		if stockData, ok = stockMapEntry.(map[string]interface{}); ok {
+			curPriceName := "currentPrice"
+			if s.SecurityType == "ETF" {
+				// ETFs don't have currentPrice, use navPrice instead.
+				curPriceName = "navPrice"
+			} else if s.SecurityType == "Mutual Fund" {
+				// Mutual funds don't have currentPrice, use previousClose instead.
+				curPriceName = "previousClose"
+			}
+			// Save the current market price.
+			if s.MarketPrice, ok = stockData[curPriceName].(float64); !ok {
+				s.MarketPrice = 0.0
+				log.Printf("WARNING: Couldn't obtain current market price for %s", s.Ticker)
+			}
+			if s.MarketPrevClosePrice, ok = stockData["previousClose"].(float64); !ok {
+				s.MarketPrevClosePrice = 0.0
+			}
+		} else {
+			log.Printf("WARNING: Couldn't convert data map from Yahoo for ticker %s", s.Ticker)
+		}
+	} else {
+		log.Printf("WARNING: No data returned from Yahoo for ticker %s", s.Ticker)
+	}
 	// Do we currently hold this stock?
 	if curShares > 0.0 {
 		s.CurrentlyHeld = true
-		// Grab extended data about the stock using Yahoo finance web scraper.
-		// TODO: Move this to parallel operation below?
-		if s.SecurityType == "Stock" {
+		// If a stock we currently own, save some addtl data.
+		if s.SecurityType == "Stock" && stockData != nil {
 			var err error
-			log.Printf("Grabbing %s from Yahoo...", s.Ticker)
-			extData := *yFinInterface.GetTickerData(s.Ticker)
-			ok := true
-			// Check if Yahoo returned any data.
-			if s.PriceToSalesTtm, ok = extData["priceToSalesTrailing12Months"].(float64); !ok {
+			var ok bool
+			// Check if Yahoo returned any data for these metrics.
+			if s.PriceToSalesTtm, ok = stockData["priceToSalesTrailing12Months"].(float64); !ok {
 				s.PriceToSalesTtm = 0.0
 			}
-			if s.MarketCap, ok = extData["marketCap"].(float64); !ok {
+			if s.MarketCap, ok = stockData["marketCap"].(float64); !ok {
 				s.MarketCap = 0.0
 			}
-			if s.GrossMargin, ok = extData["grossMargins"].(float64); !ok {
+			if s.GrossMargin, ok = stockData["grossMargins"].(float64); !ok {
 				s.GrossMargin = 0.0
 			}
-			if s.RevenueGrowthPercentageYoy, ok = extData["revenueGrowth"].(float64); !ok {
+			if s.RevenueGrowthPercentageYoy, ok = stockData["revenueGrowth"].(float64); !ok {
 				s.RevenueGrowthPercentageYoy = 0.0
 			}
 			sheetData := sheetMgr.GetRevenueData(s.Ticker)
@@ -354,22 +359,10 @@ func (s *Security) CalculateMetrics(histQuotes quote.Quote, sp500Quotes quote.Qu
 	}
 	// Reset the slice to use as a FIFO queue for calculating metrics.
 	s.buyQ = make([]Transaction, 0)
-	// Get the current info for the given ticker.
-	q, err := equity.Get(s.Ticker)
-	if err != nil {
-		log.Printf("Could not retrieve info from Yahoo for ticker %s : %v", s.Ticker, err)
-		q = nil
-	} else if q == nil || q.RegularMarketPrice == 0.0 {
-		log.Printf("Yahoo Finance query returned no data for ticker %s", s.Ticker)
-		q = nil
-	}
 
 	// Note, for calculations below, Yahoo stock price history is already split-adjusted.
 	s.priceHistory = histQuotes
 	s.sp500History = sp500Quotes
-
-	// Get current market price.
-	s.DetermineCurrentPrice(q)
 
 	tIdx := 0
 	curShares := 0.0
@@ -399,8 +392,10 @@ func (s *Security) CalculateMetrics(histQuotes quote.Quote, sp500Quotes quote.Qu
 			s.TotalCostBasis += txn.Shares * txn.Price
 		}
 		// Calculate the total 1-day gain/loss for this stock.
-		s.DailyGain = q.RegularMarketChange * s.NumShares
-		s.DailyGainPercentage = q.RegularMarketChangePercent
+		if s.CurrentlyHeld {
+			s.DailyGain = (s.MarketPrice - s.MarketPrevClosePrice) * s.NumShares
+			s.DailyGainPercentage = (s.MarketPrice - s.MarketPrevClosePrice) * 100.0 / s.MarketPrevClosePrice
+		}
 	} else {
 		log.Printf("Calculating reduced metrics for %s", s.Ticker)
 		// These stocks had errors, and/or no longer exist. Skip value history calculations.
@@ -420,8 +415,7 @@ func (s *Security) CalculateMetrics(histQuotes quote.Quote, sp500Quotes quote.Qu
 		// Unrealized gain (and percentage)
 		s.UnrealizedGain = s.MarketValue - s.TotalCostBasis
 		s.UnrealizedGainPercentage = (s.UnrealizedGain / s.TotalCostBasis) * 100.0
-		// Financials (market cap, P/S ratios, revenue % increase estimates)
-		s.MarketCap = float64(q.MarketCap)
+		// Financials (P/S ratios, revenue % increase estimates)
 		if s.RevenueTtm != 0.0 {
 			s.PriceToSalesTtm = s.MarketCap / (s.RevenueTtm * 1000)
 		}
