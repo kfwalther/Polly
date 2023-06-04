@@ -31,6 +31,8 @@ type Security struct {
 	TotalGain                       float64               `json:"totalGain"`
 	ValueAllTimeHigh                float64               `json:"valueAllTimeHigh"`
 	HoldingDays                     uint                  `json:"holdingDays"` // TODO: Calculate this and use it...
+	Sector                          string                `json:"sector"`
+	Industry                        string                `json:"industry"`
 	CurrentQuarter                  string                `json:"currentQuarter"`
 	MarketCap                       float64               `json:"marketCap"`
 	RevenueTtm                      float64               `json:"revenueTtm"`
@@ -244,7 +246,13 @@ func (s *Security) PreProcess(sheetMgr *GoogleSheetManager, stockDataMap *map[st
 		if s.SecurityType == "Stock" && stockData != nil {
 			var err error
 			var ok bool
-			// Check if Yahoo returned any data for these metrics.
+			// Check if Yahoo returned any data for these fields.
+			if s.Sector, ok = stockData["sector"].(string); !ok {
+				s.Sector = ""
+			}
+			if s.Industry, ok = stockData["industry"].(string); !ok {
+				s.Industry = ""
+			}
 			if s.PriceToSalesTtm, ok = stockData["priceToSalesTrailing12Months"].(float64); !ok {
 				s.PriceToSalesTtm = 0.0
 			}
