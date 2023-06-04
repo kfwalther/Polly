@@ -2,46 +2,82 @@ import './PortfolioMapChart.css'
 import { Chart } from 'react-google-charts';
 import { toPercent, toUSD } from "./Helpers";
 
-export default function PortfolioMapChart({ chartData }) {
+// Define the options for the portfolio map drop-down pickers.
+export const PortfolioMapSizeSelectOptions = [
+    { value: 'marketValue', label: 'Market Value' },
+    { value: 'grossMargin', label: 'Gross Margin'},
+];
+export const PortfolioMapColorSelectOptions = [
+    { value: 'grossMargin', label: 'Gross Margin'},
+    { value: 'revenueGrowthPercentageYoy', label: 'Growth Rate TTM' },
+    { value: 'revenueGrowthPercentageNextYear', label: 'Growth Rate NTM' },
+    { value: 'priceToSalesNtm', label: 'Fwd P/S'},
+];
+
+export function PortfolioMapChart({ chartData, sizeBy, colorBy }) {
 
     function getFilteredChartData() {
         // Filter for only non-zero securities.
         let filtered = chartData.filter(s => (s.marketValue > 0.0 && s.securityType === 'Stock'));
         // Put the filtered values in an array, and add a column header.
-        let data = filtered.map(s => [s.ticker, s.securityType, s.marketValue, s.revenueGrowthPercentageYoy * 100])
+        let data = filtered.map(s => [s.ticker, s.securityType,
+            sizeBy == 'marketValue' ? s[sizeBy] : s[sizeBy] * 100,
+            colorBy == 'priceToSalesNtm' ? s[colorBy] : s[colorBy] * 100])
+        // Add the column labels we need for the tree parents.
         data.unshift(['Stock', null, 0, 0])
-        data.unshift(['Ticker', 'Type', 'Market Value', 'Revenue Growth %'])
+        data.unshift(['Ticker', 'Type', 'Size Col', 'Color Col'])
         console.log(data)
         return data
     }
 
     // Filter the map data.
     var data = getFilteredChartData()
+    // Determine coloring scheme based on selection.
+    var minColor = 'red'
+    var midColor = 'grey'
+    var maxColor = 'green'
+    if (colorBy == 'grossMargin') {
+        var minColorVal = 0
+        var maxColorVal = 90
+    } else if (colorBy == 'priceToSalesNtm') {
+        var minColorVal = 0
+        var maxColorVal = 30
+        var minColor = 'green'
+        var maxColor = 'red'
+    } else {
+        var minColorVal = -100
+        var maxColorVal = 100
+    }
     // Define the options for the portfolio map chart.
     var mapOptions = {
-        minColor: 'red',
-        midColor: 'grey',
-        maxColor: 'green',
-        minColorValue: -100,
-        maxColorValue: 100,
+        minColor: minColor,
+        midColor: midColor,
+        maxColor: maxColor,
+        minColorValue: minColorVal,
+        maxColorValue: maxColorVal,
         showScale: true,
         generateTooltip: showFullTooltip
     }
 
     // Show a customized tooltip.
     function showFullTooltip(row) {
+        var sizeByLabel = PortfolioMapSizeSelectOptions.find(o => o.value == sizeBy).label
+        var colorByLabel = PortfolioMapColorSelectOptions.find(o => o.value == colorBy).label
+        // Format the data and labels based on what is displayed.
+        var sizeRowVal = (sizeBy == 'marketValue') ? toUSD(data[row + 1][2]) : toPercent(data[row + 1][2])
+        var colorRowVal = (colorBy == 'priceToSalesNtm') ? data[row + 1][3] : toPercent(data[row + 1][3])
         return '<div style="background:grey; padding:10px; border-style:solid">' +
             '<span><b>' + data[row + 1][0] + '</b></span><br>' +
-            'Market Value: ' + toUSD(data[row + 1][2]) + '<br>' +
-            'Revenue Growth: ' + toPercent(data[row + 1][3]) + '<br>';
+            sizeByLabel + ': ' + sizeRowVal + '<br>' +
+            colorByLabel + ': ' + colorRowVal + '<br>';
     }
 
     return (
         <div className="portfoliomap-container" align="center">
             <Chart
                 chartType="TreeMap"
-                width="1000px"
-                height="650px"
+                width="1600px"
+                height="750px"
                 data={data}
                 options={mapOptions}
             />

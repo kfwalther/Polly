@@ -1,3 +1,21 @@
 .portfoliomap-container {
     margin: 0 auto;
 }
+
+.portfoliomap-picker-container {
+    display: flex;
+    gap: 10px;
+    margin: 20px;
+    margin-top: 10px;
+    width: 600px;
+    height: 25px;
+    vertical-align: middle;
+}
+
+.portfoliomap-size-picker-label {
+    color: white;
+}
+
+.portfoliomap-color-picker-label {
+    color: white;
+}

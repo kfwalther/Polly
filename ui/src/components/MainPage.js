@@ -3,12 +3,14 @@ import { toUSD } from './Helpers'
 import { StockPieChart, PieChartColors } from './StockPieChart'
 import StockBarChart from './StockBarChart'
 import Checkbox from './Checkbox'
+import Select from 'react-select';
 import PortfolioSummary from './PortfolioSummary';
 import { PortfolioHoldingsTable } from './PortfolioHoldingsTable'
-import PortfolioMapChart from './PortfolioMapChart'
+import { PortfolioMapChart, PortfolioMapSizeSelectOptions, PortfolioMapColorSelectOptions} from './PortfolioMapChart'
 
 // Defines the Main Page of our app.
 export default class MainPage extends React.Component {
+    // The MainPage constructor.
     constructor(props) {
         super(props);
         this.state = {
@@ -16,6 +18,8 @@ export default class MainPage extends React.Component {
             portfolioSummary: {},
             isStocksOnlyChecked: true,
             isCurrentOnlyChecked: true,
+            portfolioMapSizeSelection: 'marketValue',
+            portfolioMapColorSelection: 'revenueGrowthPercentageYoy',
         };
         this.serverRequest = this.serverRequest.bind(this);
         this.renderStockCharts = this.renderStockCharts.bind(this);
@@ -51,6 +55,14 @@ export default class MainPage extends React.Component {
     // Save the new checked state of the "Show current holdings only" checkbox.
     onCurrentOnlyCheckboxClick = checked => {
         this.setState({ isCurrentOnlyChecked: checked })
+    }
+
+    refreshPortfolioMapSize = selection => {
+        this.setState({ portfolioMapSizeSelection: selection.value })
+    }
+
+    refreshPortfolioMapColor = selection => {
+        this.setState({ portfolioMapColorSelection: selection.value })
     }
 
     // Helper function to map colors to our current list of stocks, sorted by market value.
@@ -117,9 +129,25 @@ export default class MainPage extends React.Component {
                     chartData={this.state.stockList}
                     chartOptions={barChartOptions}
                 />
+                <div className="portfoliomap-picker-container">
+                    <h4 className='portfoliomap-size-picker-label'>Size by: </h4>
+                    <Select 
+                        options={PortfolioMapSizeSelectOptions} 
+                        onChange={this.refreshPortfolioMapSize}
+                        defaultValue={PortfolioMapSizeSelectOptions.filter(o => o.label == 'Market Value')} 
+                    />
+                    <h4 className='portfoliomap-color-picker-label'>Color by: </h4>
+                    <Select 
+                        options={PortfolioMapColorSelectOptions} 
+                        onChange={this.refreshPortfolioMapColor}
+                        defaultValue={PortfolioMapColorSelectOptions.filter(o => o.label == 'Growth Rate TTM')}
+                    />
+                </div>
                 {/* Display our current holdings in a portfolio map chart also. */}
                 <PortfolioMapChart
                     chartData={this.state.stockList}
+                    sizeBy={this.state.portfolioMapSizeSelection}
+                    colorBy={this.state.portfolioMapColorSelection}
                 />
                 <Checkbox
                     label="Stocks Only"
