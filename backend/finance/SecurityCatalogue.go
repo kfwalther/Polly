@@ -166,20 +166,27 @@ func (sc *SecurityCatalogue) RetrieveAndStoreStockData(ticker string, startDate 
 }
 
 // Checks existing ticker history data in our DB, and pulls any missing data from Yahoo to fill in gaps.
-func (sc *SecurityCatalogue) RefreshStockHistory(ticker string, initialDate string, currentlyOwned bool) {
+func (sc *SecurityCatalogue) RefreshStockHistory(txns *[]Transaction, currentlyOwned bool) {
 	// Does the ticker exist in the DB?
+	ticker := (*txns)[0].Ticker
 	if sc.dbClient.TickerExists(ticker) {
+		latestDate := sc.dbClient.GetLatestQuote(ticker)
 		// Do we currently own this security?
 		if currentlyOwned {
 			// Are we up to date on the quotes? More than 3 days have passed?
-			latestDate := sc.dbClient.GetLatestQuote(ticker)
 			if time.Now().Sub(latestDate).Hours() > 72 {
 				sc.RetrieveAndStoreStockData(ticker, latestDate.Add(24*time.Hour).UTC().Format("2006-01-02"), time.Now().UTC().Format("2006-01-02"))
+			}
+		} else {
+			// If we don't own it, ensure we have all the data through the last sell date (get one day past sell date to be safe).
+			sellDate := (*txns)[len(*txns)-1].DateTime
+			if sellDate.Sub(latestDate).Hours() > 24 {
+				sc.RetrieveAndStoreStockData(ticker, latestDate.Add(24*time.Hour).UTC().Format("2006-01-02"), sellDate.Add(24*time.Hour).UTC().Format("2006-01-02"))
 			}
 		}
 	} else {
 		// Ticker doesn't exist in DB yet, query all its data.
-		sc.RetrieveAndStoreStockData(ticker, initialDate, time.Now().UTC().Format("2006-01-02"))
+		sc.RetrieveAndStoreStockData(ticker, (*txns)[0].DateTime.Format("2006-01-02"), time.Now().UTC().Format("2006-01-02"))
 	}
 }
 
@@ -195,7 +202,8 @@ func (sc *SecurityCatalogue) AccumulateValueHistory(stockHistory map[time.Time]f
 func (sc *SecurityCatalogue) Calculate() {
 
 	// Grab the historical S&P 500 data to compare against (2015 to present).
-	sc.RefreshStockHistory("SPY", "2015-01-01", true)
+	// Define a dummy SPY transaction to pass in, the date is what the function requires.
+	sc.RefreshStockHistory(&[]Transaction{*NewTransaction("2015-01-01", "SPY", "Buy", "1", "100.0")}, true)
 	sc.sp500quotes = sc.dbClient.GetTickerData("SPY")
 
 	// Get the tickers for all securities we've ever owned in comma-separated list.
@@ -216,7 +224,7 @@ func (sc *SecurityCatalogue) Calculate() {
 		if _, ok := DelistedTickers[s.Ticker]; !ok {
 			s.PreProcess(sc.sheetMgr, allStocksData)
 			// Make sure the stock's history data is up-to-date.
-			sc.RefreshStockHistory(s.Ticker, s.transactions[0].DateTime.Format("2006-01-02"), s.CurrentlyHeld)
+			sc.RefreshStockHistory(&s.transactions, s.CurrentlyHeld)
 		}
 	}
 
