@@ -277,6 +277,11 @@ func (s *Security) PreProcess(sheetMgr *GoogleSheetManager, stockDataMap *map[st
 				if s.RevenueNextYearEstimate, err = strconv.ParseFloat(sheetData.Values[4][0].(string), 64); err != nil {
 					log.Printf("WARNING: Unable to parse next year Revenue estimate from %s sheet: %v", s.Ticker, err)
 				}
+				// Adjust for revenue logged in $M, not thousands.
+				if s.revenueUnits == "M" {
+					s.RevenueCurrentYearEstimate *= 1000
+					s.RevenueNextYearEstimate *= 1000
+				}
 				s.processFinancialHistoryData(sheetMgr.GetAllRevenueData(s.Ticker).Values)
 			}
 		}
