@@ -1,6 +1,7 @@
 import './App.css'
 import React from 'react';
 import MainPage from './components/MainPage'
+import RefreshPage from './components/RefreshPage'
 import { Header } from './components/Header';
 import { NavHeader } from './components/NavHeader';
 import { Routes, Route } from 'react-router-dom';
@@ -16,7 +17,8 @@ function App() {
       { /* Based on the selected route path, load a specific page. Index page is the default. */}
       <Routes>
         <Route path="/*">
-          <Route index element={<MainPage />} />
+          <Route index element={<MainPage/>} />
+          <Route path='refresh' element={<RefreshPage/>} />
           <Route path='transactions' element={<TransactionsPage />} />
         </Route>
       </Routes>

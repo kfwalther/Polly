@@ -2,6 +2,7 @@ import Container from 'react-bootstrap/Container';
 import Nav from 'react-bootstrap/Nav';
 import Navbar from 'react-bootstrap/Navbar';
 import { Link } from 'react-router-dom';
+import './NavHeader.css'
 
 // Returns the navigation bar header.
 export const NavHeader = () => {
@@ -13,6 +14,7 @@ export const NavHeader = () => {
                     {/* Use Link from react-router-dom to define the routing links. */}
                     <Link to="/" className="nav-item">Home</Link>
                     <Link to="/transactions" className="nav-item">Transactions & Performance</Link>
+                    <Link to="/refresh" className="nav-item">Refresh Data</Link>
                 </Nav>
             </Navbar>
         </Container>

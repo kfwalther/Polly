@@ -1,0 +1,19 @@
+
+.refresh-container {
+    margin: 50px auto;
+    padding-right: 50px;
+    padding-left: 50px;
+    text-align: center;
+    max-width: 1500px;
+}
+
+.refresh-button {
+    padding-bottom: 25px;
+    margin: auto;
+    display: block;
+}
+
+.refresh-progressbar {
+    margin-top: 25px;
+    padding-top: 20px;
+}

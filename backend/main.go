@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"strconv"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -41,8 +40,6 @@ func main() {
 	// Initialize the Google sheet interface.
 	googleSheetMgr := finance.NewGoogleSheetManager(client, &ctx, sheetIdFile)
 
-	// Specify the sheet and columns, and read from transactions sheet.
-	txns := googleSheetMgr.GetTransactionData()
 	// Set gin web server to release mode. Comment out to enable debug logging.
 	gin.SetMode(gin.ReleaseMode)
 	// Setup the Go web server, with default logger.
@@ -52,12 +49,16 @@ func main() {
 	// Connect to our MongoDB instance.
 	dbClient := data.NewMongoDbClient()
 	dbClient.ConnectMongoDb("polly-data-prod")
+
 	// Name the python script to use with yfinance to grab extended stock info.
 	pyScript := "yahooFinanceHelper.py"
+	// Create the new security catalogue to house our portfolio data.
 	catalogue := finance.NewSecurityCatalogue(googleSheetMgr, dbClient, pyScript)
+	// Specify the sheet and columns, and read from transactions sheet.
+	txns := googleSheetMgr.GetTransactionData()
 	// Process the imported data to organize it by ticker.
 	(*catalogue).ProcessImport(txns.Values)
-	fmt.Println("Number of transactions processed: " + strconv.Itoa(len(txns.Values)))
+	log.Printf("Number of transactions processed: %d", len(txns.Values))
 	// Calculate metrics for each stock.
 	catalogue.Calculate()
 	// Create a controller to manage front-end interaction.
@@ -69,6 +70,7 @@ func main() {
 	router.GET("/transactions", ctrlr.GetTransactions)
 	router.GET("/sp500", ctrlr.GetSp500History)
 	router.GET("/history", ctrlr.GetPortfolioHistory)
+	router.GET("/refresh", ctrlr.WebSocketHandler)
 
 	// Disable trusted proxies.
 	router.SetTrustedProxies(nil)

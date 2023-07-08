@@ -2,6 +2,7 @@ package finance
 
 import (
 	"log"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -9,6 +10,7 @@ import (
 	"github.com/kfwalther/Polly/backend/data"
 	"github.com/markcheno/go-quote"
 
+	"github.com/gorilla/websocket"
 	"golang.org/x/exp/maps"
 )
 
@@ -84,24 +86,28 @@ var DelistedTickers = map[string][]string{
 
 // Definition of a security catalogue to house a portfolio of stock/ETF info in a map.
 type SecurityCatalogue struct {
-	yFinInterface    *YahooFinanceExtension
-	sp500quotes      quote.Quote
-	sheetMgr         *GoogleSheetManager
-	dbClient         *data.MongoDbClient
-	summary          *PortfolioSummary
-	securities       map[string]*Security
-	PortfolioHistory map[time.Time]float64 `json:"portfolioHistory"`
+	yFinInterface     *YahooFinanceExtension
+	sp500quotes       quote.Quote
+	sheetMgr          *GoogleSheetManager
+	dbClient          *data.MongoDbClient
+	summary           *PortfolioSummary
+	progressWebSocket *websocket.Conn
+	securities        map[string]*Security
+	PortfolioHistory  map[time.Time]float64 `json:"portfolioHistory"`
 }
 
 // Constructor for a new SecurityCatalogue object, initializing the map.
 func NewSecurityCatalogue(sheetMgr *GoogleSheetManager, dbClient *data.MongoDbClient, pyScript string) *SecurityCatalogue {
 	var sc SecurityCatalogue
+	// Initialize the interfaces.
 	sc.yFinInterface = NewYahooFinanceExtension(pyScript)
+	sc.sheetMgr = sheetMgr
+	sc.dbClient = dbClient
+	// Initialize the data structures for this class.
 	sc.securities = make(map[string]*Security)
 	sc.PortfolioHistory = make(map[time.Time]float64)
 	sc.summary = NewPortfolioSummary()
-	sc.sheetMgr = sheetMgr
-	sc.dbClient = dbClient
+	sc.progressWebSocket = nil
 	return &sc
 }
 
@@ -124,6 +130,37 @@ func (sc *SecurityCatalogue) GetTransactionList() []Transaction {
 
 func (sc *SecurityCatalogue) GetSp500() quote.Quote {
 	return sc.sp500quotes
+}
+
+// Send progress updates to the client via the web socket, if it's initialized.
+func (sc *SecurityCatalogue) SendProgressUpdate(progressPercent float64) {
+	if sc.progressWebSocket != nil {
+		percentStr := strconv.FormatFloat(progressPercent, 'E', -1, 64)
+		// Write the web socket message to the client (1% progress).
+		err := sc.progressWebSocket.WriteMessage(websocket.TextMessage, []byte(percentStr))
+		if err != nil {
+			log.Println("WARNING: Web socket write error: ", err)
+		}
+	}
+}
+
+// Re-run the Google Sheets retrieval and portfolio calculations again to refresh all data.
+func (sc *SecurityCatalogue) Refresh(progressSocket *websocket.Conn) int {
+	// Re-init the data structures for this class.
+	sc.securities = make(map[string]*Security)
+	sc.PortfolioHistory = make(map[time.Time]float64)
+	sc.summary = NewPortfolioSummary()
+	sc.progressWebSocket = progressSocket
+	// Re-read from transactions sheet.
+	txns := sc.sheetMgr.GetTransactionData()
+	sc.SendProgressUpdate(3.0)
+	// Re-process the imported data to organize it by ticker.
+	sc.ProcessImport(txns.Values)
+	log.Printf("Number of transactions processed: %d", len(txns.Values))
+	// Calculate metrics for each stock.
+	sc.Calculate()
+	sc.SendProgressUpdate(100.0)
+	return len(txns.Values)
 }
 
 // Method to process the imported data, by creating a new [Transaction] for
@@ -152,6 +189,7 @@ func (sc *SecurityCatalogue) ProcessImport(txnData [][]interface{}) {
 			}
 		}
 	}
+	sc.SendProgressUpdate(5.0)
 }
 
 // Retrieves data from Yahoo for the given ticker, and stores the data in the DB.
@@ -205,6 +243,7 @@ func (sc *SecurityCatalogue) Calculate() {
 	// Define a dummy SPY transaction to pass in, the date is what the function requires.
 	sc.RefreshStockHistory(&[]Transaction{*NewTransaction("2015-01-01", "SPY", "Buy", "1", "100.0")}, true)
 	sc.sp500quotes = sc.dbClient.GetTickerData("SPY")
+	sc.SendProgressUpdate(7.0)
 
 	// Get the tickers for all securities we've ever owned in comma-separated list.
 	tickers := make([]string, 0, len(sc.securities))
@@ -218,7 +257,11 @@ func (sc *SecurityCatalogue) Calculate() {
 	log.Printf("Querying Yahoo finance for %d equities...\n", len(tickers))
 	// Use Python yFinance module to query data for all tickers at once.
 	allStocksData := sc.yFinInterface.GetTickerData(tickerList)
+	var curProgress float64 = 10.0
+	sc.SendProgressUpdate(curProgress)
 
+	// Get progress completion to 80% when done pre-processing.
+	progInc := 70.0 / float64(len(sc.securities))
 	// Preprocess all the securities, and add the stocks to a list to grab their historical info.
 	for _, s := range sc.securities {
 		if _, ok := DelistedTickers[s.Ticker]; !ok {
@@ -226,6 +269,8 @@ func (sc *SecurityCatalogue) Calculate() {
 			// Make sure the stock's history data is up-to-date.
 			sc.RefreshStockHistory(&s.transactions, s.CurrentlyHeld)
 		}
+		curProgress += progInc
+		sc.SendProgressUpdate(curProgress)
 	}
 
 	// Setup a wait group.
@@ -246,6 +291,7 @@ func (sc *SecurityCatalogue) Calculate() {
 
 	// Wait/monitor until all work is complete.
 	waitGroup.Wait()
+	sc.SendProgressUpdate(95.0)
 
 	// Calculate total invested market value across all securities.
 	for _, s := range sc.securities {
@@ -264,6 +310,6 @@ func (sc *SecurityCatalogue) Calculate() {
 	sc.summary.PercentageGain = ((sc.summary.TotalMarketValue - sc.summary.TotalCostBasis) / sc.summary.TotalCostBasis) * 100.0
 	log.Println("---------------------------------")
 	log.Printf("Total Market Value: $%f", sc.summary.TotalMarketValue)
-	log.Printf("Percentage Gain/Loss: %f", sc.summary.PercentageGain)
+	log.Printf("Percentage Gain/Loss: %f%%", sc.summary.PercentageGain)
 	log.Println("---------------------------------")
 }

@@ -2,8 +2,10 @@ package controllers
 
 import (
 	"log"
+	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gorilla/websocket"
 
 	"github.com/kfwalther/Polly/backend/finance"
 )
@@ -88,4 +90,33 @@ func (c *SecurityController) GetSp500History(ctx *gin.Context) {
 			"sp500": sp500,
 		})
 	}
+}
+
+// Connect to a web socket on this endpoint to send periodic progress updates.
+func (c *SecurityController) WebSocketHandler(ctx *gin.Context) {
+	log.Printf("Setting up web socket...")
+	// Define the headers/settings for upgrading the http:// request to ws://.
+	var upgrader = websocket.Upgrader{
+		ReadBufferSize:  1024,
+		WriteBufferSize: 1024,
+		// Account for cross-domain issues
+		CheckOrigin: func(r *http.Request) bool {
+			return true
+		},
+	}
+	// Received the socket request, now upgrade it to ws://
+	progressSocket, err := upgrader.Upgrade(ctx.Writer, ctx.Request, nil)
+	if err != nil {
+		log.Println("WARNING: Web socket protocol upgrade error: ", err)
+		return
+	}
+	// Close the socket when we're done.
+	defer progressSocket.Close()
+	// Write the web socket message to the client (1% progress).
+	err = progressSocket.WriteMessage(websocket.TextMessage, []byte("1"))
+	if err != nil {
+		log.Println("WARNING: Web socket write error: ", err)
+	}
+	// Refresh the portfolio data, providing the web socket.
+	c.securityCatalogue.Refresh(progressSocket)
 }
