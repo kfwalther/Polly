@@ -134,13 +134,13 @@ export default class MainPage extends React.Component {
                     <Select 
                         options={PortfolioMapSizeSelectOptions} 
                         onChange={this.refreshPortfolioMapSize}
-                        defaultValue={PortfolioMapSizeSelectOptions.filter(o => o.label == 'Market Value')} 
+                        defaultValue={PortfolioMapSizeSelectOptions.filter(o => o.label === 'Market Value')} 
                     />
                     <h4 className='portfoliomap-color-picker-label'>Color by: </h4>
                     <Select 
                         options={PortfolioMapColorSelectOptions} 
                         onChange={this.refreshPortfolioMapColor}
-                        defaultValue={PortfolioMapColorSelectOptions.filter(o => o.label == 'Growth Rate TTM')}
+                        defaultValue={PortfolioMapColorSelectOptions.filter(o => o.label === 'Growth Rate TTM')}
                     />
                 </div>
                 {/* Display our current holdings in a portfolio map chart also. */}
