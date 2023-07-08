@@ -4,12 +4,10 @@ package auth
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
-	"time"
 
 	"golang.org/x/oauth2"
 )
@@ -54,12 +52,6 @@ func tokenFromFile(file string) (*oauth2.Token, error) {
 	defer f.Close()
 	tok := &oauth2.Token{}
 	err = json.NewDecoder(f).Decode(tok)
-	// If we got a token, check if OAuth token has expired.
-	if err == nil && time.Now().After(tok.Expiry) {
-		// If expired, delete the token file, and return an error.
-		os.Remove(file)
-		err = errors.New("token expired, deleted old token file")
-	}
 	return tok, err
 }
 
