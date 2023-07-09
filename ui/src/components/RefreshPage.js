@@ -20,13 +20,12 @@ export default function RefreshPage() {
         var ws = new WebSocket(wsUrl);
         // Define the socket callback for when messages are received.
         ws.onmessage = event => {
-            console.log('Progress received: ' + event.data)
-            setProgress(Number(event.data))
+            var progressPercentage = Number(event.data)
+            setProgress(progressPercentage)
         }
         // Define callback for when socket is closed.
         ws.onclose = event => {
             console.log('Web socket closed!')
-            // setProgress(100)
             setIsLoading(false)
         }
     }
@@ -51,7 +50,17 @@ export default function RefreshPage() {
                 >
                     {(isLoading) ? 'Loading...' : 'Refresh Portfolio Data'}
                 </Button>
-                <LinearProgressWithLabel className="refresh-progressbar" variant="determinate" value={progress} />
+                <LinearProgressWithLabel 
+                    className="refresh-progressbar" 
+                    variant="determinate" 
+                    sx={{
+                        "& .MuiLinearProgress-bar": {
+                            transition: "none"
+                        }
+                    }}
+                    value={progress} 
+                />
+                <div className="progress-label">{progress.toFixed(2) + ' %'}</div>
             </div>
         </>
     );
