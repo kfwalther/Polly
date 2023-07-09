@@ -15,7 +15,7 @@ export default function RefreshPage() {
     function buttonClick() {
         setIsLoading(true)
         // Create a web socket to the backend to receive progress updates.
-        var wsUrl = ((window.location.protocol === "https:") ? "wss://" : "ws://") + "localhost:5000" + "/refresh"
+        var wsUrl = ((window.location.protocol === "https:") ? "wss://" : "ws://") + process.env.REACT_APP_API_BASE_URL + "/refresh"
         console.log('Creating new web socket at URL: ' + wsUrl)
         var ws = new WebSocket(wsUrl);
         // Define the socket callback for when messages are received.

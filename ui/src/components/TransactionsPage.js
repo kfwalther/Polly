@@ -110,7 +110,6 @@ export default function TransactionsPage() {
     const [stockData, setStockData] = useState([]);
     // A list of stock tickers to display in the drop-down list.
     const [stockTickerList, setStockTickerList] = useState([]);
-    const [totalPortfolioData, setTotalPortfolioData] = useState([]);
     // The current data series plotted on the graph.
     const [chartDataSeries, setChartDataSeries] = useState([]);
 
@@ -120,20 +119,20 @@ export default function TransactionsPage() {
 
     // Simple function to perform async fetch of transaction data.
     function getTransactions() {
-        return fetch('http://localhost:5000/transactions')
+        return fetch("http://" + process.env.REACT_APP_API_BASE_URL + "/transactions")
             .then(resp => resp.json())
             .then(json => json["transactions"])
     }
 
     // Simple function to perform async fetch of history data.
     function getSecurities() {
-        return fetch('http://localhost:5000/securities')
+        return fetch("http://" + process.env.REACT_APP_API_BASE_URL + "/securities")
             .then(resp => resp.json())
             .then(json => json["securities"])
     }
 
     function getHistoryData() {
-        return fetch("http://localhost:5000/history")
+        return fetch("http://" + process.env.REACT_APP_API_BASE_URL + "/history")
             .then(resp => resp.json())
             .then(json => json["history"])
     }
@@ -179,7 +178,6 @@ export default function TransactionsPage() {
                         // Get the current and all-time high portfolio value.
                         setCurValue(historySeries[historySeries.length - 1][1])
                         setMaxValue(findMax(historySeries))
-                        setTotalPortfolioData(historySeries)
                     }
                     // Generate the data series with trades super-imposed on the historical price data.
                     var series = superImposeTradesOnPriceChart(historySeries, filteredTxnList)

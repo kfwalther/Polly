@@ -32,10 +32,10 @@ export default class MainPage extends React.Component {
     // Fetch the stock list from the server.
     serverRequest() {
         console.log('Refreshing data...')
-        fetch("http://localhost:5000/securities")
+        fetch("http://" + process.env.REACT_APP_API_BASE_URL + "/securities")
             .then(response => response.json())
             .then(resp => this.setState({ stockList: resp["securities"] }))
-        fetch("http://localhost:5000/summary")
+        fetch("http://" + process.env.REACT_APP_API_BASE_URL + "/summary")
             .then(response => response.json())
             .then(resp => this.setState({ portfolioSummary: resp["summary"] }))
     }
