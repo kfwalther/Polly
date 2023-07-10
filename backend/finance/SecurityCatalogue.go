@@ -203,7 +203,7 @@ func (sc *SecurityCatalogue) RetrieveAndStoreStockData(ticker string, startDate 
 	sc.dbClient.StoreTickerData(newQuotes)
 }
 
-// Checks existing ticker history data in our DB, and pulls any missing data from Yahoo to fill in gaps.
+// Checks existing ticker history data in our DB, and pulls any missing data from Yahoo to fill in gaps. Careful modifying this method...
 func (sc *SecurityCatalogue) RefreshStockHistory(txns *[]Transaction, currentlyOwned bool) {
 	// Does the ticker exist in the DB?
 	ticker := (*txns)[0].Ticker
@@ -243,7 +243,7 @@ func (sc *SecurityCatalogue) Calculate() {
 	// Define a dummy SPY transaction to pass in, the date is what the function requires.
 	sc.RefreshStockHistory(&[]Transaction{*NewTransaction("2015-01-01", "SPY", "Buy", "1", "100.0")}, true)
 	sc.sp500quotes = sc.dbClient.GetTickerData("SPY")
-	sc.SendProgressUpdate(7.0)
+	sc.SendProgressUpdate(8.0)
 
 	// Get the tickers for all securities we've ever owned in comma-separated list.
 	tickers := make([]string, 0, len(sc.securities))
@@ -257,21 +257,7 @@ func (sc *SecurityCatalogue) Calculate() {
 	log.Printf("Querying Yahoo finance for %d equities...\n", len(tickers))
 	// Use Python yFinance module to query data for all tickers at once.
 	allStocksData := sc.yFinInterface.GetTickerData(tickerList)
-	var curProgress float64 = 10.0
-	sc.SendProgressUpdate(curProgress)
-
-	// Get progress completion to 80% when done pre-processing.
-	progInc := 70.0 / float64(len(sc.securities))
-	// Preprocess all the securities, and add the stocks to a list to grab their historical info.
-	for _, s := range sc.securities {
-		if _, ok := DelistedTickers[s.Ticker]; !ok {
-			s.PreProcess(sc.sheetMgr, allStocksData)
-			// Make sure the stock's history data is up-to-date.
-			sc.RefreshStockHistory(&s.transactions, s.CurrentlyHeld)
-		}
-		curProgress += progInc
-		sc.SendProgressUpdate(curProgress)
-	}
+	sc.SendProgressUpdate(35.0)
 
 	// Setup a wait group.
 	var waitGroup sync.WaitGroup
@@ -283,6 +269,11 @@ func (sc *SecurityCatalogue) Calculate() {
 	for _, s := range sc.securities {
 		// Launch a new goroutine for this security.
 		go func(s *Security) {
+			if _, ok := DelistedTickers[s.Ticker]; !ok {
+				s.PreProcess(sc.sheetMgr, allStocksData)
+				// Make sure the stock's history data is up-to-date.
+				sc.RefreshStockHistory(&s.transactions, s.CurrentlyHeld)
+			}
 			// Pass SP500 quotes to this function to use when calculating transaction level metrics.
 			s.CalculateMetrics(sc.dbClient.GetTickerData(s.Ticker), sc.sp500quotes)
 			waitGroup.Done()
