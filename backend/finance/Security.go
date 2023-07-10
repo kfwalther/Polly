@@ -186,7 +186,7 @@ func (s *Security) processFinancialHistoryData(data [][]interface{}) {
 	}
 }
 
-// Sorts the transactions for this security, and adds in any stock splits we need to account for.
+// Sorts the transactions for this security, adds any stock splits, and pre-populates data from Growth Stock Google Sheet.
 func (s *Security) PreProcess(sheetMgr *GoogleSheetManager, stockDataMap *map[string]interface{}) {
 	// Ignore ticker CASH for now, may use this later.
 	if s.Ticker == "CASH" {
@@ -265,9 +265,10 @@ func (s *Security) PreProcess(sheetMgr *GoogleSheetManager, stockDataMap *map[st
 			if s.RevenueGrowthPercentageYoy, ok = stockData["revenueGrowth"].(float64); !ok {
 				s.RevenueGrowthPercentageYoy = 0.0
 			}
+			log.Printf("Grabbing %s from Revenue sheet...", s.Ticker)
 			sheetData := sheetMgr.GetRevenueData(s.Ticker)
 			if sheetData != nil {
-				log.Printf("Grabbing %s from Revenue sheet...", s.Ticker)
+				// Save initial revenue info from top of current Google sheet.
 				s.revenueUnits = sheetData.Values[0][0].(string)
 				s.CurrentQuarter = sheetData.Values[1][0].(string)
 				// We save these revenue values in thousands (not $M or $B).
@@ -282,6 +283,7 @@ func (s *Security) PreProcess(sheetMgr *GoogleSheetManager, stockDataMap *map[st
 					s.RevenueCurrentYearEstimate *= 1000
 					s.RevenueNextYearEstimate *= 1000
 				}
+				// Save info from revenue history within sheet, if populated.
 				s.processFinancialHistoryData(sheetMgr.GetAllRevenueData(s.Ticker).Values)
 			}
 		}

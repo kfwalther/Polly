@@ -153,7 +153,7 @@ export function PortfolioHoldingsTable({ holdingsData, totalPortfolioValue }) {
                 Cell: props => <>{parseFloat(props.value.toFixed(3))}</>,
                 sortType: 'basic',
             },
-        ], []
+        ], [totalPortfolioValue]
     );
 
     // Return the react-table, with some sorting options.

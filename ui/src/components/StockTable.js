@@ -16,7 +16,7 @@ export function StockTable({ data, columns, initialSortCol }) {
                 desc: false
             }
         ],
-        []
+        [initialSortCol]
     );
 
     // Define the table, with the useTable hook.

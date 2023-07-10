@@ -26,7 +26,6 @@ export function PortfolioMapChart({ chartData, sizeBy, colorBy }) {
         // Add the column labels we need for the tree parents.
         data.unshift(['Stock', null, 0, 0])
         data.unshift(['Ticker', 'Type', 'Size Col', 'Color Col'])
-        console.log(data)
         return data
     }
 
