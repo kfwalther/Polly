@@ -2,8 +2,6 @@ package main
 
 // List of imported packages
 import (
-	"context"
-	"fmt"
 	"log"
 	"os"
 
@@ -11,70 +9,51 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/kfwalther/Polly/backend/auth"
 	"github.com/kfwalther/Polly/backend/controllers"
-	"github.com/kfwalther/Polly/backend/data"
-	"github.com/kfwalther/Polly/backend/finance"
 	"golang.org/x/oauth2/google"
 )
 
 // Program entry point.
 func main() {
-	ctx := context.Background()
 	// Get the GCP credentials file.
-	b, err := os.ReadFile("../credentials.json")
+	b, err := os.ReadFile("../credentials-webapp.json")
 	if err != nil {
 		log.Fatalf("Unable to read client secret file: %v", err)
 	}
 
 	// If modifying these scopes, delete your previously saved auth_token.json.
-	config, err := google.ConfigFromJSON(b, "https://www.googleapis.com/auth/spreadsheets.readonly")
+	oauthConfig, err := google.ConfigFromJSON(b, "https://www.googleapis.com/auth/spreadsheets.readonly")
 	if err != nil {
 		log.Fatalf("Unable to parse client secret file to config: %v", err)
 	}
 	// Define the file to store our auth token.
 	tokenFile := "../auth_token.json"
-	// Get the HTTP client, providing the OAuth config, and token file.
-	client := auth.GetClient(config, tokenFile)
-
-	// Get the spreadsheet IDs from the input file.
+	// Create a new OAuth handler to manage OAuth with Google Sheets API.
+	oauthHandler := auth.NewOAuthHandler(tokenFile, oauthConfig)
+	// Define the Google Sheets IDs file.
 	sheetIdFile := "../portfolio-sheet-id.txt"
-	// Initialize the Google sheet interface.
-	googleSheetMgr := finance.NewGoogleSheetManager(client, &ctx, sheetIdFile)
+	// Name the python script to use with yfinance to grab extended stock info.
+	pyScript := "yahooFinanceHelper.py"
+	// Create a controller to manage front-end interaction.
+	ctrlr := controllers.NewSecurityController(oauthHandler, sheetIdFile, pyScript)
+	ctrlr.Init()
 
 	// Set gin web server to release mode. Comment out to enable debug logging.
 	gin.SetMode(gin.ReleaseMode)
 	// Setup the Go web server, with default logger.
 	router := gin.Default()
 	router.Use(cors.Default())
-
-	// Connect to our MongoDB instance.
-	dbClient := data.NewMongoDbClient()
-	dbClient.ConnectMongoDb("polly-data-prod")
-
-	// Name the python script to use with yfinance to grab extended stock info.
-	pyScript := "yahooFinanceHelper.py"
-	// Create the new security catalogue to house our portfolio data.
-	catalogue := finance.NewSecurityCatalogue(googleSheetMgr, dbClient, pyScript)
-	// Specify the sheet and columns, and read from transactions sheet.
-	txns := googleSheetMgr.GetTransactionData()
-	// Process the imported data to organize it by ticker.
-	(*catalogue).ProcessImport(txns.Values)
-	log.Printf("Number of transactions processed: %d", len(txns.Values))
-	// Calculate metrics for each stock.
-	catalogue.Calculate()
-	// Create a controller to manage front-end interaction.
-	ctrlr := controllers.SecurityController{}
-	ctrlr.Init(catalogue)
-	// Setup the GET routes for presenting data to the web server.
+	// Setup the GET routes for our web server.
 	router.GET("/summary", ctrlr.GetSummary)
 	router.GET("/securities", ctrlr.GetSecurities)
 	router.GET("/transactions", ctrlr.GetTransactions)
 	router.GET("/sp500", ctrlr.GetSp500History)
 	router.GET("/history", ctrlr.GetPortfolioHistory)
 	router.GET("/refresh", ctrlr.WebSocketHandler)
+	router.GET("/tokenresponse", ctrlr.OAuthRedirectCallback)
 
 	// Disable trusted proxies.
 	router.SetTrustedProxies(nil)
-	// Run the server.
+	// Run the web server.
+	// TODO: Parameterize this port, and other config files above.
 	router.Run(":5000")
-	fmt.Println("Successful Completion!")
 }
