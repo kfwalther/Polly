@@ -41,8 +41,11 @@ type Security struct {
 	GrossMargin                     float64               `json:"grossMargin"`
 	PriceToSalesTtm                 float64               `json:"priceToSalesTtm"`
 	PriceToSalesNtm                 float64               `json:"priceToSalesNtm"`
+	PriceToFcfTtm                   float64               `json:"priceToFcfTtm"`
 	RevenueGrowthPercentageYoy      float64               `json:"revenueGrowthPercentageYoy"`
 	RevenueGrowthPercentageNextYear float64               `json:"revenueGrowthPercentageNextYear"`
+	TrailingPE                      float64               `json:"trailingPE"`
+	ForwardPE                       float64               `json:"forwardPE"`
 	ValueHistory                    map[time.Time]float64 `json:"valueHistory"`
 	// Some arrays/objects to support metric calculation.
 	buyQ          []Transaction
@@ -52,10 +55,13 @@ type Security struct {
 	transactions  []Transaction
 	// Financial history data
 	revenueUnits                   string
+	fcfTtm                         float64
 	quarterlyDates                 []string
 	quarterlyRevenue               []float64
+	quarterlyFCF                   []float64
 	quarterlyGrossProfitPercentage []float64
 	quarterlyPercentSM             []float64
+	quarterlyPercentFCF            []float64
 	quarterlyPercentSBC            []float64
 }
 
@@ -75,8 +81,10 @@ func NewSecurity(tkr string, secType string) (*Security, error) {
 	// Create slices for the financial data.
 	s.quarterlyDates = make([]string, 0)
 	s.quarterlyRevenue = make([]float64, 0)
+	s.quarterlyFCF = make([]float64, 0)
 	s.quarterlyGrossProfitPercentage = make([]float64, 0)
 	s.quarterlyPercentSM = make([]float64, 0)
+	s.quarterlyPercentFCF = make([]float64, 0)
 	s.quarterlyPercentSBC = make([]float64, 0)
 	return &s, nil
 }
@@ -150,14 +158,14 @@ func (s *Security) processFinancialHistoryData(data [][]interface{}) {
 
 	// Check if any quarterly history data found.
 	if numQs > 1 {
+		multiplier := 1.0
+		if s.revenueUnits == "M" {
+			multiplier = 1000.0
+		}
 		// Iterate through the indices we have data for, filling in the rest of the financials arrays.
 		for _, row := range data {
 			// Read revenue history, and account for revenue units in millions where necessary.
 			if row[0].(string) == "Total Revenue" {
-				multiplier := 1.0
-				if s.revenueUnits == "M" {
-					multiplier = 1000.0
-				}
 				for i := 1; i <= numQs; i++ {
 					val, _ := strconv.ParseFloat(row[i].(string), 64)
 					s.quarterlyRevenue = append(s.quarterlyRevenue, val*multiplier)
@@ -180,6 +188,29 @@ func (s *Security) processFinancialHistoryData(data [][]interface{}) {
 				for i := 1; i <= numQs; i++ {
 					val, _ := strconv.ParseFloat(row[i].(string), 64)
 					s.quarterlyPercentSM = append(s.quarterlyPercentSM, val)
+				}
+			}
+			// Read FCF history, and account for units in millions where necessary.
+			if row[0].(string) == "FCF" {
+				for i := 1; i <= numQs; i++ {
+					val, _ := strconv.ParseFloat(row[i].(string), 64)
+					s.quarterlyFCF = append(s.quarterlyFCF, val*multiplier)
+				}
+				// Calculate last 4 Qs of FCF (TTM).
+				s.fcfTtm = s.quarterlyFCF[numQs-1] + s.quarterlyFCF[numQs-2] + s.quarterlyFCF[numQs-3] + s.quarterlyFCF[numQs-4]
+			}
+			// Read FCF as a percentage of revenue history.
+			if row[0].(string) == "FCF / Revenue (%)" {
+				for i := 1; i <= numQs; i++ {
+					val, _ := strconv.ParseFloat(row[i].(string), 64)
+					s.quarterlyPercentFCF = append(s.quarterlyPercentFCF, val)
+				}
+			}
+			// Read SBC as a percentage of revenue history.
+			if row[0].(string) == "SBC / Revenue (%)" {
+				for i := 1; i <= numQs; i++ {
+					val, _ := strconv.ParseFloat(row[i].(string), 64)
+					s.quarterlyPercentSBC = append(s.quarterlyPercentSBC, val)
 				}
 			}
 		}
@@ -264,6 +295,12 @@ func (s *Security) PreProcess(sheetMgr *GoogleSheetManager, stockDataMap *map[st
 			}
 			if s.RevenueGrowthPercentageYoy, ok = stockData["revenueGrowth"].(float64); !ok {
 				s.RevenueGrowthPercentageYoy = 0.0
+			}
+			if s.TrailingPE, ok = stockData["trailingPE"].(float64); !ok {
+				s.TrailingPE = 0.0
+			}
+			if s.ForwardPE, ok = stockData["forwardPE"].(float64); !ok {
+				s.ForwardPE = 0.0
 			}
 			log.Printf("Grabbing %s from Revenue sheet...", s.Ticker)
 			sheetData := sheetMgr.GetRevenueData(s.Ticker)
@@ -433,6 +470,9 @@ func (s *Security) CalculateMetrics(histQuotes quote.Quote, sp500Quotes quote.Qu
 		// Financials (P/S ratios, revenue % increase estimates)
 		if s.RevenueTtm != 0.0 {
 			s.PriceToSalesTtm = s.MarketCap / (s.RevenueTtm * 1000)
+		}
+		if s.fcfTtm != 0.0 {
+			s.PriceToFcfTtm = s.MarketCap / (s.fcfTtm * 1000)
 		}
 		if s.RevenueCurrentYearEstimate != 0.0 {
 			s.PriceToSalesNtm = s.MarketCap / (s.RevenueCurrentYearEstimate * 1000)
