@@ -15,7 +15,8 @@ export default class MainPage extends React.Component {
         super(props);
         this.state = {
             stockList: [],
-            portfolioSummary: {},
+            fullPortfolioSummary: {},
+            stockPortfolioSummary: {},
             isStocksOnlyChecked: true,
             isCurrentOnlyChecked: true,
             portfolioMapSizeSelection: 'marketValue',
@@ -37,7 +38,10 @@ export default class MainPage extends React.Component {
             .then(resp => this.setState({ stockList: resp["securities"] }))
         fetch("http://" + process.env.REACT_APP_API_BASE_URL + "/summary")
             .then(response => response.json())
-            .then(resp => this.setState({ portfolioSummary: resp["summary"] }))
+            .then(resp => {
+                this.setState({ fullPortfolioSummary: resp["summary"][0] })
+                this.setState({ stockPortfolioSummary: resp["summary"][1] })
+            })
     }
 
     // Runs on component mount, to grab data from the server.
@@ -93,11 +97,10 @@ export default class MainPage extends React.Component {
             hAxis: { showTextEvery: 1, maxAlternation: 1, slantedText: true, slantedTextAngle: 45, textStyle: { fontSize: 12, bold: true, color: 'grey' } },
             bar: { groupWidth: '40%' }
         }
-
         // Render the stock charts and tables for the main page.
         return (
             <>
-                <PortfolioSummary summaryData={this.state.portfolioSummary} />
+                <PortfolioSummary summaryData={this.state.fullPortfolioSummary} />
                 <br></br>
                 <h3 className="header-centered">Portfolio Composition</h3>
                 {/* Put the two pie charts in a div container so they sit horizontally adjacent. */}
@@ -107,7 +110,9 @@ export default class MainPage extends React.Component {
                             chartData={this.state.stockList}
                             displayDataset="marketValue"
                             filterOptions={this.state.isStocksOnlyChecked}
-                            title={toUSD(this.state.portfolioSummary.totalMarketValue)}
+                            title={toUSD(this.state.isStocksOnlyChecked ? 
+                                    this.state.stockPortfolioSummary.totalMarketValue : 
+                                    this.state.fullPortfolioSummary.totalMarketValue)}
                             titleDesc={"Market Value"}
                             tickerColors={this.tickerMap}
                         />
@@ -117,13 +122,15 @@ export default class MainPage extends React.Component {
                             chartData={this.state.stockList}
                             displayDataset="totalCostBasis"
                             filterOptions={this.state.isStocksOnlyChecked}
-                            title={toUSD(this.state.portfolioSummary.totalCostBasis)}
+                            title={toUSD(this.state.isStocksOnlyChecked ? 
+                                    this.state.stockPortfolioSummary.totalCostBasis :
+                                    this.state.fullPortfolioSummary.totalCostBasis)}
                             titleDesc={"Cost Basis"}
                             tickerColors={this.tickerMap}
                         />
                     </div>
                 </div>
-                <h3 className="header-left">My Holdings</h3>
+                <h3 className="header-left">{'My Holdings (' + this.state.stockPortfolioSummary.totalSecurities + ' Stocks)'}</h3>
                 {/* Display our current holdings in a bar chart. */}
                 <StockBarChart
                     chartData={this.state.stockList}
@@ -171,7 +178,10 @@ export default class MainPage extends React.Component {
                             this.state.stockList.filter(s => s.securityType === "Stock") :
                             this.state.stockList
                     }
-                    totalPortfolioValue={this.state.portfolioSummary.totalMarketValue}
+                    totalPortfolioValue={this.state.isStocksOnlyChecked ? 
+                        this.state.stockPortfolioSummary.totalMarketValue : 
+                        this.state.fullPortfolioSummary.totalMarketValue
+                    }
                 />
             </>
         )

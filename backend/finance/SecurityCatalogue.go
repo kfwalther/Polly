@@ -91,7 +91,8 @@ type SecurityCatalogue struct {
 	sp500quotes       quote.Quote
 	sheetMgr          *GoogleSheetManager
 	dbClient          *data.MongoDbClient
-	summary           *PortfolioSummary
+	fullSummary       *PortfolioSummary
+	stockSummary      *PortfolioSummary
 	progressWebSocket *websocket.Conn
 	securities        map[string]*Security
 	transactions      []Transaction
@@ -108,13 +109,16 @@ func NewSecurityCatalogue(sheetMgr *GoogleSheetManager, dbClient *data.MongoDbCl
 	// Initialize the data structures for this class.
 	sc.securities = make(map[string]*Security)
 	sc.PortfolioHistory = make(map[time.Time]float64)
-	sc.summary = NewPortfolioSummary()
+	sc.fullSummary = NewPortfolioSummary()
+	sc.stockSummary = NewPortfolioSummary()
 	sc.progressWebSocket = nil
 	return &sc
 }
 
-func (sc *SecurityCatalogue) GetPortfolioSummary() *PortfolioSummary {
-	return sc.summary
+// Return the full portfolio summary followed by the stock-only portfolio summary.
+func (sc *SecurityCatalogue) GetPortfolioSummary() []PortfolioSummary {
+	summaries := []PortfolioSummary{*sc.fullSummary, *sc.stockSummary}
+	return summaries
 }
 
 func (sc *SecurityCatalogue) GetSecurityList() []*Security {
@@ -151,7 +155,8 @@ func (sc *SecurityCatalogue) Refresh(progressSocket *websocket.Conn) int {
 	// Re-init the data structures for this class.
 	sc.securities = make(map[string]*Security)
 	sc.PortfolioHistory = make(map[time.Time]float64)
-	sc.summary = NewPortfolioSummary()
+	sc.fullSummary = NewPortfolioSummary()
+	sc.stockSummary = NewPortfolioSummary()
 	sc.progressWebSocket = progressSocket
 	// Re-read from transactions sheet.
 	txns := sc.sheetMgr.GetTransactionData()
@@ -316,17 +321,30 @@ func (sc *SecurityCatalogue) Calculate() {
 			// s.DisplayMetrics()
 			// Add this security's value history to the portfolio total.
 			sc.AccumulateValueHistory(s.ValueHistory)
-			sc.summary.TotalMarketValue += s.MarketValue
-			sc.summary.TotalCostBasis += s.TotalCostBasis
-			sc.summary.DailyGain += s.DailyGain
-			sc.summary.TotalSecurities++
+			sc.fullSummary.TotalMarketValue += s.MarketValue
+			sc.fullSummary.TotalCostBasis += s.TotalCostBasis
+			sc.fullSummary.DailyGain += s.DailyGain
+			if s.CurrentlyHeld {
+				sc.fullSummary.TotalSecurities++
+			}
+
+			if s.SecurityType == "Stock" {
+				sc.stockSummary.TotalMarketValue += s.MarketValue
+				sc.stockSummary.TotalCostBasis += s.TotalCostBasis
+				sc.stockSummary.DailyGain += s.DailyGain
+				if s.CurrentlyHeld {
+					sc.stockSummary.TotalSecurities++
+				}
+			}
 		}
 	}
 	// Store the last updated time, and percentage gain.
-	sc.summary.LastUpdated = time.Now()
-	sc.summary.PercentageGain = ((sc.summary.TotalMarketValue - sc.summary.TotalCostBasis) / sc.summary.TotalCostBasis) * 100.0
+	sc.fullSummary.LastUpdated = time.Now()
+	sc.stockSummary.LastUpdated = time.Now()
+	sc.fullSummary.PercentageGain = ((sc.fullSummary.TotalMarketValue - sc.fullSummary.TotalCostBasis) / sc.fullSummary.TotalCostBasis) * 100.0
+	sc.stockSummary.PercentageGain = ((sc.stockSummary.TotalMarketValue - sc.stockSummary.TotalCostBasis) / sc.stockSummary.TotalCostBasis) * 100.0
 	log.Println("---------------------------------")
-	log.Printf("Total Market Value: $%f", sc.summary.TotalMarketValue)
-	log.Printf("Percentage Gain/Loss: %f%%", sc.summary.PercentageGain)
+	log.Printf("Total Market Value: $%f", sc.fullSummary.TotalMarketValue)
+	log.Printf("Percentage Gain/Loss: %f%%", sc.fullSummary.PercentageGain)
 	log.Println("---------------------------------")
 }
