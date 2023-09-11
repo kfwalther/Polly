@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import Select from 'react-select';
 import { TransactionsTable } from "./TransactionsTable";
 import { getDateFromUtcDateTime, toPercent, toUSD } from './Helpers';
+import Checkbox from './Checkbox'
+import CashAreaChart from './CashAreaChart'
 import StockLineChart from "./StockLineChart";
 import LoadingSpinner from "./LoadingSpinner";
 import "./TransactionsPage.css";
@@ -51,6 +53,37 @@ function findMinMax(stockData) {
     return [min, max]
 }
 
+// Create the cash history series.
+function createCashHistorySeries(stockHistorySeries, cashData) {
+    var cashSeries = []
+    // Reformat cash object of date-price key-value pairs into series for plotting.
+    for (const [date, value] of Object.entries(cashData.valueHistory)) {
+        cashSeries.push([new Date(date), value])
+    }
+    console.log(stockHistorySeries)
+    // Initialize an empty array to store the merged data
+    const mergedData = [];
+    // Extract unique dates from both datasets
+    const dateValues = new Set([...cashSeries.map(v => v[0]), ...stockHistorySeries.map(v => v[0])]);
+    const uniqueDates = Array.from(dateValues).sort((a, b) => a - b);
+    var prevCash = 0.0
+    var prevStock = 0.0
+    // Merge the datasets and interpolate missing values
+    for (const curDate of uniqueDates) {
+        var curCash = cashSeries.find(v => v[0] === curDate);
+        var curStock = stockHistorySeries.find(v => v[0] === curDate);
+        // If either cash or invested values are missing, interpolate using the previous.
+        curCash = curCash ? curCash[1] : prevCash;
+        curStock = curStock ? curStock[1] : prevStock;
+        // Add the merged data point to the result array
+        mergedData.push([curDate, curCash, curStock]);
+        prevCash = curCash
+        prevStock = curStock
+    }
+    mergedData.unshift([{ label: 'Date', type: 'date' }, { label: 'Cash', type: 'number' }, { label: 'Invested', type: 'number' }])
+    return mergedData
+}
+
 // Construct the data table to be displayed on the chart.
 function superImposeTradesOnPriceChart(stockData, txnData) {
     var fullSeries = []
@@ -95,8 +128,9 @@ function superImposeTradesOnPriceChart(stockData, txnData) {
 
 // Fetch the transaction data from the server, and return/render the transactions page.
 export default function TransactionsPage() {
-    // Define an isLoading flag.
+    // Define some boolean flags.
     const [isLoading, setIsLoading] = useState(false);
+    const [isShowCashChecked, setIsShowCashChecked] = useState(false);
     // Define a plot title descriptor.
     const [plotDesc, setPlotDesc] = useState('Total Portfolio')
     // Define the current and max value plotted on the chart.
@@ -110,13 +144,20 @@ export default function TransactionsPage() {
     const [stockData, setStockData] = useState([]);
     // A list of stock tickers to display in the drop-down list.
     const [stockTickerList, setStockTickerList] = useState([]);
-    // The current data series plotted on the graph.
+    // The cash data series.
+    const [cashDataSeries, setCashDataSeries] = useState([]);
+    // The current stock data series plotted on the portfolio history chart.
     const [chartDataSeries, setChartDataSeries] = useState([]);
 
     document.body.style.backgroundColor = "black"
     // A flag to set so we ignore the second useEffect call, so data isn't fetched twice.
     let ignoreEffect = false;
 
+    // Save the new checked state of the "Stocks only" checkbox.
+    const onShowCashCheckboxClick = checked => {
+        setIsShowCashChecked(checked)
+    }
+    
     // Simple function to perform async fetch of transaction data.
     function getTransactions() {
         return fetch("http://" + process.env.REACT_APP_API_BASE_URL + "/transactions")
@@ -175,6 +216,9 @@ export default function TransactionsPage() {
                     // If we got total portfolio history, convert it to a plot series, and save.
                     if (historyData != null) {
                         historySeries = convertValueHistoryToSeries(historyData)
+                        // Create the cash history series also.
+                        var cashSeries = createCashHistorySeries(historySeries, stocks.filter(s => s.ticker === "CASH")[0])
+                        setCashDataSeries(cashSeries)
                         // Get the current and all-time high portfolio value.
                         setCurValue(historySeries[historySeries.length - 1][1])
                         setMaxValue(findMax(historySeries))
@@ -240,19 +284,30 @@ export default function TransactionsPage() {
                     </tr>
                 </tbody>
             </table>
+            <Checkbox
+                label="Display Cash"
+                checked={isShowCashChecked}
+                onClick={onShowCashCheckboxClick}
+                marginLeftVal="20px"
+            />
             {/* Add some metrics below the summary data. */}
             <span className="metrics-span">{'Current Value: ' + toUSD(curValue) + ' | All-Time High: ' + toUSD(maxValue)}</span>
             {/* Add a line chart to superimpose our trades on the portfolio's historical performance. */}
             {(isLoading === true || chartDataSeries.length === 0) ? <LoadingSpinner /> :
-                <StockLineChart
-                    chartDataSeries={chartDataSeries}
-                    chartTitle={'Historical Performance for ' + plotDesc}
-                />
+                (isShowCashChecked === true) ?
+                    <CashAreaChart
+                        chartDataSeries={cashDataSeries}
+                        chartTitle={'Historical Cash Balance'}
+                    /> : 
+                    <StockLineChart
+                        chartDataSeries={chartDataSeries}
+                        chartTitle={'Historical Performance for ' + plotDesc}
+                    />
             }
             {/* Show a drop-down list to allow user to specify which stock to plot. */}
             <h3 className="stock-picker-label">Pick a ticker to plot:</h3>
             <div className="stock-picker-container">
-                <Select options={stockTickerList} onChange={plotSelectedStock} />
+                <Select options={stockTickerList} onChange={plotSelectedStock} isDisabled={isShowCashChecked} />
             </div>
             <h3 className="header-centered">Transactions List</h3>
             {/* Display all the transactions in a sortable table. */}
