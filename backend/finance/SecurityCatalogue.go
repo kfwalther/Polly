@@ -2,6 +2,7 @@ package finance
 
 import (
 	"log"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -93,6 +94,7 @@ type SecurityCatalogue struct {
 	summary           *PortfolioSummary
 	progressWebSocket *websocket.Conn
 	securities        map[string]*Security
+	transactions      []Transaction
 	PortfolioHistory  map[time.Time]float64 `json:"portfolioHistory"`
 }
 
@@ -175,6 +177,8 @@ func (sc *SecurityCatalogue) ProcessImport(txnData [][]interface{}) {
 			// Create a new transaction with this row of data.
 			txn := NewTransaction(row[0].(string), row[1].(string), row[2].(string), row[3].(string), row[4].(string))
 			if txn != nil {
+				// Add it to the total txns list.
+				sc.transactions = append(sc.transactions, *txn)
 				// Check if we've seen the current ticker yet.
 				if val, ok := sc.securities[txn.Ticker]; ok {
 					// Yes, append the next transaction
@@ -232,7 +236,26 @@ func (sc *SecurityCatalogue) RefreshStockHistory(txns *[]Transaction, currentlyO
 func (sc *SecurityCatalogue) AccumulateValueHistory(stockHistory map[time.Time]float64) {
 	// Iterate through each date for this security and add to the total.
 	for date, dailyVal := range stockHistory {
-		sc.PortfolioHistory[date] += dailyVal
+		if dailyVal > 0.0 {
+			sc.PortfolioHistory[date] += dailyVal
+		}
+	}
+}
+
+// Iterate through every txn to calculate the cash balance history in the portfolio.
+func (sc *SecurityCatalogue) CalculateCashBalanceHistory() {
+	curCashAmount := 0.0
+	// Order the transactions by date, using anonymous function.
+	sort.Slice(sc.transactions, func(i, j int) bool {
+		return sc.transactions[i].DateTime.Before(sc.transactions[j].DateTime)
+	})
+	for _, txn := range sc.transactions {
+		if txn.Action == "Deposit" || txn.Action == "Sell" {
+			curCashAmount += txn.Value
+		} else if txn.Action == "Withdraw" || txn.Action == "Buy" {
+			curCashAmount -= txn.Value
+		}
+		sc.securities["CASH"].ValueHistory[txn.DateTime] = curCashAmount
 	}
 }
 
@@ -283,6 +306,9 @@ func (sc *SecurityCatalogue) Calculate() {
 	// Wait/monitor until all work is complete.
 	waitGroup.Wait()
 	sc.SendProgressUpdate(95.0)
+
+	// Calculate the cash balance history in our portfolio.
+	sc.CalculateCashBalanceHistory()
 
 	// Calculate total invested market value across all securities.
 	for _, s := range sc.securities {

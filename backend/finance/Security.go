@@ -219,10 +219,6 @@ func (s *Security) processFinancialHistoryData(data [][]interface{}) {
 
 // Sorts the transactions for this security, adds any stock splits, and pre-populates data from Growth Stock Google Sheet.
 func (s *Security) PreProcess(sheetMgr *GoogleSheetManager, stockDataMap *map[string]interface{}) {
-	// Ignore ticker CASH for now, may use this later.
-	if s.Ticker == "CASH" {
-		return
-	}
 	// Lookup if this security has any stock splits to account for.
 	if val, ok := StockSplits[s.Ticker]; ok {
 		s.transactions = append(s.transactions, val...)
@@ -231,6 +227,10 @@ func (s *Security) PreProcess(sheetMgr *GoogleSheetManager, stockDataMap *map[st
 	sort.Slice(s.transactions, func(i, j int) bool {
 		return s.transactions[i].DateTime.Before(s.transactions[j].DateTime)
 	})
+	// After sorting CASH txns, we can return.
+	if s.Ticker == "CASH" {
+		return
+	}
 	// Calculate number of shares currently owned, and split multiple.
 	s.splitMultiple = 1.0
 	curShares := 0.0

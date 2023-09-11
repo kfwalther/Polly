@@ -36,6 +36,10 @@ func NewTransaction(dTime string, tkr string, act string, numShares string, txnP
 	// Place the transaction times at midday, so we can order stock splits at market open first.
 	t.DateTime = t.DateTime.Add(time.Hour * 12)
 	t.Ticker = tkr
+	// Verify the action falls into accepted values.
+	if act != "Buy" && act != "Sell" && act != "Deposit" && act != "Withdraw" {
+		log.Fatalf("Unable to parse action field from transaction: %v", act)
+	}
 	t.Action = act
 	if t.Shares, err = strconv.ParseFloat(NormalizeAmerican(numShares), 64); err != nil {
 		log.Fatalf("Unable to parse shares field from transaction: %v", numShares)
@@ -44,10 +48,10 @@ func NewTransaction(dTime string, tkr string, act string, numShares string, txnP
 		if t.Price, err = strconv.ParseFloat(NormalizeAmerican(txnPrice), 64); err != nil {
 			log.Fatalf("Unable to parse price field from transaction: %v|", txnPrice)
 		}
-		// Calculate the total amount involved with this transaction.
-		t.Value = t.Shares * t.Price
 	} else {
 		t.Price = 1
 	}
+	// Calculate the total amount involved with this transaction.
+	t.Value = t.Shares * t.Price
 	return &t
 }
