@@ -41,6 +41,12 @@ export function PortfolioHoldingsTable({ holdingsData, totalPortfolioValue }) {
                 sortType: 'basic',
             },
             {
+                Header: 'P/E',
+                accessor: 'trailingPE',
+                Cell: props => <>{props.value !== 0.0 ? parseFloat(props.value.toFixed(3)) : '----'}</>,
+                sortType: 'basic',
+            },
+            {
                 Header: 'Cur Q',
                 accessor: 'currentQuarter',
                 Cell: props => <>{props.value}</>,
