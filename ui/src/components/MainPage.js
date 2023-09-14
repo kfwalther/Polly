@@ -3,6 +3,7 @@ import { toUSD } from './Helpers'
 import { StockPieChart, PieChartColors } from './StockPieChart'
 import StockBarChart from './StockBarChart'
 import Checkbox from './Checkbox'
+import { Button } from '@mui/material';
 import Select from 'react-select';
 import PortfolioSummary from './PortfolioSummary';
 import { PortfolioHoldingsTable } from './PortfolioHoldingsTable'
@@ -54,6 +55,17 @@ export default class MainPage extends React.Component {
     // Save the new checked state of the "Stocks only" checkbox.
     onStocksOnlyCheckboxClick = checked => {
         this.setState({ isStocksOnlyChecked: checked })
+    }
+
+    buttonClick = () => {
+        // Copy the top-25 to clipboard.
+        const listToExport = this.state.stockList
+            .filter(s => (parseFloat(s.marketValue) > 0.0 && s.securityType == 'Stock'))
+            .sort((a, b) => b.marketValue - a.marketValue)
+            .slice(0, 25)
+            .map(s => '$' + s.ticker)
+            .join(' ')
+        window.prompt('Copy to clipboard: Ctrl+C, Enter', listToExport)
     }
 
     // Save the new checked state of the "Show current holdings only" checkbox.
@@ -130,6 +142,15 @@ export default class MainPage extends React.Component {
                         />
                     </div>
                 </div>
+                {/* Display a button to export the top 25 stock names. */}
+                <Button 
+                    className="refresh-button" 
+                    variant="contained" 
+                    color="info"
+                    onClick={this.buttonClick}
+                >
+                    {'Export Top 25 Stocks'}
+                </Button>
                 <h3 className="header-left">{'My Holdings (' + this.state.stockPortfolioSummary.totalSecurities + ' Stocks)'}</h3>
                 {/* Display our current holdings in a bar chart. */}
                 <StockBarChart
