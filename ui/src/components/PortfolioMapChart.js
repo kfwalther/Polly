@@ -46,7 +46,7 @@ export function PortfolioMapChart({ chartData, sizeBy, colorBy }) {
         minColor = 'green'
         maxColor = 'red'
     } else {
-        minColorVal = -100
+        minColorVal = -65
         maxColorVal = 100
     }
     // Define the options for the portfolio map chart.
@@ -57,6 +57,10 @@ export function PortfolioMapChart({ chartData, sizeBy, colorBy }) {
         minColorValue: minColorVal,
         maxColorValue: maxColorVal,
         showScale: true,
+        textStyle: { color: 'black',
+            fontSize: 16,
+            bold: true
+        },
         generateTooltip: showFullTooltip
     }
 

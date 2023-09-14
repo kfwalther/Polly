@@ -270,8 +270,8 @@ func (s *Security) PreProcess(sheetMgr *GoogleSheetManager, stockDataMap *map[st
 	} else {
 		log.Printf("WARNING: No data returned from Yahoo for ticker %s", s.Ticker)
 	}
-	// Do we currently hold this stock?
-	if curShares > 0.0 {
+	// Do we currently hold this stock (account for minor accounting differences).
+	if curShares > 0.001 {
 		s.CurrentlyHeld = true
 		// If a stock we currently own, save some addtl data.
 		if s.SecurityType == "Stock" && stockData != nil {
@@ -400,6 +400,10 @@ func (s *Security) CalculateTransactionData(txnIdx int, curShares float64) float
 			t.ExcessReturn = t.TotalReturn - t.Sp500Return
 		}
 	}
+	// Round down small values to essentially zero.
+	if curShares < 0.001 {
+		curShares = 0.0
+	}
 	return curShares
 }
 
@@ -459,7 +463,7 @@ func (s *Security) CalculateMetrics(histQuotes quote.Quote, sp500Quotes quote.Qu
 	}
 
 	// Calculate additional metrics for currently-held equities.
-	if s.NumShares > 0 {
+	if s.NumShares > 0.001 {
 		// Unit cost basis
 		s.UnitCostBasis = s.TotalCostBasis / s.NumShares
 		// Total market value
