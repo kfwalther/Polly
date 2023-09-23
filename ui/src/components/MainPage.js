@@ -19,6 +19,7 @@ export default class MainPage extends React.Component {
             fullPortfolioSummary: {},
             stockPortfolioSummary: {},
             isStocksOnlyChecked: true,
+            isIncludeCashBalanceChecked: true,
             isCurrentOnlyChecked: true,
             portfolioMapSizeSelection: 'marketValue',
             portfolioMapColorSelection: 'revenueGrowthPercentageYoy',
@@ -52,23 +53,25 @@ export default class MainPage extends React.Component {
         this.serverRequest();
     }
 
-    // Save the new checked state of the "Stocks only" checkbox.
-    onStocksOnlyCheckboxClick = checked => {
-        this.setState({ isStocksOnlyChecked: checked })
-    }
-
+    
     buttonClick = () => {
         // Copy the top-25 to clipboard.
         const listToExport = this.state.stockList
-            .filter(s => (parseFloat(s.marketValue) > 0.0 && s.securityType == 'Stock'))
-            .sort((a, b) => b.marketValue - a.marketValue)
-            .slice(0, 25)
-            .map(s => '$' + s.ticker)
-            .join(' ')
+        .filter(s => (parseFloat(s.marketValue) > 0.0 && s.securityType == 'Stock'))
+        .sort((a, b) => b.marketValue - a.marketValue)
+        .slice(0, 25)
+        .map(s => '$' + s.ticker)
+        .join(' ')
         window.prompt('Copy to clipboard: Ctrl+C, Enter', listToExport)
     }
-
-    // Save the new checked state of the "Show current holdings only" checkbox.
+    
+    // Save the new checked state of the checkboxes.
+    onStocksOnlyCheckboxClick = checked => {
+        this.setState({ isStocksOnlyChecked: checked })
+    }
+    onIncludeCashBalanceCheckboxClick = checked => {
+        this.setState({ isIncludeCashBalanceChecked: checked })
+    }
     onCurrentOnlyCheckboxClick = checked => {
         this.setState({ isCurrentOnlyChecked: checked })
     }
@@ -109,6 +112,20 @@ export default class MainPage extends React.Component {
             hAxis: { showTextEvery: 1, maxAlternation: 1, slantedText: true, slantedTextAngle: 45, textStyle: { fontSize: 12, bold: true, color: 'grey' } },
             bar: { groupWidth: '40%' }
         }
+        // Calculate some displayed values based on the current checkbox config.
+        console.log(this.state.stockList.find(s => s.ticker === 'CASH'))
+        var cashBalance = this.state.stockList.find(s => s.ticker === 'CASH').marketValue
+        var marketValuePieChart = toUSD(this.state.isStocksOnlyChecked ? 
+                this.state.isIncludeCashBalanceChecked ? 
+                        this.state.stockPortfolioSummary.totalMarketValue + cashBalance :
+                        this.state.stockPortfolioSummary.totalMarketValue 
+                    : 
+                this.state.isIncludeCashBalanceChecked ? 
+                    this.state.fullPortfolioSummary.totalMarketValue + cashBalance :
+                    this.state.fullPortfolioSummary.totalMarketValue)
+        var costBasisPieChart = toUSD(this.state.isStocksOnlyChecked ? 
+                this.state.stockPortfolioSummary.totalCostBasis :
+                this.state.fullPortfolioSummary.totalCostBasis)
         // Render the stock charts and tables for the main page.
         return (
             <>
@@ -121,10 +138,9 @@ export default class MainPage extends React.Component {
                         <StockPieChart
                             chartData={this.state.stockList}
                             displayDataset="marketValue"
-                            filterOptions={this.state.isStocksOnlyChecked}
-                            title={toUSD(this.state.isStocksOnlyChecked ? 
-                                    this.state.stockPortfolioSummary.totalMarketValue : 
-                                    this.state.fullPortfolioSummary.totalMarketValue)}
+                            stocksOnly={this.state.isStocksOnlyChecked}
+                            includeCash={this.state.isIncludeCashBalanceChecked}
+                            title={marketValuePieChart}
                             titleDesc={"Market Value"}
                             tickerColors={this.tickerMap}
                         />
@@ -133,10 +149,9 @@ export default class MainPage extends React.Component {
                         <StockPieChart
                             chartData={this.state.stockList}
                             displayDataset="totalCostBasis"
-                            filterOptions={this.state.isStocksOnlyChecked}
-                            title={toUSD(this.state.isStocksOnlyChecked ? 
-                                    this.state.stockPortfolioSummary.totalCostBasis :
-                                    this.state.fullPortfolioSummary.totalCostBasis)}
+                            stocksOnly={this.state.isStocksOnlyChecked}
+                            includeCash={this.state.isIncludeCashBalanceChecked}
+                            title={costBasisPieChart}
                             titleDesc={"Cost Basis"}
                             tickerColors={this.tickerMap}
                         />
@@ -151,6 +166,24 @@ export default class MainPage extends React.Component {
                 >
                     {'Export Top 25 Stocks'}
                 </Button>
+                <Checkbox
+                    label="Stocks Only"
+                    checked={this.state.isStocksOnlyChecked}
+                    onClick={this.onStocksOnlyCheckboxClick}
+                    marginLeftVal="20px"
+                />
+                <Checkbox
+                    label="Display Cash Balance"
+                    checked={this.state.isIncludeCashBalanceChecked}
+                    onClick={this.onIncludeCashBalanceCheckboxClick}
+                    marginLeftVal="20px"
+                />
+                <Checkbox
+                    label="Current Holdings Only"
+                    checked={this.state.isCurrentOnlyChecked}
+                    onClick={this.onCurrentOnlyCheckboxClick}
+                    marginLeftVal="20px"
+                />
                 <h3 className="header-left">{'My Holdings (' + this.state.stockPortfolioSummary.totalSecurities + ' Stocks)'}</h3>
                 {/* Display our current holdings in a bar chart. */}
                 <StockBarChart
@@ -176,18 +209,6 @@ export default class MainPage extends React.Component {
                     chartData={this.state.stockList}
                     sizeBy={this.state.portfolioMapSizeSelection}
                     colorBy={this.state.portfolioMapColorSelection}
-                />
-                <Checkbox
-                    label="Stocks Only"
-                    checked={this.state.isStocksOnlyChecked}
-                    onClick={this.onStocksOnlyCheckboxClick}
-                    marginLeftVal="20px"
-                />
-                <Checkbox
-                    label="Current Holdings Only"
-                    checked={this.state.isCurrentOnlyChecked}
-                    onClick={this.onCurrentOnlyCheckboxClick}
-                    marginLeftVal="20px"
                 />
                 {/* Display all the stocks/ETFs in a sortable table, account for user filtering selections. */}
                 <PortfolioHoldingsTable

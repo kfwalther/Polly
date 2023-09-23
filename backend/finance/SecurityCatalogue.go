@@ -126,12 +126,7 @@ func (sc *SecurityCatalogue) GetSecurityList() []*Security {
 }
 
 func (sc *SecurityCatalogue) GetTransactionList() []Transaction {
-	var txns []Transaction
-	// Iterate through each security, appending the transactions to a slice as we go.
-	for _, s := range sc.securities {
-		txns = append(txns, s.transactions...)
-	}
-	return txns
+	return sc.transactions
 }
 
 func (sc *SecurityCatalogue) GetSp500() quote.Quote {
@@ -262,6 +257,7 @@ func (sc *SecurityCatalogue) CalculateCashBalanceHistory() {
 		}
 		sc.securities["CASH"].ValueHistory[txn.DateTime] = curCashAmount
 	}
+	sc.securities["CASH"].MarketValue = curCashAmount
 }
 
 // Kicks off async functions in go-routines to calculate metrics for each security

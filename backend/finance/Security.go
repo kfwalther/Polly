@@ -223,11 +223,12 @@ func (s *Security) PreProcess(sheetMgr *GoogleSheetManager, stockDataMap *map[st
 	if val, ok := StockSplits[s.Ticker]; ok {
 		s.transactions = append(s.transactions, val...)
 	}
+
 	// Order the transactions by date, using anonymous function.
 	sort.Slice(s.transactions, func(i, j int) bool {
 		return s.transactions[i].DateTime.Before(s.transactions[j].DateTime)
 	})
-	// After sorting CASH txns, we can return.
+	// Cash shouldn't be considered here.
 	if s.Ticker == "CASH" {
 		return
 	}
