@@ -78,6 +78,30 @@ table {
     z-index: -1;
 }
 
+.checkbox-horiz-container {
+    /* This is to remove the white space between inline-block elements */
+    position: relative;
+    padding-top: 25px;
+    padding-left: 200px;
+    width: 75%;
+}
+
+.export-button-div {
+    padding-bottom: 25px;
+    display: inline-block;
+    width: 25%;
+}
+
+.config-checkbox-div {
+    display: inline-block;
+    width: 25%;
+}
+
+.export-button {
+    margin: auto;
+    display: block;
+}
+
 .barchart-container {
     margin-left: 20px;
     margin-right: 20px;

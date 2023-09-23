@@ -108,6 +108,7 @@ func NewSecurityCatalogue(sheetMgr *GoogleSheetManager, dbClient *data.MongoDbCl
 	sc.dbClient = dbClient
 	// Initialize the data structures for this class.
 	sc.securities = make(map[string]*Security)
+	sc.transactions = make([]Transaction, 0)
 	sc.PortfolioHistory = make(map[time.Time]float64)
 	sc.fullSummary = NewPortfolioSummary()
 	sc.stockSummary = NewPortfolioSummary()
@@ -149,6 +150,7 @@ func (sc *SecurityCatalogue) SendProgressUpdate(progressPercent float64) {
 func (sc *SecurityCatalogue) Refresh(progressSocket *websocket.Conn) int {
 	// Re-init the data structures for this class.
 	sc.securities = make(map[string]*Security)
+	sc.transactions = make([]Transaction, 0)
 	sc.PortfolioHistory = make(map[time.Time]float64)
 	sc.fullSummary = NewPortfolioSummary()
 	sc.stockSummary = NewPortfolioSummary()

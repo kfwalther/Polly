@@ -113,7 +113,6 @@ export default class MainPage extends React.Component {
             bar: { groupWidth: '40%' }
         }
         // Calculate some displayed values based on the current checkbox config.
-        console.log(this.state.stockList.find(s => s.ticker === 'CASH'))
         var cashBalance = this.state.stockList.find(s => s.ticker === 'CASH').marketValue
         var marketValuePieChart = toUSD(this.state.isStocksOnlyChecked ? 
                 this.state.isIncludeCashBalanceChecked ? 
@@ -157,33 +156,43 @@ export default class MainPage extends React.Component {
                         />
                     </div>
                 </div>
-                {/* Display a button to export the top 25 stock names. */}
-                <Button 
-                    className="refresh-button" 
-                    variant="contained" 
-                    color="info"
-                    onClick={this.buttonClick}
-                >
-                    {'Export Top 25 Stocks'}
-                </Button>
-                <Checkbox
-                    label="Stocks Only"
-                    checked={this.state.isStocksOnlyChecked}
-                    onClick={this.onStocksOnlyCheckboxClick}
-                    marginLeftVal="20px"
-                />
-                <Checkbox
-                    label="Display Cash Balance"
-                    checked={this.state.isIncludeCashBalanceChecked}
-                    onClick={this.onIncludeCashBalanceCheckboxClick}
-                    marginLeftVal="20px"
-                />
-                <Checkbox
-                    label="Current Holdings Only"
-                    checked={this.state.isCurrentOnlyChecked}
-                    onClick={this.onCurrentOnlyCheckboxClick}
-                    marginLeftVal="20px"
-                />
+                <div className="checkbox-horiz-container">
+                    <div className="config-checkbox-div">
+                        <Checkbox
+                            label="Stocks Only"
+                            checked={this.state.isStocksOnlyChecked}
+                            onClick={this.onStocksOnlyCheckboxClick}
+                            marginLeftVal="20px"
+                        />
+                    </div>
+                    <div className="config-checkbox-div">
+                        <Checkbox
+                            label="Display Cash Balance"
+                            checked={this.state.isIncludeCashBalanceChecked}
+                            onClick={this.onIncludeCashBalanceCheckboxClick}
+                            marginLeftVal="20px"
+                        />
+                    </div>
+                    <div className="config-checkbox-div">
+                        <Checkbox
+                            label="Current Holdings Only"
+                            checked={this.state.isCurrentOnlyChecked}
+                            onClick={this.onCurrentOnlyCheckboxClick}
+                            marginLeftVal="20px"
+                        />
+                    </div>
+                    <div className="config-checkbox-div">
+                        {/* Display a button to export the top 25 stock names. */}
+                        <Button 
+                            className="export-button" 
+                            variant="contained" 
+                            color="info"
+                            onClick={this.buttonClick}
+                        >
+                            {'Export Top 25 Stocks'}
+                        </Button>
+                    </div>
+                </div>
                 <h3 className="header-left">{'My Holdings (' + this.state.stockPortfolioSummary.totalSecurities + ' Stocks)'}</h3>
                 {/* Display our current holdings in a bar chart. */}
                 <StockBarChart
