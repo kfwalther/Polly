@@ -11,6 +11,13 @@ export default function PortfolioSummary({ summaryData }) {
         return plus + toUSD(net) + " (" + toPercent(summaryData.percentageGain) + ")"
     }
 
+    // Format the YTD total gain, and percentage gain.
+    function ytdGainSummary() {
+        let net = summaryData.totalMarketValue - summaryData.totalMarketValue / (1 + summaryData.yearToDatePercentageGain / 100.0);
+        let plus = (net >= 0.0) ? "+" : "";
+        return plus + toUSD(net) + " (" + toPercent(summaryData.yearToDatePercentageGain) + ")"
+    }
+    
     // Calculate and format the daily gain summary metrics.
     function dailyGainSummary() {
         let dailyGainPercent = summaryData.dailyGain / (summaryData.totalMarketValue - summaryData.dailyGain) * 100;
@@ -33,6 +40,12 @@ export default function PortfolioSummary({ summaryData }) {
                             {dailyGainSummary()}
                         </td>
                         <td className="summary-cell" style={{ fontSize: '12px', color: 'grey' }}>TODAY</td>
+                    </tr>
+                    <tr>
+                        <td className="summary-deltas" style={{ color: summaryData.yearToDatePercentageGain >= 0.0 ? 'green' : 'red' }}>
+                            {ytdGainSummary()}
+                        </td>
+                        <td className="summary-cell" style={{ fontSize: '12px', color: 'grey' }}>YTD</td>
                     </tr>
                     <tr>
                         <td className="summary-deltas" style={{ color: summaryData.percentageGain >= 0.0 ? 'green' : 'red' }}>

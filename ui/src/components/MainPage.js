@@ -116,12 +116,12 @@ export default class MainPage extends React.Component {
         var cashBalance = this.state.stockList.find(s => s.ticker === 'CASH').marketValue
         var marketValuePieChart = toUSD(this.state.isStocksOnlyChecked ? 
                 this.state.isIncludeCashBalanceChecked ? 
-                        this.state.stockPortfolioSummary.totalMarketValue + cashBalance :
-                        this.state.stockPortfolioSummary.totalMarketValue 
+                        this.state.stockPortfolioSummary.totalMarketValue :
+                        this.state.stockPortfolioSummary.totalMarketValue - cashBalance
                     : 
                 this.state.isIncludeCashBalanceChecked ? 
-                    this.state.fullPortfolioSummary.totalMarketValue + cashBalance :
-                    this.state.fullPortfolioSummary.totalMarketValue)
+                    this.state.fullPortfolioSummary.totalMarketValue :
+                    this.state.fullPortfolioSummary.totalMarketValue - cashBalance)
         var costBasisPieChart = toUSD(this.state.isStocksOnlyChecked ? 
                 this.state.stockPortfolioSummary.totalCostBasis :
                 this.state.fullPortfolioSummary.totalCostBasis)

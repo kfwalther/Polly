@@ -235,11 +235,11 @@ func (sc *SecurityCatalogue) RefreshStockHistory(txns *[]Transaction, currentlyO
 }
 
 // Add an individual's security history to the total portfolio value history.
-func (sc *SecurityCatalogue) AccumulateValueHistory(stockHistory map[time.Time]float64) {
+func (sc *SecurityCatalogue) AccumulateValueHistory(stockHistory map[int64]float64) {
 	// Iterate through each date for this security and add to the total.
 	for date, dailyVal := range stockHistory {
 		if dailyVal > 0.0 {
-			sc.PortfolioHistory[date] += dailyVal
+			sc.PortfolioHistory[time.Unix(date, 0).UTC()] += dailyVal
 		}
 	}
 }
@@ -257,9 +257,53 @@ func (sc *SecurityCatalogue) CalculateCashBalanceHistory() {
 		} else if txn.Action == "Withdraw" || txn.Action == "Buy" {
 			curCashAmount -= txn.Value
 		}
-		sc.securities["CASH"].ValueHistory[txn.DateTime] = curCashAmount
+		sc.securities["CASH"].ValueHistory[txn.DateTime.Unix()] = curCashAmount
 	}
 	sc.securities["CASH"].MarketValue = curCashAmount
+}
+
+// Iterate through each equity to calculate summary metrics across the entire portfolio.
+func (sc *SecurityCatalogue) CalculatePortfolioSummaryMetrics() {
+	// Define the first trading day of the year to reference for YTD calculations.
+	firstTradeDay := time.Date(time.Now().Year(), time.January, 3, 0, 0, 0, 0, time.UTC)
+	fullPortfolioMarketValueJan1 := 0.0
+	stockPortfolioMarketValueJan1 := 0.0
+	for _, s := range sc.securities {
+		if s.Ticker != "CASH" {
+			// s.DisplayMetrics()
+			// Add this security's value history to the portfolio total.
+			sc.AccumulateValueHistory(s.ValueHistory)
+			sc.fullSummary.TotalMarketValue += s.MarketValue
+			sc.fullSummary.TotalCostBasis += s.TotalCostBasis
+			sc.fullSummary.DailyGain += s.DailyGain
+			if s.CurrentlyHeld {
+				sc.fullSummary.TotalSecurities++
+			}
+			if s.SecurityType == "Stock" {
+				sc.stockSummary.TotalMarketValue += s.MarketValue
+				sc.stockSummary.TotalCostBasis += s.TotalCostBasis
+				sc.stockSummary.DailyGain += s.DailyGain
+				if s.CurrentlyHeld {
+					sc.stockSummary.TotalSecurities++
+				}
+			}
+		} else {
+			// For cash, just track the current balance in the summary.
+			sc.fullSummary.TotalMarketValue += s.MarketValue
+			sc.stockSummary.TotalMarketValue += s.MarketValue
+		}
+		fullPortfolioMarketValueJan1 += s.GetMarketValueOnDate(firstTradeDay)
+		if s.SecurityType == "Cash" || s.SecurityType == "Stock" {
+			stockPortfolioMarketValueJan1 += s.GetMarketValueOnDate(firstTradeDay)
+		}
+	}
+	// Store the last updated time, and percentage gain.
+	sc.fullSummary.LastUpdated = time.Now()
+	sc.stockSummary.LastUpdated = time.Now()
+	sc.fullSummary.PercentageGain = ((sc.fullSummary.TotalMarketValue - sc.fullSummary.TotalCostBasis) / sc.fullSummary.TotalCostBasis) * 100.0
+	sc.stockSummary.PercentageGain = ((sc.stockSummary.TotalMarketValue - sc.stockSummary.TotalCostBasis) / sc.stockSummary.TotalCostBasis) * 100.0
+	sc.fullSummary.YearToDatePercentageGain = ((sc.fullSummary.TotalMarketValue - fullPortfolioMarketValueJan1) / fullPortfolioMarketValueJan1) * 100.0
+	sc.stockSummary.YearToDatePercentageGain = ((sc.stockSummary.TotalMarketValue - stockPortfolioMarketValueJan1) / stockPortfolioMarketValueJan1) * 100.0
 }
 
 // Kicks off async functions in go-routines to calculate metrics for each security
@@ -313,34 +357,9 @@ func (sc *SecurityCatalogue) Calculate() {
 	// Calculate the cash balance history in our portfolio.
 	sc.CalculateCashBalanceHistory()
 
-	// Calculate total invested market value across all securities.
-	for _, s := range sc.securities {
-		if s.Ticker != "CASH" {
-			// s.DisplayMetrics()
-			// Add this security's value history to the portfolio total.
-			sc.AccumulateValueHistory(s.ValueHistory)
-			sc.fullSummary.TotalMarketValue += s.MarketValue
-			sc.fullSummary.TotalCostBasis += s.TotalCostBasis
-			sc.fullSummary.DailyGain += s.DailyGain
-			if s.CurrentlyHeld {
-				sc.fullSummary.TotalSecurities++
-			}
+	// Calculate total invested market value and other summary metrics across all equities.
+	sc.CalculatePortfolioSummaryMetrics()
 
-			if s.SecurityType == "Stock" {
-				sc.stockSummary.TotalMarketValue += s.MarketValue
-				sc.stockSummary.TotalCostBasis += s.TotalCostBasis
-				sc.stockSummary.DailyGain += s.DailyGain
-				if s.CurrentlyHeld {
-					sc.stockSummary.TotalSecurities++
-				}
-			}
-		}
-	}
-	// Store the last updated time, and percentage gain.
-	sc.fullSummary.LastUpdated = time.Now()
-	sc.stockSummary.LastUpdated = time.Now()
-	sc.fullSummary.PercentageGain = ((sc.fullSummary.TotalMarketValue - sc.fullSummary.TotalCostBasis) / sc.fullSummary.TotalCostBasis) * 100.0
-	sc.stockSummary.PercentageGain = ((sc.stockSummary.TotalMarketValue - sc.stockSummary.TotalCostBasis) / sc.stockSummary.TotalCostBasis) * 100.0
 	log.Println("---------------------------------")
 	log.Printf("Total Market Value: $%f", sc.fullSummary.TotalMarketValue)
 	log.Printf("Percentage Gain/Loss: %f%%", sc.fullSummary.PercentageGain)

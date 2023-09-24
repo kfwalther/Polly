@@ -14,39 +14,39 @@ import (
 // Definition of a security to hold the transactions for a particular stock/ETF.
 type Security struct {
 	id                              uint
-	Ticker                          string                `json:"ticker"`
-	SecurityType                    string                `json:"securityType"`
-	MarketPrice                     float64               `json:"marketPrice"`
-	MarketPrevClosePrice            float64               `json:"marketPrevClosePrice"`
-	MarketValue                     float64               `json:"marketValue"`
-	DailyGain                       float64               `json:"dailyGain"`
-	DailyGainPercentage             float64               `json:"dailyGainPercentage"`
-	UnitCostBasis                   float64               `json:"unitCostBasis"`
-	TotalCostBasis                  float64               `json:"totalCostBasis"`
-	NumShares                       float64               `json:"numShares"`
-	CurrentlyHeld                   bool                  `json:"currentlyHeld"`
-	RealizedGain                    float64               `json:"realizedGain"`
-	UnrealizedGain                  float64               `json:"unrealizedGain"`
-	UnrealizedGainPercentage        float64               `json:"unrealizedGainPercentage"`
-	TotalGain                       float64               `json:"totalGain"`
-	ValueAllTimeHigh                float64               `json:"valueAllTimeHigh"`
-	HoldingDays                     uint                  `json:"holdingDays"` // TODO: Calculate this and use it...
-	Sector                          string                `json:"sector"`
-	Industry                        string                `json:"industry"`
-	CurrentQuarter                  string                `json:"currentQuarter"`
-	MarketCap                       float64               `json:"marketCap"`
-	RevenueTtm                      float64               `json:"revenueTtm"`
-	RevenueCurrentYearEstimate      float64               `json:"revenueCurrentYearEstimate"`
-	RevenueNextYearEstimate         float64               `json:"revenueNextYearEstimate"`
-	GrossMargin                     float64               `json:"grossMargin"`
-	PriceToSalesTtm                 float64               `json:"priceToSalesTtm"`
-	PriceToSalesNtm                 float64               `json:"priceToSalesNtm"`
-	PriceToFcfTtm                   float64               `json:"priceToFcfTtm"`
-	RevenueGrowthPercentageYoy      float64               `json:"revenueGrowthPercentageYoy"`
-	RevenueGrowthPercentageNextYear float64               `json:"revenueGrowthPercentageNextYear"`
-	TrailingPE                      float64               `json:"trailingPE"`
-	ForwardPE                       float64               `json:"forwardPE"`
-	ValueHistory                    map[time.Time]float64 `json:"valueHistory"`
+	Ticker                          string            `json:"ticker"`
+	SecurityType                    string            `json:"securityType"`
+	MarketPrice                     float64           `json:"marketPrice"`
+	MarketPrevClosePrice            float64           `json:"marketPrevClosePrice"`
+	MarketValue                     float64           `json:"marketValue"`
+	DailyGain                       float64           `json:"dailyGain"`
+	DailyGainPercentage             float64           `json:"dailyGainPercentage"`
+	UnitCostBasis                   float64           `json:"unitCostBasis"`
+	TotalCostBasis                  float64           `json:"totalCostBasis"`
+	NumShares                       float64           `json:"numShares"`
+	CurrentlyHeld                   bool              `json:"currentlyHeld"`
+	RealizedGain                    float64           `json:"realizedGain"`
+	UnrealizedGain                  float64           `json:"unrealizedGain"`
+	UnrealizedGainPercentage        float64           `json:"unrealizedGainPercentage"`
+	TotalGain                       float64           `json:"totalGain"`
+	ValueAllTimeHigh                float64           `json:"valueAllTimeHigh"`
+	HoldingDays                     uint              `json:"holdingDays"` // TODO: Calculate this and use it...
+	Sector                          string            `json:"sector"`
+	Industry                        string            `json:"industry"`
+	CurrentQuarter                  string            `json:"currentQuarter"`
+	MarketCap                       float64           `json:"marketCap"`
+	RevenueTtm                      float64           `json:"revenueTtm"`
+	RevenueCurrentYearEstimate      float64           `json:"revenueCurrentYearEstimate"`
+	RevenueNextYearEstimate         float64           `json:"revenueNextYearEstimate"`
+	GrossMargin                     float64           `json:"grossMargin"`
+	PriceToSalesTtm                 float64           `json:"priceToSalesTtm"`
+	PriceToSalesNtm                 float64           `json:"priceToSalesNtm"`
+	PriceToFcfTtm                   float64           `json:"priceToFcfTtm"`
+	RevenueGrowthPercentageYoy      float64           `json:"revenueGrowthPercentageYoy"`
+	RevenueGrowthPercentageNextYear float64           `json:"revenueGrowthPercentageNextYear"`
+	TrailingPE                      float64           `json:"trailingPE"`
+	ForwardPE                       float64           `json:"forwardPE"`
+	ValueHistory                    map[int64]float64 `json:"valueHistory"`
 	// Some arrays/objects to support metric calculation.
 	buyQ          []Transaction
 	priceHistory  quote.Quote
@@ -74,7 +74,7 @@ func NewSecurity(tkr string, secType string) (*Security, error) {
 	var s Security
 	s.Ticker = tkr
 	s.SecurityType = secType
-	s.ValueHistory = make(map[time.Time]float64)
+	s.ValueHistory = make(map[int64]float64)
 	s.transactions = make([]Transaction, 0)
 	// Create a slice to use as a FIFO queue for calculating metrics.
 	s.buyQ = make([]Transaction, 0)
@@ -105,6 +105,15 @@ func getUtcDate(inDateTime time.Time) time.Time {
 
 func datesEqual(inDate1 time.Time, inDate2 time.Time) bool {
 	return inDate1.Format("2006-01-02") == inDate2.Format("2006-01-02")
+}
+
+// A helper function to retrieve the market value of this equity on a given date.
+func (s *Security) GetMarketValueOnDate(inDateTime time.Time) float64 {
+	if val, ok := s.ValueHistory[inDateTime.Unix()]; ok {
+		return val
+	} else {
+		return 0.0
+	}
 }
 
 // A simple helper function to calculate and save the max value in this security's value history.
@@ -219,6 +228,10 @@ func (s *Security) processFinancialHistoryData(data [][]interface{}) {
 
 // Sorts the transactions for this security, adds any stock splits, and pre-populates data from Growth Stock Google Sheet.
 func (s *Security) PreProcess(sheetMgr *GoogleSheetManager, stockDataMap *map[string]interface{}) {
+	// Cash shouldn't be considered here.
+	if s.Ticker == "CASH" {
+		return
+	}
 	// Lookup if this security has any stock splits to account for.
 	if val, ok := StockSplits[s.Ticker]; ok {
 		s.transactions = append(s.transactions, val...)
@@ -228,10 +241,6 @@ func (s *Security) PreProcess(sheetMgr *GoogleSheetManager, stockDataMap *map[st
 	sort.Slice(s.transactions, func(i, j int) bool {
 		return s.transactions[i].DateTime.Before(s.transactions[j].DateTime)
 	})
-	// Cash shouldn't be considered here.
-	if s.Ticker == "CASH" {
-		return
-	}
 	// Calculate number of shares currently owned, and split multiple.
 	s.splitMultiple = 1.0
 	curShares := 0.0
@@ -435,7 +444,7 @@ func (s *Security) CalculateMetrics(histQuotes quote.Quote, sp500Quotes quote.Qu
 			}
 			// Save the value of this stock in our portfolio on this date (if still owned).
 			if curShares > 0 || tIdx < len(s.transactions) {
-				s.ValueHistory[s.priceHistory.Date[dIdx]] = curShares * s.priceHistory.Close[dIdx] * s.splitMultiple
+				s.ValueHistory[s.priceHistory.Date[dIdx].Unix()] = curShares * s.priceHistory.Close[dIdx] * s.splitMultiple
 			} else {
 				// If share count is zero, and no more transactions, we need not calculate any more dates for this stock.
 				break

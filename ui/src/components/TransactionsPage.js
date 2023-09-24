@@ -57,10 +57,9 @@ function findMinMax(stockData) {
 function createCashHistorySeries(stockHistorySeries, cashData) {
     var cashSeries = []
     // Reformat cash object of date-price key-value pairs into series for plotting.
-    for (const [date, value] of Object.entries(cashData.valueHistory)) {
-        cashSeries.push([new Date(date), value])
+    for (const [unixDate, value] of Object.entries(cashData.valueHistory)) {
+        cashSeries.push([new Date(unixDate * 1000), value])
     }
-    console.log(stockHistorySeries)
     // Initialize an empty array to store the merged data
     const mergedData = [];
     // Extract unique dates from both datasets
