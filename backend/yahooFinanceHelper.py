@@ -5,6 +5,11 @@ the BeautifulSoup web scraper.
 Tested with Python:
 3.11.3
 pip install yfinance --upgrade --no-cache-dir
+
+If any issues, which are frequent, check here:
+https://github.com/ranaroussi/yfinance/issues
+
+If errors running this script, it's likely that an old ticker got delisted from exchange and no longer queryable.
 '''
 
 import json

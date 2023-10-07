@@ -77,6 +77,8 @@ var StockSplits = map[string][]Transaction{
 var DelistedTickers = map[string][]string{
 	// Went bankrupt in 2022
 	"VYGVF": {"Voyager Digital Ltd."},
+	// Delisted from Nasdaq in July 2023 to OTC as APPH.Q
+	"APPH": {"AppHarvest Inc."},
 	// Bought by AMD
 	"XLNX": {"Xilinx Inc."},
 	// Delisted mutual fund in 2022
@@ -126,8 +128,14 @@ func (sc *SecurityCatalogue) GetSecurityList() []*Security {
 	return maps.Values(sc.securities)
 }
 
+// Get the transaction lists from each security, which have derived metrics calculated on each.
 func (sc *SecurityCatalogue) GetTransactionList() []Transaction {
-	return sc.transactions
+	var txns []Transaction
+	// Iterate through each security, appending the transactions to a slice as we go.
+	for _, s := range sc.securities {
+		txns = append(txns, s.transactions...)
+	}
+	return txns
 }
 
 func (sc *SecurityCatalogue) GetSp500() quote.Quote {

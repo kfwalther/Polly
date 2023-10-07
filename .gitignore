@@ -16,7 +16,7 @@ portfolio-sheet-id.txt
 
 # Ignore JSON config files
 auth_token.json
-credentials.json
+credentials*.json
 
 # Ignore VS Code files
 *.vscode/
