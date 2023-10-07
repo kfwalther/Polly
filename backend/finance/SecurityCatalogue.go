@@ -98,6 +98,7 @@ type SecurityCatalogue struct {
 	progressWebSocket *websocket.Conn
 	securities        map[string]*Security
 	transactions      []Transaction
+	cashFlowYtd       float64
 	PortfolioHistory  map[time.Time]float64 `json:"portfolioHistory"`
 }
 
@@ -253,8 +254,9 @@ func (sc *SecurityCatalogue) AccumulateValueHistory(stockHistory map[int64]float
 }
 
 // Iterate through every txn to calculate the cash balance history in the portfolio.
-func (sc *SecurityCatalogue) CalculateCashBalanceHistory() {
+func (sc *SecurityCatalogue) CalculateCashBalanceHistory(firstTradeDay time.Time) {
 	curCashAmount := 0.0
+	sc.cashFlowYtd = 0.0
 	// Order the transactions by date, using anonymous function.
 	sort.Slice(sc.transactions, func(i, j int) bool {
 		return sc.transactions[i].DateTime.Before(sc.transactions[j].DateTime)
@@ -266,14 +268,20 @@ func (sc *SecurityCatalogue) CalculateCashBalanceHistory() {
 			curCashAmount -= txn.Value
 		}
 		sc.securities["CASH"].ValueHistory[txn.DateTime.Unix()] = curCashAmount
+		// Keep track of portfolio cash flow YTD.
+		if txn.DateTime.After(firstTradeDay) {
+			if txn.Action == "Deposit" {
+				sc.cashFlowYtd += txn.Value
+			} else if txn.Action == "Withdraw" {
+				sc.cashFlowYtd -= txn.Value
+			}
+		}
 	}
 	sc.securities["CASH"].MarketValue = curCashAmount
 }
 
 // Iterate through each equity to calculate summary metrics across the entire portfolio.
-func (sc *SecurityCatalogue) CalculatePortfolioSummaryMetrics() {
-	// Define the first trading day of the year to reference for YTD calculations.
-	firstTradeDay := time.Date(time.Now().Year(), time.January, 3, 0, 0, 0, 0, time.UTC)
+func (sc *SecurityCatalogue) CalculatePortfolioSummaryMetrics(firstTradeDay time.Time) {
 	fullPortfolioMarketValueJan1 := 0.0
 	stockPortfolioMarketValueJan1 := 0.0
 	for _, s := range sc.securities {
@@ -310,8 +318,8 @@ func (sc *SecurityCatalogue) CalculatePortfolioSummaryMetrics() {
 	sc.stockSummary.LastUpdated = time.Now()
 	sc.fullSummary.PercentageGain = ((sc.fullSummary.TotalMarketValue - sc.fullSummary.TotalCostBasis) / sc.fullSummary.TotalCostBasis) * 100.0
 	sc.stockSummary.PercentageGain = ((sc.stockSummary.TotalMarketValue - sc.stockSummary.TotalCostBasis) / sc.stockSummary.TotalCostBasis) * 100.0
-	sc.fullSummary.YearToDatePercentageGain = ((sc.fullSummary.TotalMarketValue - fullPortfolioMarketValueJan1) / fullPortfolioMarketValueJan1) * 100.0
-	sc.stockSummary.YearToDatePercentageGain = ((sc.stockSummary.TotalMarketValue - stockPortfolioMarketValueJan1) / stockPortfolioMarketValueJan1) * 100.0
+	sc.fullSummary.YearToDatePercentageGain = (sc.fullSummary.TotalMarketValue/(fullPortfolioMarketValueJan1+sc.cashFlowYtd) - 1) * 100.0
+	sc.stockSummary.YearToDatePercentageGain = (sc.stockSummary.TotalMarketValue/(stockPortfolioMarketValueJan1+sc.cashFlowYtd) - 1) * 100.0
 }
 
 // Kicks off async functions in go-routines to calculate metrics for each security
@@ -362,14 +370,18 @@ func (sc *SecurityCatalogue) Calculate() {
 	waitGroup.Wait()
 	sc.SendProgressUpdate(95.0)
 
+	// Define the first trading day of the year to reference for YTD calculations.
+	firstTradeDay := time.Date(time.Now().Year(), time.January, 3, 0, 0, 0, 0, time.UTC)
+
 	// Calculate the cash balance history in our portfolio.
-	sc.CalculateCashBalanceHistory()
+	sc.CalculateCashBalanceHistory(firstTradeDay)
 
 	// Calculate total invested market value and other summary metrics across all equities.
-	sc.CalculatePortfolioSummaryMetrics()
+	sc.CalculatePortfolioSummaryMetrics(firstTradeDay)
 
 	log.Println("---------------------------------")
 	log.Printf("Total Market Value: $%f", sc.fullSummary.TotalMarketValue)
 	log.Printf("Percentage Gain/Loss: %f%%", sc.fullSummary.PercentageGain)
+	log.Printf("Cash Flow YTD: $%f", sc.cashFlowYtd)
 	log.Println("---------------------------------")
 }

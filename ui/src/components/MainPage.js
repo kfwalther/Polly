@@ -128,7 +128,9 @@ export default class MainPage extends React.Component {
         // Render the stock charts and tables for the main page.
         return (
             <>
-                <PortfolioSummary summaryData={this.state.fullPortfolioSummary} />
+                <PortfolioSummary summaryData={
+                    this.state.isStocksOnlyChecked ? this.state.stockPortfolioSummary : this.state.fullPortfolioSummary
+                } />
                 <br></br>
                 <h3 className="header-centered">Portfolio Composition</h3>
                 {/* Put the two pie charts in a div container so they sit horizontally adjacent. */}
