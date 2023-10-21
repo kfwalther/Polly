@@ -79,6 +79,8 @@ var DelistedTickers = map[string][]string{
 	"VYGVF": {"Voyager Digital Ltd."},
 	// Delisted from Nasdaq in July 2023 to OTC as APPH.Q
 	"APPH": {"AppHarvest Inc."},
+	// Delisted from Nasdaq in August 2023, filed for bankrupcy
+	"PTRA": {"Proterra Inc."},
 	// Bought by AMD
 	"XLNX": {"Xilinx Inc."},
 	// Delisted mutual fund in 2022
