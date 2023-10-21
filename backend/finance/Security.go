@@ -143,7 +143,7 @@ func (s *Security) GetQuoteOfSP500(quoteDate time.Time) float64 {
 			// Likely don't have today's S&P500 quote queried yet, just return the latest quote.
 			return s.sp500History.Close[len(s.sp500History.Close)-1]
 		} else {
-			// TODO: ERROR HERE
+			log.Printf("WARNING: Could not retrieve S&P500 quote for date: %v", quoteDate)
 			return 0.0
 		}
 	}

@@ -182,7 +182,6 @@ func (sc *SecurityCatalogue) Refresh(progressSocket *websocket.Conn) int {
 // each row of data, and inserting it into the appropriate [Security] object
 // within the catalogue.
 func (sc *SecurityCatalogue) ProcessImport(txnData [][]interface{}) {
-	// TODO: Would be good to perform column name verification before processing.
 	// Iterate thru each row of data.
 	for _, row := range txnData {
 		// Make sure we haven't reached the end of the data.
