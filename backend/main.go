@@ -8,14 +8,17 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/kfwalther/Polly/backend/auth"
+	"github.com/kfwalther/Polly/backend/config"
 	"github.com/kfwalther/Polly/backend/controllers"
 	"golang.org/x/oauth2/google"
 )
 
 // Program entry point.
 func main() {
+	// Read the config file for this server.
+	config := config.NewConfiguration("../go-server-config.json")
 	// Get the GCP credentials file.
-	b, err := os.ReadFile("../credentials-webapp.json")
+	b, err := os.ReadFile(config.GcpCredentialsFile)
 	if err != nil {
 		log.Fatalf("Unable to read client secret file: %v", err)
 	}
@@ -26,11 +29,11 @@ func main() {
 		log.Fatalf("Unable to parse client secret file to config: %v", err)
 	}
 	// Define the file to store our auth token.
-	tokenFile := "../auth_token.json"
+	tokenFile := config.AuthTokenFile
 	// Create a new OAuth handler to manage OAuth with Google Sheets API.
 	oauthHandler := auth.NewOAuthHandler(tokenFile, oauthConfig)
 	// Define the Google Sheets IDs file.
-	sheetIdFile := "../portfolio-sheet-id.txt"
+	sheetIdFile := config.GoogleSheetsIdsFile
 	// Name the python script to use with yfinance to grab extended stock info.
 	pyScript := "yahooFinanceHelper.py"
 	// Create a controller to manage front-end interaction.
@@ -54,6 +57,5 @@ func main() {
 	// Disable trusted proxies.
 	router.SetTrustedProxies(nil)
 	// Run the web server.
-	// TODO: Parameterize this port, and other config files above.
-	router.Run(":5000")
+	router.Run(":" + config.WebServerPort)
 }
