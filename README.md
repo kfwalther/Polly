@@ -1,3 +1,7 @@
+![go](https://img.shields.io/badge/Golang-green?style=flat&logo=Go&label=Web%20Server&link=https%3A%2F%2Fgo.dev%2F)
+![python](https://img.shields.io/badge/Python3-yellow?style=flat&label=Scripts&link=https%3A%2F%2Fwww.python.org%2Fdownloads%2F)
+![react](https://img.shields.io/badge/React-lightblue?style=flat&label=Frontend&link=https%3A%2F%2Freactjs.org%2F)
+
 # Polly Portfolio Tracker
 
 This portfolio tracking application was implemented using [**Go**](https://go.dev/) and [**React**](https://reactjs.org/). Please use the instructions below to setup these tools for development.
@@ -15,14 +19,13 @@ Download the JSON credentials file to target machine (if credentials.json is not
 
 The web backend depends on a MongoDB database to store the wealth of information pulled from Yahoo Finance. Download and install MongoDB (Community Edition) for Windows [**here**](https://www.mongodb.com/docs/manual/tutorial/install-mongodb-on-windows/). Once installed, start MongoDBCompass, connect to the MongoDB server, and create a new time-series database named `polly-data-prod`.
 
+### Install Python 3
+
+Python 3 is used as a helper script for querying stock data from Yahoo finance. Install Python from [**here**](https://www.python.org/downloads/).
+
 ### Run the backend server
 
-Run the `go-server.exe` executable from the command line. When running for the first time (or the first time in a while), app will present a URL to
-paste into the browser to permit the app access to the Google Sheets. After consenting access, the webpage will redirect to localhost, with an auth code in the URL:
-
-    http://localhost/?state=state-token&code=<AUTHCODE>&scope=https://www.googleapis.com/auth/spreadsheets.readonly
-
-Paste this AUTHCODE into the console where the app is running to authorize the application and continue.
+Run the `go-server.exe` executable from the command line. When the server is finished querying data from Yahoo finance and reading Google sheets, it will begin listening for incoming requests from the frontend.
 
 ## Setup NPM & React
 
@@ -45,5 +48,3 @@ To start the React web server, run the following from the `ui` directory:
 Once started, you should be able to access the app in the browser here:
 
     http://localhost:3000
-
-
