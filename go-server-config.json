@@ -2,5 +2,7 @@
     "GcpCredentialsFile": "../credentials-webapp.json",
     "AuthTokenFile": "../auth_token.json",
     "GoogleSheetsIdsFile": "../portfolio-sheet-id.txt",
+    "MongoDbConnectionUri": "mongodb://localhost:27017",
+    "MongoDbName": "polly-data-prod",
     "WebServerPort": "5000"
 }

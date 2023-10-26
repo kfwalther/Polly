@@ -9,6 +9,7 @@ import (
 	"github.com/gorilla/websocket"
 
 	"github.com/kfwalther/Polly/backend/auth"
+	"github.com/kfwalther/Polly/backend/config"
 	"github.com/kfwalther/Polly/backend/data"
 	"github.com/kfwalther/Polly/backend/finance"
 )
@@ -32,10 +33,10 @@ func NewSecurityController(oauthHandler *auth.OAuthHandler, googleSheetIdsFile s
 }
 
 // Initialize the MongoDB client, and attempt to get our Sheet API auth token.
-func (c *SecurityController) Init() {
+func (c *SecurityController) Init(config *config.Configuration) {
 	// Connect to our MongoDB instance.
 	c.dbClient = data.NewMongoDbClient()
-	c.dbClient.ConnectMongoDb("polly-data-prod")
+	c.dbClient.ConnectMongoDb(config.MongoDbConnectionUri, config.MongoDbName)
 	// If valid OAuth token received, we can initialize here. Otherwise, wait for redirect callback.
 	if httpClient := c.oauthHandler.GetHttpClient(); httpClient != nil {
 		c.CreatePortfolioCatalogueAndProcess(httpClient)

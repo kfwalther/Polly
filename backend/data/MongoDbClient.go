@@ -36,10 +36,10 @@ func NewMongoDbClient() *MongoDbClient {
 }
 
 // Connect to our MongoDB and grab the Polly data collection.
-func (mc *MongoDbClient) ConnectMongoDb(dbName string) {
+func (mc *MongoDbClient) ConnectMongoDb(connectionUri string, dbName string) {
 	mc.databaseName = dbName
 	// Set connection URL.
-	clientOptions := options.Client().ApplyURI("mongodb://localhost:27017")
+	clientOptions := options.Client().ApplyURI(connectionUri)
 	// Save our database context.
 	mc.ctx = context.Background()
 

@@ -8,10 +8,12 @@ import (
 
 // Definition of the configuration struct to house our config values for the program.
 type Configuration struct {
-	GcpCredentialsFile  string
-	AuthTokenFile       string
-	GoogleSheetsIdsFile string
-	WebServerPort       string
+	GcpCredentialsFile   string
+	AuthTokenFile        string
+	GoogleSheetsIdsFile  string
+	MongoDbConnectionUri string
+	MongoDbName          string
+	WebServerPort        string
 }
 
 // Constructor to create a new config object from the JSON config file.

@@ -38,7 +38,7 @@ func main() {
 	pyScript := "yahooFinanceHelper.py"
 	// Create a controller to manage front-end interaction.
 	ctrlr := controllers.NewSecurityController(oauthHandler, sheetIdFile, pyScript)
-	ctrlr.Init()
+	ctrlr.Init(config)
 
 	// Set gin web server to release mode. Comment out to enable debug logging.
 	gin.SetMode(gin.ReleaseMode)
