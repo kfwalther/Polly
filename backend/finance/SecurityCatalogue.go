@@ -71,6 +71,13 @@ var StockSplits = map[string][]Transaction{
 			Action:   "Split",
 			Shares:   0.5},
 	},
+	"CELH": {
+		Transaction{
+			Ticker:   "CELH",
+			DateTime: time.Date(2023, 11, 15, 0, 0, 0, 0, time.Local),
+			Action:   "Split",
+			Shares:   3},
+	},
 }
 
 // Define a list of delisted stocks no longer on exchanges so we don't query Yahoo for these.
