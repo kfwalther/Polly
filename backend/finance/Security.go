@@ -181,7 +181,11 @@ func (s *Security) processFinancialHistoryData(data [][]interface{}) {
 				}
 				// Calculate last 4 Qs of revenue (TTM), and revenue growth YoY.
 				s.RevenueTtm = s.quarterlyRevenue[numQs-1] + s.quarterlyRevenue[numQs-2] + s.quarterlyRevenue[numQs-3] + s.quarterlyRevenue[numQs-4]
-				s.RevenueGrowthPercentageYoy = (s.quarterlyRevenue[numQs-1] - s.quarterlyRevenue[numQs-5]) / s.quarterlyRevenue[numQs-5]
+				if s.quarterlyRevenue[numQs-5] > 0.001 {
+					s.RevenueGrowthPercentageYoy = (s.quarterlyRevenue[numQs-1] - s.quarterlyRevenue[numQs-5]) / s.quarterlyRevenue[numQs-5]
+				} else {
+					log.Printf("WARNING: Couldn't calculate rev growth YoY for %s", s.Ticker)
+				}
 			}
 			// Read all gross margin history.
 			if row[0].(string) == "Gross Margins (%)" {
@@ -457,10 +461,14 @@ func (s *Security) CalculateMetrics(histQuotes quote.Quote, sp500Quotes quote.Qu
 			s.NumShares += txn.Shares
 			s.TotalCostBasis += txn.Shares * txn.Price
 		}
-		// Calculate the total 1-day gain/loss for this stock.
 		if s.CurrentlyHeld {
+			// Calculate holding days.
+			s.HoldingDays = uint(math.Ceil(time.Now().Sub(s.transactions[0].DateTime).Hours() / 24))
+			// Calculate the total 1-day gain/loss for this stock.
 			s.DailyGain = (s.MarketPrice - s.MarketPrevClosePrice) * s.NumShares
-			s.DailyGainPercentage = (s.MarketPrice - s.MarketPrevClosePrice) * 100.0 / s.MarketPrevClosePrice
+			if s.MarketPrevClosePrice > 0.001 {
+				s.DailyGainPercentage = (s.MarketPrice - s.MarketPrevClosePrice) * 100.0 / s.MarketPrevClosePrice
+			}
 		}
 	} else {
 		log.Printf("Calculating reduced metrics for %s", s.Ticker)
@@ -482,14 +490,14 @@ func (s *Security) CalculateMetrics(histQuotes quote.Quote, sp500Quotes quote.Qu
 		s.UnrealizedGain = s.MarketValue - s.TotalCostBasis
 		s.UnrealizedGainPercentage = (s.UnrealizedGain / s.TotalCostBasis) * 100.0
 		// Financials (P/S ratios, revenue % increase estimates)
-		if s.RevenueTtm != 0.0 {
+		if s.RevenueTtm > 0.0001 {
 			s.PriceToSalesTtm = s.MarketCap / (s.RevenueTtm * 1000)
 		}
-		if s.fcfTtm != 0.0 {
+		if s.fcfTtm > 0.0001 {
 			s.PriceToFcfTtm = s.MarketCap / (s.fcfTtm * 1000)
 		}
-		if s.RevenueCurrentYearEstimate != 0.0 {
-			s.PriceToSalesNtm = s.MarketCap / (s.RevenueCurrentYearEstimate * 1000)
+		if s.RevenueCurrentYearEstimate > 0.0001 {
+			s.PriceToSalesNtm = s.MarketCap / (s.RevenueNextYearEstimate * 1000)
 			s.RevenueGrowthPercentageNextYear = (s.RevenueNextYearEstimate - s.RevenueCurrentYearEstimate) / s.RevenueCurrentYearEstimate
 		}
 	}

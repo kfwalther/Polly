@@ -324,8 +324,12 @@ func (sc *SecurityCatalogue) CalculatePortfolioSummaryMetrics(firstTradeDay time
 	// Store the last updated time, and percentage gain.
 	sc.fullSummary.LastUpdated = time.Now()
 	sc.stockSummary.LastUpdated = time.Now()
-	sc.fullSummary.PercentageGain = ((sc.fullSummary.TotalMarketValue - sc.fullSummary.TotalCostBasis) / sc.fullSummary.TotalCostBasis) * 100.0
-	sc.stockSummary.PercentageGain = ((sc.stockSummary.TotalMarketValue - sc.stockSummary.TotalCostBasis) / sc.stockSummary.TotalCostBasis) * 100.0
+	if sc.fullSummary.TotalCostBasis > 0.001 {
+		sc.fullSummary.PercentageGain = ((sc.fullSummary.TotalMarketValue - sc.fullSummary.TotalCostBasis) / sc.fullSummary.TotalCostBasis) * 100.0
+	}
+	if sc.stockSummary.TotalCostBasis > 0.001 {
+		sc.stockSummary.PercentageGain = ((sc.stockSummary.TotalMarketValue - sc.stockSummary.TotalCostBasis) / sc.stockSummary.TotalCostBasis) * 100.0
+	}
 	sc.fullSummary.YearToDatePercentageGain = (sc.fullSummary.TotalMarketValue/(fullPortfolioMarketValueJan1+sc.cashFlowYtd) - 1) * 100.0
 	sc.stockSummary.YearToDatePercentageGain = (sc.stockSummary.TotalMarketValue/(stockPortfolioMarketValueJan1+sc.cashFlowYtd) - 1) * 100.0
 }

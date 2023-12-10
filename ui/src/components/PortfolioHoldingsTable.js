@@ -23,6 +23,12 @@ export function PortfolioHoldingsTable({ holdingsData, totalPortfolioValue }) {
                 sortType: 'basic',
             },
             {
+                Header: 'Days Held',
+                accessor: 'holdingDays',
+                Cell: props => <>{props.value}</>,
+                sortType: 'basic',
+            },
+            {
                 Header: 'P/S (TTM)',
                 accessor: 'priceToSalesTtm',
                 Cell: props => <>{props.value !== 0.0 ? parseFloat(props.value.toFixed(3)) : '----'}</>,
