@@ -27,11 +27,15 @@ function getBeatRate(txns) {
 }
 
 // Construct the data table to be displayed on the chart.
-function convertValueHistoryToSeries(historyData) {
+function convertValueHistoryToSeries(historyData, convertUnixDates) {
     var series = []
     // Reformat object of date-price key-value pairs into series for plotting.
     for (const [date, value] of Object.entries(historyData)) {
-        series.push([new Date(date), value])
+        if (convertUnixDates) {
+            series.push([new Date(date * 1000), value])
+        } else {
+            series.push([new Date(date), value])
+        }
     }
     return series
 }
@@ -55,11 +59,7 @@ function findMinMax(stockData) {
 
 // Create the cash history series.
 function createCashHistorySeries(stockHistorySeries, cashData) {
-    var cashSeries = []
-    // Reformat cash object of date-price key-value pairs into series for plotting.
-    for (const [unixDate, value] of Object.entries(cashData.valueHistory)) {
-        cashSeries.push([new Date(unixDate * 1000), value])
-    }
+    var cashSeries = convertValueHistoryToSeries(cashData.valueHistory, true)
     // Initialize an empty array to store the merged data
     const mergedData = [];
     // Extract unique dates from both datasets
@@ -214,7 +214,7 @@ export default function TransactionsPage() {
                     }
                     // If we got total portfolio history, convert it to a plot series, and save.
                     if (historyData != null) {
-                        historySeries = convertValueHistoryToSeries(historyData)
+                        historySeries = convertValueHistoryToSeries(historyData, false)
                         // Create the cash history series also.
                         var cashSeries = createCashHistorySeries(historySeries, stocks.filter(s => s.ticker === "CASH")[0])
                         setCashDataSeries(cashSeries)
@@ -253,7 +253,7 @@ export default function TransactionsPage() {
         setPlotDesc(selection.value)
         // Filter for only the specific stock's data, then convert it to a plottable series.
         var stockToPlot = stockData.find(s => s.ticker === selection.value)
-        var stockSeries = convertValueHistoryToSeries(stockToPlot.valueHistory)
+        var stockSeries = convertValueHistoryToSeries(stockToPlot.valueHistory, true)
         // Save the current and all-time high value.
         setCurValue(stockToPlot.marketValue)
         setMaxValue(stockToPlot.valueAllTimeHigh)
