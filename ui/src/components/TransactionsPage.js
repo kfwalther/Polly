@@ -139,7 +139,7 @@ export default function TransactionsPage() {
     const [buySellList, setBuySellList] = useState([]);
     // This is the currently displayed txn data for the table.
     const [txnTableData, setTxnTableData] = useState([]);
-    // This is the full list of Security objects from the backend.
+    // This is the full list of Equity objects from the backend.
     const [stockData, setStockData] = useState([]);
     // A list of stock tickers to display in the drop-down list.
     const [stockTickerList, setStockTickerList] = useState([]);
@@ -165,10 +165,10 @@ export default function TransactionsPage() {
     }
 
     // Simple function to perform async fetch of history data.
-    function getSecurities() {
-        return fetch("http://" + process.env.REACT_APP_API_BASE_URL + "/securities")
+    function getEquities() {
+        return fetch("http://" + process.env.REACT_APP_API_BASE_URL + "/equities")
             .then(resp => resp.json())
-            .then(json => json["securities"])
+            .then(json => json["equities"])
     }
 
     function getHistoryData() {
@@ -179,7 +179,7 @@ export default function TransactionsPage() {
 
     // A function to setup a Promise to synchronously wait for all fetches to finish.
     function getAllData() {
-        return Promise.all([getTransactions(), getSecurities(), getHistoryData()])
+        return Promise.all([getTransactions(), getEquities(), getHistoryData()])
     }
 
     // Runs on mount (twice, by design), so use ignore flag so we don't fetch and filter twice.

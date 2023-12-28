@@ -37,7 +37,7 @@ func main() {
 	// Name the python script to use with yfinance to grab extended stock info.
 	pyScript := "yahooFinanceHelper.py"
 	// Create a controller to manage front-end interaction.
-	ctrlr := controllers.NewSecurityController(oauthHandler, sheetIdFile, pyScript)
+	ctrlr := controllers.NewPortfolioController(oauthHandler, sheetIdFile, pyScript)
 	ctrlr.Init(config)
 
 	// Set gin web server to release mode. Comment out to enable debug logging.
@@ -47,7 +47,7 @@ func main() {
 	router.Use(cors.Default())
 	// Setup the GET routes for our web server.
 	router.GET("/summary", ctrlr.GetSummary)
-	router.GET("/securities", ctrlr.GetSecurities)
+	router.GET("/equities", ctrlr.GetEquities)
 	router.GET("/transactions", ctrlr.GetTransactions)
 	router.GET("/sp500", ctrlr.GetSp500History)
 	router.GET("/history", ctrlr.GetPortfolioHistory)

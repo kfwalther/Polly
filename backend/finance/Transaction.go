@@ -25,7 +25,7 @@ func NormalizeAmerican(num string) string {
 	return strings.Replace(num, ",", "", -1)
 }
 
-// Constructor for a new SecurityCatalogue object, initializing the map.
+// Constructor for a new Transaction object, initializing the map.
 func NewTransaction(dTime string, tkr string, act string, numShares string, txnPrice string) *Transaction {
 	var t Transaction
 	var err error

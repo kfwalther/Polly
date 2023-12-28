@@ -96,8 +96,8 @@ var DelistedTickers = map[string][]string{
 	"CASH": {"Placeholder symbol"},
 }
 
-// Definition of a security catalogue to house a portfolio of stock/ETF info in a map.
-type SecurityCatalogue struct {
+// Definition of a equity catalogue to house a portfolio of stock/ETF info in a map.
+type EquityCatalogue struct {
 	yFinInterface     *YahooFinanceExtension
 	sp500quotes       quote.Quote
 	sheetMgr          *GoogleSheetManager
@@ -105,59 +105,59 @@ type SecurityCatalogue struct {
 	fullSummary       *PortfolioSummary
 	stockSummary      *PortfolioSummary
 	progressWebSocket *websocket.Conn
-	securities        map[string]*Security
+	equities          map[string]*Equity
 	transactions      []Transaction
 	cashFlowYtd       float64
 	PortfolioHistory  map[time.Time]float64 `json:"portfolioHistory"`
 }
 
-// Constructor for a new SecurityCatalogue object, initializing the map.
-func NewSecurityCatalogue(sheetMgr *GoogleSheetManager, dbClient *data.MongoDbClient, pyScript string) *SecurityCatalogue {
-	var sc SecurityCatalogue
+// Constructor for a new EquityCatalogue object, initializing the map.
+func NewEquityCatalogue(sheetMgr *GoogleSheetManager, dbClient *data.MongoDbClient, pyScript string) *EquityCatalogue {
+	var ec EquityCatalogue
 	// Initialize the interfaces.
-	sc.yFinInterface = NewYahooFinanceExtension(pyScript)
-	sc.sheetMgr = sheetMgr
-	sc.dbClient = dbClient
+	ec.yFinInterface = NewYahooFinanceExtension(pyScript)
+	ec.sheetMgr = sheetMgr
+	ec.dbClient = dbClient
 	// Initialize the data structures for this class.
-	sc.securities = make(map[string]*Security)
-	sc.transactions = make([]Transaction, 0)
-	sc.PortfolioHistory = make(map[time.Time]float64)
-	sc.fullSummary = NewPortfolioSummary()
-	sc.stockSummary = NewPortfolioSummary()
-	sc.progressWebSocket = nil
-	return &sc
+	ec.equities = make(map[string]*Equity)
+	ec.transactions = make([]Transaction, 0)
+	ec.PortfolioHistory = make(map[time.Time]float64)
+	ec.fullSummary = NewPortfolioSummary()
+	ec.stockSummary = NewPortfolioSummary()
+	ec.progressWebSocket = nil
+	return &ec
 }
 
 // Return the full portfolio summary followed by the stock-only portfolio summary.
-func (sc *SecurityCatalogue) GetPortfolioSummary() []PortfolioSummary {
-	summaries := []PortfolioSummary{*sc.fullSummary, *sc.stockSummary}
+func (ec *EquityCatalogue) GetPortfolioSummary() []PortfolioSummary {
+	summaries := []PortfolioSummary{*ec.fullSummary, *ec.stockSummary}
 	return summaries
 }
 
-func (sc *SecurityCatalogue) GetSecurityList() []*Security {
-	return maps.Values(sc.securities)
+func (ec *EquityCatalogue) GetEquityList() []*Equity {
+	return maps.Values(ec.equities)
 }
 
-// Get the transaction lists from each security, which have derived metrics calculated on each.
-func (sc *SecurityCatalogue) GetTransactionList() []Transaction {
+// Get the transaction lists from each equity, which have derived metrics calculated on each.
+func (ec *EquityCatalogue) GetTransactionList() []Transaction {
 	var txns []Transaction
-	// Iterate through each security, appending the transactions to a slice as we go.
-	for _, s := range sc.securities {
+	// Iterate through each equity, appending the transactions to a slice as we go.
+	for _, s := range ec.equities {
 		txns = append(txns, s.transactions...)
 	}
 	return txns
 }
 
-func (sc *SecurityCatalogue) GetSp500() quote.Quote {
-	return sc.sp500quotes
+func (ec *EquityCatalogue) GetSp500() quote.Quote {
+	return ec.sp500quotes
 }
 
 // Send progress updates to the client via the web socket, if it's initialized.
-func (sc *SecurityCatalogue) SendProgressUpdate(progressPercent float64) {
-	if sc.progressWebSocket != nil {
+func (ec *EquityCatalogue) SendProgressUpdate(progressPercent float64) {
+	if ec.progressWebSocket != nil {
 		percentStr := strconv.FormatFloat(progressPercent, 'E', -1, 64)
 		// Write the web socket message to the client (1% progress).
-		err := sc.progressWebSocket.WriteMessage(websocket.TextMessage, []byte(percentStr))
+		err := ec.progressWebSocket.WriteMessage(websocket.TextMessage, []byte(percentStr))
 		if err != nil {
 			log.Println("WARNING: Web socket write error: ", err)
 		}
@@ -165,30 +165,30 @@ func (sc *SecurityCatalogue) SendProgressUpdate(progressPercent float64) {
 }
 
 // Re-run the Google Sheets retrieval and portfolio calculations again to refresh all data.
-func (sc *SecurityCatalogue) Refresh(progressSocket *websocket.Conn) int {
+func (ec *EquityCatalogue) Refresh(progressSocket *websocket.Conn) int {
 	// Re-init the data structures for this class.
-	sc.securities = make(map[string]*Security)
-	sc.transactions = make([]Transaction, 0)
-	sc.PortfolioHistory = make(map[time.Time]float64)
-	sc.fullSummary = NewPortfolioSummary()
-	sc.stockSummary = NewPortfolioSummary()
-	sc.progressWebSocket = progressSocket
+	ec.equities = make(map[string]*Equity)
+	ec.transactions = make([]Transaction, 0)
+	ec.PortfolioHistory = make(map[time.Time]float64)
+	ec.fullSummary = NewPortfolioSummary()
+	ec.stockSummary = NewPortfolioSummary()
+	ec.progressWebSocket = progressSocket
 	// Re-read from transactions sheet.
-	txns := sc.sheetMgr.GetTransactionData()
-	sc.SendProgressUpdate(3.0)
+	txns := ec.sheetMgr.GetTransactionData()
+	ec.SendProgressUpdate(3.0)
 	// Re-process the imported data to organize it by ticker.
-	sc.ProcessImport(txns.Values)
+	ec.ProcessImport(txns.Values)
 	log.Printf("Number of transactions processed: %d", len(txns.Values))
 	// Calculate metrics for each stock.
-	sc.Calculate()
-	sc.SendProgressUpdate(100.0)
+	ec.Calculate()
+	ec.SendProgressUpdate(100.0)
 	return len(txns.Values)
 }
 
 // Method to process the imported data, by creating a new [Transaction] for
-// each row of data, and inserting it into the appropriate [Security] object
+// each row of data, and inserting it into the appropriate [Equity] object
 // within the catalogue.
-func (sc *SecurityCatalogue) ProcessImport(txnData [][]interface{}) {
+func (ec *EquityCatalogue) ProcessImport(txnData [][]interface{}) {
 	// Iterate thru each row of data.
 	for _, row := range txnData {
 		// Make sure we haven't reached the end of the data.
@@ -197,156 +197,156 @@ func (sc *SecurityCatalogue) ProcessImport(txnData [][]interface{}) {
 			txn := NewTransaction(row[0].(string), row[1].(string), row[2].(string), row[3].(string), row[4].(string))
 			if txn != nil {
 				// Add it to the total txns list.
-				sc.transactions = append(sc.transactions, *txn)
+				ec.transactions = append(ec.transactions, *txn)
 				// Check if we've seen the current ticker yet.
-				if val, ok := sc.securities[txn.Ticker]; ok {
+				if val, ok := ec.equities[txn.Ticker]; ok {
 					// Yes, append the next transaction
 					val.transactions = append(val.transactions, *txn)
 				} else {
-					// Create a new Security to track transactions for it, then append.
-					if sec, err := NewSecurity(txn.Ticker, row[6].(string)); err == nil {
+					// Create a new Equity to track transactions for it, then append.
+					if sec, err := NewEquity(txn.Ticker, row[6].(string)); err == nil {
 						sec.transactions = append(sec.transactions, *txn)
-						sc.securities[txn.Ticker] = sec
+						ec.equities[txn.Ticker] = sec
 					}
 				}
 			}
 		}
 	}
-	sc.SendProgressUpdate(5.0)
+	ec.SendProgressUpdate(5.0)
 }
 
 // Retrieves data from Yahoo for the given ticker, and stores the data in the DB.
-func (sc *SecurityCatalogue) RetrieveAndStoreStockData(ticker string, startDate string, endDate string) {
+func (ec *EquityCatalogue) RetrieveAndStoreStockData(ticker string, startDate string, endDate string) {
 	log.Printf("Querying %s data from Yahoo: %s ---> %s", ticker, startDate, endDate)
 	newQuotes, err := quote.NewQuoteFromYahoo(ticker, startDate, endDate, quote.Daily, true)
 	if err != nil {
 		log.Printf("WARNING: Couldn't get ticker (%s) data from Yahoo: %s", ticker, err)
 		return
 	}
-	sc.dbClient.StoreTickerData(newQuotes)
+	ec.dbClient.StoreTickerData(newQuotes)
 }
 
 // Checks existing ticker history data in our DB, and pulls any missing data from Yahoo to fill in gaps. Careful modifying this method...
-func (sc *SecurityCatalogue) RefreshStockHistory(txns *[]Transaction, currentlyOwned bool) {
+func (ec *EquityCatalogue) RefreshStockHistory(txns *[]Transaction, currentlyOwned bool) {
 	// Does the ticker exist in the DB?
 	ticker := (*txns)[0].Ticker
-	if sc.dbClient.TickerExists(ticker) {
-		latestDate := sc.dbClient.GetLatestQuote(ticker)
-		// Do we currently own this security?
+	if ec.dbClient.TickerExists(ticker) {
+		latestDate := ec.dbClient.GetLatestQuote(ticker)
+		// Do we currently own this equity?
 		if currentlyOwned {
 			// Are we up to date on the quotes? More than 3 days have passed?
 			if time.Now().Sub(latestDate).Hours() > 72 {
-				sc.RetrieveAndStoreStockData(ticker, latestDate.Add(24*time.Hour).UTC().Format("2006-01-02"), time.Now().UTC().Format("2006-01-02"))
+				ec.RetrieveAndStoreStockData(ticker, latestDate.Add(24*time.Hour).UTC().Format("2006-01-02"), time.Now().UTC().Format("2006-01-02"))
 			}
 		} else {
 			// If we don't own it, ensure we have all the data through the last sell date (get one day past sell date to be safe).
 			sellDate := (*txns)[len(*txns)-1].DateTime
 			if sellDate.Sub(latestDate).Hours() > 24 {
-				sc.RetrieveAndStoreStockData(ticker, latestDate.Add(24*time.Hour).UTC().Format("2006-01-02"), sellDate.Add(24*time.Hour).UTC().Format("2006-01-02"))
+				ec.RetrieveAndStoreStockData(ticker, latestDate.Add(24*time.Hour).UTC().Format("2006-01-02"), sellDate.Add(24*time.Hour).UTC().Format("2006-01-02"))
 			}
 		}
 	} else {
 		// Ticker doesn't exist in DB yet, query all its data.
-		sc.RetrieveAndStoreStockData(ticker, (*txns)[0].DateTime.Format("2006-01-02"), time.Now().UTC().Format("2006-01-02"))
+		ec.RetrieveAndStoreStockData(ticker, (*txns)[0].DateTime.Format("2006-01-02"), time.Now().UTC().Format("2006-01-02"))
 	}
 }
 
-// Add an individual's security history to the total portfolio value history.
-func (sc *SecurityCatalogue) AccumulateValueHistory(stockHistory map[int64]float64) {
-	// Iterate through each date for this security and add to the total.
+// Add an individual's equity history to the total portfolio value history.
+func (ec *EquityCatalogue) AccumulateValueHistory(stockHistory map[int64]float64) {
+	// Iterate through each date for this equity and add to the total.
 	for date, dailyVal := range stockHistory {
 		if dailyVal > 0.0 {
-			sc.PortfolioHistory[time.Unix(date, 0).UTC()] += dailyVal
+			ec.PortfolioHistory[time.Unix(date, 0).UTC()] += dailyVal
 		}
 	}
 }
 
 // Iterate through every txn to calculate the cash balance history in the portfolio.
-func (sc *SecurityCatalogue) CalculateCashBalanceHistory(firstTradeDay time.Time) {
+func (ec *EquityCatalogue) CalculateCashBalanceHistory(firstTradeDay time.Time) {
 	curCashAmount := 0.0
-	sc.cashFlowYtd = 0.0
+	ec.cashFlowYtd = 0.0
 	// Order the transactions by date, using anonymous function.
-	sort.Slice(sc.transactions, func(i, j int) bool {
-		return sc.transactions[i].DateTime.Before(sc.transactions[j].DateTime)
+	sort.Slice(ec.transactions, func(i, j int) bool {
+		return ec.transactions[i].DateTime.Before(ec.transactions[j].DateTime)
 	})
-	for _, txn := range sc.transactions {
+	for _, txn := range ec.transactions {
 		if txn.Action == "Deposit" || txn.Action == "Sell" {
 			curCashAmount += txn.Value
 		} else if txn.Action == "Withdraw" || txn.Action == "Buy" {
 			curCashAmount -= txn.Value
 		}
-		sc.securities["CASH"].ValueHistory[txn.DateTime.Unix()] = curCashAmount
+		ec.equities["CASH"].ValueHistory[txn.DateTime.Unix()] = curCashAmount
 		// Keep track of portfolio cash flow YTD.
 		if txn.DateTime.After(firstTradeDay) {
 			if txn.Action == "Deposit" {
-				sc.cashFlowYtd += txn.Value
+				ec.cashFlowYtd += txn.Value
 			} else if txn.Action == "Withdraw" {
-				sc.cashFlowYtd -= txn.Value
+				ec.cashFlowYtd -= txn.Value
 			}
 		}
 	}
-	sc.securities["CASH"].MarketValue = curCashAmount
+	ec.equities["CASH"].MarketValue = curCashAmount
 }
 
 // Iterate through each equity to calculate summary metrics across the entire portfolio.
-func (sc *SecurityCatalogue) CalculatePortfolioSummaryMetrics(firstTradeDay time.Time) {
+func (ec *EquityCatalogue) CalculatePortfolioSummaryMetrics(firstTradeDay time.Time) {
 	fullPortfolioMarketValueJan1 := 0.0
 	stockPortfolioMarketValueJan1 := 0.0
-	for _, s := range sc.securities {
+	for _, s := range ec.equities {
 		if s.Ticker != "CASH" {
 			// s.DisplayMetrics()
-			// Add this security's value history to the portfolio total.
-			sc.AccumulateValueHistory(s.ValueHistory)
-			sc.fullSummary.TotalMarketValue += s.MarketValue
-			sc.fullSummary.TotalCostBasis += s.TotalCostBasis
-			sc.fullSummary.DailyGain += s.DailyGain
+			// Add this equity's value history to the portfolio total.
+			ec.AccumulateValueHistory(s.ValueHistory)
+			ec.fullSummary.TotalMarketValue += s.MarketValue
+			ec.fullSummary.TotalCostBasis += s.TotalCostBasis
+			ec.fullSummary.DailyGain += s.DailyGain
 			if s.CurrentlyHeld {
-				sc.fullSummary.TotalSecurities++
+				ec.fullSummary.TotalEquities++
 			}
-			if s.SecurityType == "Stock" {
-				sc.stockSummary.TotalMarketValue += s.MarketValue
-				sc.stockSummary.TotalCostBasis += s.TotalCostBasis
-				sc.stockSummary.DailyGain += s.DailyGain
+			if s.EquityType == "Stock" {
+				ec.stockSummary.TotalMarketValue += s.MarketValue
+				ec.stockSummary.TotalCostBasis += s.TotalCostBasis
+				ec.stockSummary.DailyGain += s.DailyGain
 				if s.CurrentlyHeld {
-					sc.stockSummary.TotalSecurities++
+					ec.stockSummary.TotalEquities++
 				}
 			}
 		} else {
 			// For cash, just track the current balance in the summary.
-			sc.fullSummary.TotalMarketValue += s.MarketValue
-			sc.stockSummary.TotalMarketValue += s.MarketValue
+			ec.fullSummary.TotalMarketValue += s.MarketValue
+			ec.stockSummary.TotalMarketValue += s.MarketValue
 		}
 		fullPortfolioMarketValueJan1 += s.GetMarketValueOnDate(firstTradeDay)
-		if s.SecurityType == "Cash" || s.SecurityType == "Stock" {
+		if s.EquityType == "Cash" || s.EquityType == "Stock" {
 			stockPortfolioMarketValueJan1 += s.GetMarketValueOnDate(firstTradeDay)
 		}
 	}
 	// Store the last updated time, and percentage gain.
-	sc.fullSummary.LastUpdated = time.Now()
-	sc.stockSummary.LastUpdated = time.Now()
-	if sc.fullSummary.TotalCostBasis > 0.001 {
-		sc.fullSummary.PercentageGain = ((sc.fullSummary.TotalMarketValue - sc.fullSummary.TotalCostBasis) / sc.fullSummary.TotalCostBasis) * 100.0
+	ec.fullSummary.LastUpdated = time.Now()
+	ec.stockSummary.LastUpdated = time.Now()
+	if ec.fullSummary.TotalCostBasis > 0.001 {
+		ec.fullSummary.PercentageGain = ((ec.fullSummary.TotalMarketValue - ec.fullSummary.TotalCostBasis) / ec.fullSummary.TotalCostBasis) * 100.0
 	}
-	if sc.stockSummary.TotalCostBasis > 0.001 {
-		sc.stockSummary.PercentageGain = ((sc.stockSummary.TotalMarketValue - sc.stockSummary.TotalCostBasis) / sc.stockSummary.TotalCostBasis) * 100.0
+	if ec.stockSummary.TotalCostBasis > 0.001 {
+		ec.stockSummary.PercentageGain = ((ec.stockSummary.TotalMarketValue - ec.stockSummary.TotalCostBasis) / ec.stockSummary.TotalCostBasis) * 100.0
 	}
-	sc.fullSummary.YearToDatePercentageGain = (sc.fullSummary.TotalMarketValue/(fullPortfolioMarketValueJan1+sc.cashFlowYtd) - 1) * 100.0
-	sc.stockSummary.YearToDatePercentageGain = (sc.stockSummary.TotalMarketValue/(stockPortfolioMarketValueJan1+sc.cashFlowYtd) - 1) * 100.0
+	ec.fullSummary.YearToDatePercentageGain = (ec.fullSummary.TotalMarketValue/(fullPortfolioMarketValueJan1+ec.cashFlowYtd) - 1) * 100.0
+	ec.stockSummary.YearToDatePercentageGain = (ec.stockSummary.TotalMarketValue/(stockPortfolioMarketValueJan1+ec.cashFlowYtd) - 1) * 100.0
 }
 
-// Kicks off async functions in go-routines to calculate metrics for each security
-func (sc *SecurityCatalogue) Calculate() {
+// Kicks off async functions in go-routines to calculate metrics for each equity
+func (ec *EquityCatalogue) Calculate() {
 
 	// Grab the historical S&P 500 data to compare against (2015 to present).
 	// Define a dummy SPY transaction to pass in, the date is what the function requires.
-	sc.RefreshStockHistory(&[]Transaction{*NewTransaction("2015-01-01", "SPY", "Buy", "1", "100.0")}, true)
-	sc.sp500quotes = sc.dbClient.GetTickerData("SPY")
-	sc.SendProgressUpdate(8.0)
+	ec.RefreshStockHistory(&[]Transaction{*NewTransaction("2015-01-01", "SPY", "Buy", "1", "100.0")}, true)
+	ec.sp500quotes = ec.dbClient.GetTickerData("SPY")
+	ec.SendProgressUpdate(8.0)
 
-	// Get the tickers for all securities we've ever owned in comma-separated list.
-	tickers := make([]string, 0, len(sc.securities))
-	for t := range sc.securities {
-		// Don't include any delisted securities.
+	// Get the tickers for all equities we've ever owned in comma-separated list.
+	tickers := make([]string, 0, len(ec.equities))
+	for t := range ec.equities {
+		// Don't include any delisted equities.
 		if _, ok := DelistedTickers[t]; !ok {
 			tickers = append(tickers, t)
 		}
@@ -354,46 +354,46 @@ func (sc *SecurityCatalogue) Calculate() {
 	tickerList := strings.Join(tickers, ",")
 	log.Printf("Querying Yahoo finance for %d equities...\n", len(tickers))
 	// Use Python yFinance module to query data for all tickers at once.
-	allStocksData := sc.yFinInterface.GetTickerData(tickerList)
-	sc.SendProgressUpdate(35.0)
+	allStocksData := ec.yFinInterface.GetTickerData(tickerList)
+	ec.SendProgressUpdate(35.0)
 
 	// Setup a wait group.
 	var waitGroup sync.WaitGroup
 	// Specify the number of metrics to wait for.
-	waitGroup.Add(len(sc.securities))
+	waitGroup.Add(len(ec.equities))
 
-	log.Printf("Processing %d securities...\n", len(sc.securities))
-	// Iterate thru each security in the map, and calculate its data.
-	for _, s := range sc.securities {
-		// Launch a new goroutine for this security.
-		go func(s *Security) {
+	log.Printf("Processing %d equities...\n", len(ec.equities))
+	// Iterate thru each equity in the map, and calculate its data.
+	for _, s := range ec.equities {
+		// Launch a new goroutine for this equity.
+		go func(s *Equity) {
 			if _, ok := DelistedTickers[s.Ticker]; !ok {
-				s.PreProcess(sc.sheetMgr, allStocksData)
+				s.PreProcess(ec.sheetMgr, allStocksData)
 				// Make sure the stock's history data is up-to-date.
-				sc.RefreshStockHistory(&s.transactions, s.CurrentlyHeld)
+				ec.RefreshStockHistory(&s.transactions, s.CurrentlyHeld)
 			}
 			// Pass SP500 quotes to this function to use when calculating transaction level metrics.
-			s.CalculateMetrics(sc.dbClient.GetTickerData(s.Ticker), sc.sp500quotes)
+			s.CalculateMetrics(ec.dbClient.GetTickerData(s.Ticker), ec.sp500quotes)
 			waitGroup.Done()
 		}(s)
 	}
 
 	// Wait/monitor until all work is complete.
 	waitGroup.Wait()
-	sc.SendProgressUpdate(95.0)
+	ec.SendProgressUpdate(95.0)
 
 	// Define the first trading day of the year to reference for YTD calculations.
 	firstTradeDay := time.Date(time.Now().Year(), time.January, 3, 0, 0, 0, 0, time.UTC)
 
 	// Calculate the cash balance history in our portfolio.
-	sc.CalculateCashBalanceHistory(firstTradeDay)
+	ec.CalculateCashBalanceHistory(firstTradeDay)
 
 	// Calculate total invested market value and other summary metrics across all equities.
-	sc.CalculatePortfolioSummaryMetrics(firstTradeDay)
+	ec.CalculatePortfolioSummaryMetrics(firstTradeDay)
 
 	log.Println("---------------------------------")
-	log.Printf("Total Market Value: $%f", sc.fullSummary.TotalMarketValue)
-	log.Printf("Percentage Gain/Loss: %f%%", sc.fullSummary.PercentageGain)
-	log.Printf("Cash Flow YTD: $%f", sc.cashFlowYtd)
+	log.Printf("Total Market Value: $%f", ec.fullSummary.TotalMarketValue)
+	log.Printf("Percentage Gain/Loss: %f%%", ec.fullSummary.PercentageGain)
+	log.Printf("Cash Flow YTD: $%f", ec.cashFlowYtd)
 	log.Println("---------------------------------")
 }

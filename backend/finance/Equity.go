@@ -11,11 +11,11 @@ import (
 	"github.com/markcheno/go-quote"
 )
 
-// Definition of a security to hold the transactions for a particular stock/ETF.
-type Security struct {
+// Definition of a equity to hold the transactions for a particular stock/ETF.
+type Equity struct {
 	id                              uint
 	Ticker                          string            `json:"ticker"`
-	SecurityType                    string            `json:"securityType"`
+	EquityType                      string            `json:"equityType"`
 	MarketPrice                     float64           `json:"marketPrice"`
 	MarketPrevClosePrice            float64           `json:"marketPrevClosePrice"`
 	MarketValue                     float64           `json:"marketValue"`
@@ -65,15 +65,15 @@ type Security struct {
 	quarterlyPercentSBC            []float64
 }
 
-// Constructor for a new Security object.
-func NewSecurity(tkr string, secType string) (*Security, error) {
-	// Validate the security type before creating the object.
-	if secType != "Stock" && secType != "ETF" && secType != "Mutual Fund" && secType != "Cash" {
-		return nil, errors.New("Could not create Security. Invalid security type (" + secType + ") for " + tkr)
+// Constructor for a new Equity object.
+func NewEquity(tkr string, eqType string) (*Equity, error) {
+	// Validate the equity type before creating the object.
+	if eqType != "Stock" && eqType != "ETF" && eqType != "Mutual Fund" && eqType != "Cash" {
+		return nil, errors.New("Could not create Equity. Invalid equity type (" + eqType + ") for " + tkr)
 	}
-	var s Security
+	var s Equity
 	s.Ticker = tkr
-	s.SecurityType = secType
+	s.EquityType = eqType
 	s.ValueHistory = make(map[int64]float64)
 	s.transactions = make([]Transaction, 0)
 	// Create a slice to use as a FIFO queue for calculating metrics.
@@ -108,7 +108,7 @@ func datesEqual(inDate1 time.Time, inDate2 time.Time) bool {
 }
 
 // A helper function to retrieve the market value of this equity on a given date.
-func (s *Security) GetMarketValueOnDate(inDateTime time.Time) float64 {
+func (s *Equity) GetMarketValueOnDate(inDateTime time.Time) float64 {
 	if val, ok := s.ValueHistory[inDateTime.Unix()]; ok {
 		return val
 	} else {
@@ -116,8 +116,8 @@ func (s *Security) GetMarketValueOnDate(inDateTime time.Time) float64 {
 	}
 }
 
-// A simple helper function to calculate and save the max value in this security's value history.
-func (s *Security) getMaxValueFromHistory() {
+// A simple helper function to calculate and save the max value in this equity's value history.
+func (s *Equity) getMaxValueFromHistory() {
 	max := math.Inf(-1)
 	for _, v := range s.ValueHistory {
 		if v > max {
@@ -131,7 +131,7 @@ func (s *Security) getMaxValueFromHistory() {
 	s.ValueAllTimeHigh = max
 }
 
-func (s *Security) GetQuoteOfSP500(quoteDate time.Time) float64 {
+func (s *Equity) GetQuoteOfSP500(quoteDate time.Time) float64 {
 	// Get index of this date (Yahoo dates are returned in UTC).
 	idx := indexOf(getUtcDate(quoteDate), s.sp500History.Date)
 	if idx != -1 {
@@ -150,7 +150,7 @@ func (s *Security) GetQuoteOfSP500(quoteDate time.Time) float64 {
 }
 
 // Process the financial history data for one stock from the growth stock spreadsheet.
-func (s *Security) processFinancialHistoryData(data [][]interface{}) {
+func (s *Equity) processFinancialHistoryData(data [][]interface{}) {
 	numQs := 0
 	if data == nil {
 		return
@@ -230,13 +230,13 @@ func (s *Security) processFinancialHistoryData(data [][]interface{}) {
 	}
 }
 
-// Sorts the transactions for this security, adds any stock splits, and pre-populates data from Growth Stock Google Sheet.
-func (s *Security) PreProcess(sheetMgr *GoogleSheetManager, stockDataMap *map[string]interface{}) {
+// Sorts the transactions for this equity, adds any stock splits, and pre-populates data from Growth Stock Google Sheet.
+func (s *Equity) PreProcess(sheetMgr *GoogleSheetManager, stockDataMap *map[string]interface{}) {
 	// Cash shouldn't be considered here.
 	if s.Ticker == "CASH" {
 		return
 	}
-	// Lookup if this security has any stock splits to account for.
+	// Lookup if this equity has any stock splits to account for.
 	if val, ok := StockSplits[s.Ticker]; ok {
 		s.transactions = append(s.transactions, val...)
 	}
@@ -259,14 +259,14 @@ func (s *Security) PreProcess(sheetMgr *GoogleSheetManager, stockDataMap *map[st
 		}
 	}
 	var stockData map[string]interface{} = nil
-	// If Yahoo returned data for this security, try to extract it from the JSON map.
+	// If Yahoo returned data for this equity, try to extract it from the JSON map.
 	if stockMapEntry, ok := (*stockDataMap)[s.Ticker]; ok {
 		if stockData, ok = stockMapEntry.(map[string]interface{}); ok {
 			curPriceName := "currentPrice"
-			if s.SecurityType == "ETF" {
+			if s.EquityType == "ETF" {
 				// ETFs don't have currentPrice, use navPrice instead.
 				curPriceName = "navPrice"
-			} else if s.SecurityType == "Mutual Fund" {
+			} else if s.EquityType == "Mutual Fund" {
 				// Mutual funds don't have currentPrice, use previousClose instead.
 				curPriceName = "previousClose"
 			}
@@ -288,7 +288,7 @@ func (s *Security) PreProcess(sheetMgr *GoogleSheetManager, stockDataMap *map[st
 	if curShares > 0.001 {
 		s.CurrentlyHeld = true
 		// If a stock we currently own, save some addtl data.
-		if s.SecurityType == "Stock" && stockData != nil {
+		if s.EquityType == "Stock" && stockData != nil {
 			var err error
 			var ok bool
 			// Check if Yahoo returned any data for these fields.
@@ -344,7 +344,7 @@ func (s *Security) PreProcess(sheetMgr *GoogleSheetManager, stockDataMap *map[st
 }
 
 // Calculate stock holdings info and stats based on individual transactions.
-func (s *Security) CalculateTransactionData(txnIdx int, curShares float64) float64 {
+func (s *Equity) CalculateTransactionData(txnIdx int, curShares float64) float64 {
 	// Get a reference to the current txn.
 	t := &s.transactions[txnIdx]
 	// For buys, increment number of shares.
@@ -421,8 +421,8 @@ func (s *Security) CalculateTransactionData(txnIdx int, curShares float64) float
 	return curShares
 }
 
-// Calculate various metrics about this security.
-func (s *Security) CalculateMetrics(histQuotes quote.Quote, sp500Quotes quote.Quote) {
+// Calculate various metrics about this equity.
+func (s *Equity) CalculateMetrics(histQuotes quote.Quote, sp500Quotes quote.Quote) {
 	// Ignore ticker CASH for now, may use this later.
 	if s.Ticker == "CASH" {
 		return
@@ -454,7 +454,7 @@ func (s *Security) CalculateMetrics(histQuotes quote.Quote, sp500Quotes quote.Qu
 				break
 			}
 		}
-		// Now that we have full value history for this security, calculate the all-time high.
+		// Now that we have full value history for this equity, calculate the all-time high.
 		s.getMaxValueFromHistory()
 		// Calculate cost bases and unrealized gains with any remaining buy shares in the buy queue.
 		for _, txn := range s.buyQ {
@@ -505,7 +505,7 @@ func (s *Security) CalculateMetrics(histQuotes quote.Quote, sp500Quotes quote.Qu
 	s.TotalGain = s.UnrealizedGain + s.RealizedGain
 }
 
-func (s *Security) DisplayMetrics() {
+func (s *Equity) DisplayMetrics() {
 	log.Printf("---------------%s----------------", s.Ticker)
 	log.Printf("Market Price: $%f\n", s.MarketPrice)
 	log.Printf("Number of Shares: %f\n", s.NumShares)

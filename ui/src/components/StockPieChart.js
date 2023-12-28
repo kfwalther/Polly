@@ -50,14 +50,14 @@ export function StockPieChart({ chartData, displayDataset, stocksOnly, includeCa
     }
 
     function getFilteredChartData() {
-        // Filter for only non-zero securities.
+        // Filter for only non-zero equities.
         let filtered = chartData.filter(s => (s[displayDataset] > 0.0));
         if (!includeCash) {
-            filtered = filtered.filter(s => s.securityType !== "Cash");
+            filtered = filtered.filter(s => s.equityType !== "Cash");
         }
         // Check if we should be filtering for only stocks too.
         if (stocksOnly) {
-            filtered = filtered.filter(s => s.securityType !== "Mutual Fund" && s.securityType !== "ETF");
+            filtered = filtered.filter(s => s.equityType !== "Mutual Fund" && s.equityType !== "ETF");
         }
         // Sort the stocks by the dataset being displayed.
         let sorted = filtered.sort((a, b) => b[displayDataset] - a[displayDataset]);

@@ -14,8 +14,8 @@ import (
 	"github.com/kfwalther/Polly/backend/finance"
 )
 
-type SecurityController struct {
-	securityCatalogue    *finance.SecurityCatalogue
+type PortfolioController struct {
+	equityCatalogue      *finance.EquityCatalogue
 	oauthHandler         *auth.OAuthHandler
 	dbClient             *data.MongoDbClient
 	googleSheetMgr       *finance.GoogleSheetManager
@@ -24,8 +24,8 @@ type SecurityController struct {
 }
 
 // Constructor for the controller for interfacing with the front-end.
-func NewSecurityController(oauthHandler *auth.OAuthHandler, googleSheetIdsFile string, pyScript string) *SecurityController {
-	var ctrlr SecurityController
+func NewPortfolioController(oauthHandler *auth.OAuthHandler, googleSheetIdsFile string, pyScript string) *PortfolioController {
+	var ctrlr PortfolioController
 	ctrlr.oauthHandler = oauthHandler
 	ctrlr.googleSheetIdsFile = googleSheetIdsFile
 	ctrlr.yfinPythonScriptFile = pyScript
@@ -33,7 +33,7 @@ func NewSecurityController(oauthHandler *auth.OAuthHandler, googleSheetIdsFile s
 }
 
 // Initialize the MongoDB client, and attempt to get our Sheet API auth token.
-func (c *SecurityController) Init(config *config.Configuration) {
+func (c *PortfolioController) Init(config *config.Configuration) {
 	// Connect to our MongoDB instance.
 	c.dbClient = data.NewMongoDbClient()
 	c.dbClient.ConnectMongoDb(config.MongoDbConnectionUri, config.MongoDbName)
@@ -44,23 +44,23 @@ func (c *SecurityController) Init(config *config.Configuration) {
 }
 
 // Initialize the Sheets API and portfolio catalogue, then calculate metrics.
-func (c *SecurityController) CreatePortfolioCatalogueAndProcess(httpClient *http.Client) {
+func (c *PortfolioController) CreatePortfolioCatalogueAndProcess(httpClient *http.Client) {
 	ctx := context.Background()
 	// Initialize the Google sheet interface.
 	c.googleSheetMgr = finance.NewGoogleSheetManager(httpClient, &ctx, c.googleSheetIdsFile)
-	// Create the new security catalogue to house our portfolio data.
-	c.securityCatalogue = finance.NewSecurityCatalogue(c.googleSheetMgr, c.dbClient, c.yfinPythonScriptFile)
+	// Create the new equity catalogue to house our portfolio data.
+	c.equityCatalogue = finance.NewEquityCatalogue(c.googleSheetMgr, c.dbClient, c.yfinPythonScriptFile)
 	// Read from portfolio transactions sheet.
 	txns := c.googleSheetMgr.GetTransactionData()
 	// Process the imported data to organize it by ticker.
-	c.securityCatalogue.ProcessImport(txns.Values)
+	c.equityCatalogue.ProcessImport(txns.Values)
 	log.Printf("Number of transactions processed: %d", len(txns.Values))
 	// Calculate metrics for each stock.
-	c.securityCatalogue.Calculate()
+	c.equityCatalogue.Calculate()
 }
 
 // Define the endpoint for the Google Sheets API OAuth redirect URL.
-func (c *SecurityController) OAuthRedirectCallback(ctx *gin.Context) {
+func (c *PortfolioController) OAuthRedirectCallback(ctx *gin.Context) {
 	c.oauthHandler.HandleTokenResponse(ctx.Writer, ctx.Request)
 	// If valid OAuth token received, we can initialize using new HttpClient.
 	if httpClient := c.oauthHandler.GetHttpClient(); httpClient != nil {
@@ -68,8 +68,8 @@ func (c *SecurityController) OAuthRedirectCallback(ctx *gin.Context) {
 	}
 }
 
-func (c *SecurityController) GetSummary(ctx *gin.Context) {
-	summary := c.securityCatalogue.GetPortfolioSummary()
+func (c *PortfolioController) GetSummary(ctx *gin.Context) {
+	summary := c.equityCatalogue.GetPortfolioSummary()
 	if summary == nil {
 		log.Print("No portfolio summary to forward thru API to front-end!")
 		ctx.JSON(400, gin.H{
@@ -83,8 +83,8 @@ func (c *SecurityController) GetSummary(ctx *gin.Context) {
 	}
 }
 
-func (c *SecurityController) GetPortfolioHistory(ctx *gin.Context) {
-	if c.securityCatalogue.PortfolioHistory == nil || len(c.securityCatalogue.PortfolioHistory) == 0 {
+func (c *PortfolioController) GetPortfolioHistory(ctx *gin.Context) {
+	if c.equityCatalogue.PortfolioHistory == nil || len(c.equityCatalogue.PortfolioHistory) == 0 {
 		log.Print("No portfolio history to forward thru API to front-end!")
 		ctx.JSON(400, gin.H{
 			"error": "No portfolio history found!",
@@ -92,28 +92,28 @@ func (c *SecurityController) GetPortfolioHistory(ctx *gin.Context) {
 	} else {
 		log.Print("Sending portfolio history to front-end...")
 		ctx.JSON(200, gin.H{
-			"history": c.securityCatalogue.PortfolioHistory,
+			"history": c.equityCatalogue.PortfolioHistory,
 		})
 	}
 }
 
-func (c *SecurityController) GetSecurities(ctx *gin.Context) {
-	secs := c.securityCatalogue.GetSecurityList()
-	if len(secs) == 0 {
-		log.Print("No securities to forward thru API to front-end!")
+func (c *PortfolioController) GetEquities(ctx *gin.Context) {
+	eqs := c.equityCatalogue.GetEquityList()
+	if len(eqs) == 0 {
+		log.Print("No equities to forward thru API to front-end!")
 		ctx.JSON(400, gin.H{
-			"error": "No securities found in the portfolio!",
+			"error": "No equities found in the portfolio!",
 		})
 	} else {
-		log.Printf("Sending %d securities to front-end...", len(secs))
+		log.Printf("Sending %d equities to front-end...", len(eqs))
 		ctx.JSON(200, gin.H{
-			"securities": secs,
+			"equities": eqs,
 		})
 	}
 }
 
-func (c *SecurityController) GetTransactions(ctx *gin.Context) {
-	txns := c.securityCatalogue.GetTransactionList()
+func (c *PortfolioController) GetTransactions(ctx *gin.Context) {
+	txns := c.equityCatalogue.GetTransactionList()
 	if len(txns) == 0 {
 		log.Print("No transactions to forward thru API to front-end!")
 		ctx.JSON(400, gin.H{
@@ -127,8 +127,8 @@ func (c *SecurityController) GetTransactions(ctx *gin.Context) {
 	}
 }
 
-func (c *SecurityController) GetSp500History(ctx *gin.Context) {
-	sp500 := c.securityCatalogue.GetSp500()
+func (c *PortfolioController) GetSp500History(ctx *gin.Context) {
+	sp500 := c.equityCatalogue.GetSp500()
 	if len(sp500.Date) == 0 {
 		log.Print("No historical S&P500 data to forward thru API to front-end!")
 		ctx.JSON(400, gin.H{
@@ -143,7 +143,7 @@ func (c *SecurityController) GetSp500History(ctx *gin.Context) {
 }
 
 // Connect to a web socket on this endpoint to send periodic progress updates.
-func (c *SecurityController) WebSocketHandler(ctx *gin.Context) {
+func (c *PortfolioController) WebSocketHandler(ctx *gin.Context) {
 	log.Print("Setting up web socket...")
 	// Define the headers/settings for upgrading the http:// request to ws://.
 	var upgrader = websocket.Upgrader{
@@ -168,5 +168,5 @@ func (c *SecurityController) WebSocketHandler(ctx *gin.Context) {
 		log.Println("WARNING: Web socket write error: ", err)
 	}
 	// Refresh the portfolio data, providing the web socket.
-	c.securityCatalogue.Refresh(progressSocket)
+	c.equityCatalogue.Refresh(progressSocket)
 }

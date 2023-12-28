@@ -17,10 +17,10 @@ export const PortfolioMapColorSelectOptions = [
 export function PortfolioMapChart({ chartData, sizeBy, colorBy }) {
 
     function getFilteredChartData() {
-        // Filter for only non-zero securities.
-        let filtered = chartData.filter(s => (s.marketValue > 0.0 && s.securityType === 'Stock'));
+        // Filter for only non-zero equities.
+        let filtered = chartData.filter(s => (s.marketValue > 0.0 && s.equityType === 'Stock'));
         // Put the filtered values in an array, and add a column header.
-        let data = filtered.map(s => [s.ticker, s.securityType,
+        let data = filtered.map(s => [s.ticker, s.equityType,
             sizeBy === 'marketValue' ? s[sizeBy] : s[sizeBy] * 100,
             colorBy === 'priceToSalesNtm' ? s[colorBy] : s[colorBy] * 100])
         // Add the column labels we need for the tree parents.

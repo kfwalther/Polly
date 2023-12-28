@@ -2,11 +2,11 @@ package finance
 
 import "time"
 
-// Definition of a security to hold the transactions for a particular stock/ETF.
+// Definition of a equity to hold the transactions for a particular stock/ETF.
 type PortfolioSummary struct {
 	// Includes current cash balance as well.
 	TotalMarketValue         float64   `json:"totalMarketValue"`
-	TotalSecurities          float64   `json:"totalSecurities"`
+	TotalEquities            float64   `json:"totalEquities"`
 	TotalCostBasis           float64   `json:"totalCostBasis"`
 	PercentageGain           float64   `json:"percentageGain"`
 	DailyGain                float64   `json:"dailyGain"`

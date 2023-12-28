@@ -35,9 +35,9 @@ export default class MainPage extends React.Component {
     // Fetch the stock list from the server.
     serverRequest() {
         console.log('Refreshing data...')
-        fetch("http://" + process.env.REACT_APP_API_BASE_URL + "/securities")
+        fetch("http://" + process.env.REACT_APP_API_BASE_URL + "/equities")
             .then(response => response.json())
-            .then(resp => this.setState({ stockList: resp["securities"] }))
+            .then(resp => this.setState({ stockList: resp["equities"] }))
         fetch("http://" + process.env.REACT_APP_API_BASE_URL + "/summary")
             .then(response => response.json())
             .then(resp => {
@@ -57,7 +57,7 @@ export default class MainPage extends React.Component {
     buttonClick = () => {
         // Copy the top-25 to clipboard.
         const listToExport = this.state.stockList
-        .filter(s => (parseFloat(s.marketValue) > 0.0 && s.securityType == 'Stock'))
+        .filter(s => (parseFloat(s.marketValue) > 0.0 && s.equityType == 'Stock'))
         .sort((a, b) => b.marketValue - a.marketValue)
         .slice(0, 25)
         .map(s => '$' + s.ticker)
@@ -88,7 +88,7 @@ export default class MainPage extends React.Component {
     assignTickerColors() {
         // Sort the stocks/ETFs we currently own by current market value, and map them to the colors above.
         this.tickerMap = new Map(
-            // Filter out securities we no longer own.
+            // Filter out equities we no longer own.
             this.state.stockList.filter(s => (parseFloat(s.marketValue) > 0.0)
             ).sort(
                 // Sort the remaining by current value
@@ -195,7 +195,7 @@ export default class MainPage extends React.Component {
                         </Button>
                     </div>
                 </div>
-                <h3 className="header-left">{'My Holdings (' + this.state.stockPortfolioSummary.totalSecurities + ' Stocks)'}</h3>
+                <h3 className="header-left">{'My Holdings (' + this.state.stockPortfolioSummary.totalEquities + ' Stocks)'}</h3>
                 {/* Display our current holdings in a bar chart. */}
                 <StockBarChart
                     chartData={this.state.stockList}
@@ -225,10 +225,10 @@ export default class MainPage extends React.Component {
                 <PortfolioHoldingsTable
                     holdingsData={this.state.isCurrentOnlyChecked ?
                         this.state.isStocksOnlyChecked ?
-                            this.state.stockList.filter(s => s.currentlyHeld && s.securityType === "Stock") :
+                            this.state.stockList.filter(s => s.currentlyHeld && s.equityType === "Stock") :
                             this.state.stockList.filter(s => s.currentlyHeld) :
                         this.state.isStocksOnlyChecked ?
-                            this.state.stockList.filter(s => s.securityType === "Stock") :
+                            this.state.stockList.filter(s => s.equityType === "Stock") :
                             this.state.stockList
                     }
                     totalPortfolioValue={this.state.isStocksOnlyChecked ? 
