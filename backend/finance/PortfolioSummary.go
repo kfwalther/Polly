@@ -12,6 +12,7 @@ type PortfolioSummary struct {
 	DailyGain                float64   `json:"dailyGain"`
 	YearToDatePercentageGain float64   `json:"yearToDatePercentageGain"`
 	LastUpdated              time.Time `json:"lastUpdated"`
+	MarketValueJan1          float64   `json:"marketValueJan1"`
 }
 
 // Constructor for a new PortfolioSummary object.

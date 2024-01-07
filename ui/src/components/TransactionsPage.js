@@ -131,7 +131,7 @@ export default function TransactionsPage() {
     const [isLoading, setIsLoading] = useState(false);
     const [isShowCashChecked, setIsShowCashChecked] = useState(false);
     // Define a plot title descriptor.
-    const [plotDesc, setPlotDesc] = useState('Total Portfolio')
+    const [plotDesc, setPlotDesc] = useState('Stock Portfolio')
     // Define the current and max value plotted on the chart.
     const [curValue, setCurValue] = useState(0.0)
     const [maxValue, setMaxValue] = useState(0.0)
@@ -166,7 +166,7 @@ export default function TransactionsPage() {
 
     // Simple function to perform async fetch of history data.
     function getEquities() {
-        return fetch("http://" + process.env.REACT_APP_API_BASE_URL + "/equities")
+        return fetch("http://" + process.env.REACT_APP_API_BASE_URL + "/equities/stock")
             .then(resp => resp.json())
             .then(json => json["equities"])
     }

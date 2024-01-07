@@ -102,12 +102,11 @@ type EquityCatalogue struct {
 	sp500quotes       quote.Quote
 	sheetMgr          *GoogleSheetManager
 	dbClient          *data.MongoDbClient
-	fullSummary       *PortfolioSummary
-	stockSummary      *PortfolioSummary
+	portfolioSummary  *PortfolioSummary
 	progressWebSocket *websocket.Conn
 	equities          map[string]*Equity
 	transactions      []Transaction
-	cashFlowYtd       float64
+	CashFlowYtd       float64
 	PortfolioHistory  map[time.Time]float64 `json:"portfolioHistory"`
 }
 
@@ -122,16 +121,14 @@ func NewEquityCatalogue(sheetMgr *GoogleSheetManager, dbClient *data.MongoDbClie
 	ec.equities = make(map[string]*Equity)
 	ec.transactions = make([]Transaction, 0)
 	ec.PortfolioHistory = make(map[time.Time]float64)
-	ec.fullSummary = NewPortfolioSummary()
-	ec.stockSummary = NewPortfolioSummary()
+	ec.portfolioSummary = NewPortfolioSummary()
 	ec.progressWebSocket = nil
 	return &ec
 }
 
 // Return the full portfolio summary followed by the stock-only portfolio summary.
-func (ec *EquityCatalogue) GetPortfolioSummary() []PortfolioSummary {
-	summaries := []PortfolioSummary{*ec.fullSummary, *ec.stockSummary}
-	return summaries
+func (ec *EquityCatalogue) GetPortfolioSummary() *PortfolioSummary {
+	return ec.portfolioSummary
 }
 
 func (ec *EquityCatalogue) GetEquityList() []*Equity {
@@ -165,24 +162,13 @@ func (ec *EquityCatalogue) SendProgressUpdate(progressPercent float64) {
 }
 
 // Re-run the Google Sheets retrieval and portfolio calculations again to refresh all data.
-func (ec *EquityCatalogue) Refresh(progressSocket *websocket.Conn) int {
+func (ec *EquityCatalogue) Refresh(progressSocket *websocket.Conn) {
 	// Re-init the data structures for this class.
 	ec.equities = make(map[string]*Equity)
 	ec.transactions = make([]Transaction, 0)
 	ec.PortfolioHistory = make(map[time.Time]float64)
-	ec.fullSummary = NewPortfolioSummary()
-	ec.stockSummary = NewPortfolioSummary()
+	ec.portfolioSummary = NewPortfolioSummary()
 	ec.progressWebSocket = progressSocket
-	// Re-read from transactions sheet.
-	txns := ec.sheetMgr.GetTransactionData()
-	ec.SendProgressUpdate(3.0)
-	// Re-process the imported data to organize it by ticker.
-	ec.ProcessImport(txns.Values)
-	log.Printf("Number of transactions processed: %d", len(txns.Values))
-	// Calculate metrics for each stock.
-	ec.Calculate()
-	ec.SendProgressUpdate(100.0)
-	return len(txns.Values)
 }
 
 // Method to process the imported data, by creating a new [Transaction] for
@@ -212,7 +198,6 @@ func (ec *EquityCatalogue) ProcessImport(txnData [][]interface{}) {
 			}
 		}
 	}
-	ec.SendProgressUpdate(5.0)
 }
 
 // Retrieves data from Yahoo for the given ticker, and stores the data in the DB.
@@ -264,7 +249,7 @@ func (ec *EquityCatalogue) AccumulateValueHistory(stockHistory map[int64]float64
 // Iterate through every txn to calculate the cash balance history in the portfolio.
 func (ec *EquityCatalogue) CalculateCashBalanceHistory(firstTradeDay time.Time) {
 	curCashAmount := 0.0
-	ec.cashFlowYtd = 0.0
+	ec.CashFlowYtd = 0.0
 	// Order the transactions by date, using anonymous function.
 	sort.Slice(ec.transactions, func(i, j int) bool {
 		return ec.transactions[i].DateTime.Before(ec.transactions[j].DateTime)
@@ -279,9 +264,9 @@ func (ec *EquityCatalogue) CalculateCashBalanceHistory(firstTradeDay time.Time) 
 		// Keep track of portfolio cash flow YTD.
 		if txn.DateTime.After(firstTradeDay) {
 			if txn.Action == "Deposit" {
-				ec.cashFlowYtd += txn.Value
+				ec.CashFlowYtd += txn.Value
 			} else if txn.Action == "Withdraw" {
-				ec.cashFlowYtd -= txn.Value
+				ec.CashFlowYtd -= txn.Value
 			}
 		}
 	}
@@ -290,48 +275,30 @@ func (ec *EquityCatalogue) CalculateCashBalanceHistory(firstTradeDay time.Time) 
 
 // Iterate through each equity to calculate summary metrics across the entire portfolio.
 func (ec *EquityCatalogue) CalculatePortfolioSummaryMetrics(firstTradeDay time.Time) {
-	fullPortfolioMarketValueJan1 := 0.0
-	stockPortfolioMarketValueJan1 := 0.0
+	ec.portfolioSummary.MarketValueJan1 = 0.0
 	for _, s := range ec.equities {
 		if s.Ticker != "CASH" {
 			// s.DisplayMetrics()
 			// Add this equity's value history to the portfolio total.
 			ec.AccumulateValueHistory(s.ValueHistory)
-			ec.fullSummary.TotalMarketValue += s.MarketValue
-			ec.fullSummary.TotalCostBasis += s.TotalCostBasis
-			ec.fullSummary.DailyGain += s.DailyGain
+			ec.portfolioSummary.TotalMarketValue += s.MarketValue
+			ec.portfolioSummary.TotalCostBasis += s.TotalCostBasis
+			ec.portfolioSummary.DailyGain += s.DailyGain
 			if s.CurrentlyHeld {
-				ec.fullSummary.TotalEquities++
-			}
-			if s.EquityType == "Stock" {
-				ec.stockSummary.TotalMarketValue += s.MarketValue
-				ec.stockSummary.TotalCostBasis += s.TotalCostBasis
-				ec.stockSummary.DailyGain += s.DailyGain
-				if s.CurrentlyHeld {
-					ec.stockSummary.TotalEquities++
-				}
+				ec.portfolioSummary.TotalEquities++
 			}
 		} else {
 			// For cash, just track the current balance in the summary.
-			ec.fullSummary.TotalMarketValue += s.MarketValue
-			ec.stockSummary.TotalMarketValue += s.MarketValue
+			ec.portfolioSummary.TotalMarketValue += s.MarketValue
 		}
-		fullPortfolioMarketValueJan1 += s.GetMarketValueOnDate(firstTradeDay)
-		if s.EquityType == "Cash" || s.EquityType == "Stock" {
-			stockPortfolioMarketValueJan1 += s.GetMarketValueOnDate(firstTradeDay)
-		}
+		ec.portfolioSummary.MarketValueJan1 += s.GetMarketValueOnDate(firstTradeDay)
 	}
 	// Store the last updated time, and percentage gain.
-	ec.fullSummary.LastUpdated = time.Now()
-	ec.stockSummary.LastUpdated = time.Now()
-	if ec.fullSummary.TotalCostBasis > 0.001 {
-		ec.fullSummary.PercentageGain = ((ec.fullSummary.TotalMarketValue - ec.fullSummary.TotalCostBasis) / ec.fullSummary.TotalCostBasis) * 100.0
+	ec.portfolioSummary.LastUpdated = time.Now()
+	if ec.portfolioSummary.TotalCostBasis > 0.001 {
+		ec.portfolioSummary.PercentageGain = ((ec.portfolioSummary.TotalMarketValue - ec.portfolioSummary.TotalCostBasis) / ec.portfolioSummary.TotalCostBasis) * 100.0
 	}
-	if ec.stockSummary.TotalCostBasis > 0.001 {
-		ec.stockSummary.PercentageGain = ((ec.stockSummary.TotalMarketValue - ec.stockSummary.TotalCostBasis) / ec.stockSummary.TotalCostBasis) * 100.0
-	}
-	ec.fullSummary.YearToDatePercentageGain = (ec.fullSummary.TotalMarketValue/(fullPortfolioMarketValueJan1+ec.cashFlowYtd) - 1) * 100.0
-	ec.stockSummary.YearToDatePercentageGain = (ec.stockSummary.TotalMarketValue/(stockPortfolioMarketValueJan1+ec.cashFlowYtd) - 1) * 100.0
+	ec.portfolioSummary.YearToDatePercentageGain = (ec.portfolioSummary.TotalMarketValue/(ec.portfolioSummary.MarketValueJan1+ec.CashFlowYtd) - 1) * 100.0
 }
 
 // Kicks off async functions in go-routines to calculate metrics for each equity
@@ -341,7 +308,6 @@ func (ec *EquityCatalogue) Calculate() {
 	// Define a dummy SPY transaction to pass in, the date is what the function requires.
 	ec.RefreshStockHistory(&[]Transaction{*NewTransaction("2015-01-01", "SPY", "Buy", "1", "100.0")}, true)
 	ec.sp500quotes = ec.dbClient.GetTickerData("SPY")
-	ec.SendProgressUpdate(8.0)
 
 	// Get the tickers for all equities we've ever owned in comma-separated list.
 	tickers := make([]string, 0, len(ec.equities))
@@ -355,7 +321,6 @@ func (ec *EquityCatalogue) Calculate() {
 	log.Printf("Querying Yahoo finance for %d equities...\n", len(tickers))
 	// Use Python yFinance module to query data for all tickers at once.
 	allStocksData := ec.yFinInterface.GetTickerData(tickerList)
-	ec.SendProgressUpdate(35.0)
 
 	// Setup a wait group.
 	var waitGroup sync.WaitGroup
@@ -380,10 +345,9 @@ func (ec *EquityCatalogue) Calculate() {
 
 	// Wait/monitor until all work is complete.
 	waitGroup.Wait()
-	ec.SendProgressUpdate(95.0)
 
 	// Define the first trading day of the year to reference for YTD calculations.
-	firstTradeDay := time.Date(time.Now().Year(), time.January, 3, 0, 0, 0, 0, time.UTC)
+	firstTradeDay := time.Date(time.Now().Year(), time.January, 2, 0, 0, 0, 0, time.UTC)
 
 	// Calculate the cash balance history in our portfolio.
 	ec.CalculateCashBalanceHistory(firstTradeDay)
@@ -392,8 +356,8 @@ func (ec *EquityCatalogue) Calculate() {
 	ec.CalculatePortfolioSummaryMetrics(firstTradeDay)
 
 	log.Println("---------------------------------")
-	log.Printf("Total Market Value: $%f", ec.fullSummary.TotalMarketValue)
-	log.Printf("Percentage Gain/Loss: %f%%", ec.fullSummary.PercentageGain)
-	log.Printf("Cash Flow YTD: $%f", ec.cashFlowYtd)
+	log.Printf("Total Market Value: $%f", ec.portfolioSummary.TotalMarketValue)
+	log.Printf("Percentage Gain/Loss: %f%%", ec.portfolioSummary.PercentageGain)
+	log.Printf("Cash Flow YTD: $%f", ec.CashFlowYtd)
 	log.Println("---------------------------------")
 }

@@ -16,11 +16,10 @@ function App() {
       <NavHeader />
       { /* Based on the selected route path, load a specific page. Index page is the default. */}
       <Routes>
-        <Route path="/*">
-          <Route index element={<MainPage/>} />
-          <Route path='refresh' element={<RefreshPage/>} />
-          <Route path='transactions' element={<TransactionsPage />} />
-        </Route>
+        <Route exact path='/' element={<MainPage/>} />
+        <Route path='/home/:category' element={<MainPage/>} />
+        <Route path='/refresh' element={<RefreshPage/>} />
+        <Route path='/transactions' element={<TransactionsPage />} />
       </Routes>
     </>
   )

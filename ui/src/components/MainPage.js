@@ -5,20 +5,19 @@ import StockBarChart from './StockBarChart'
 import Checkbox from './Checkbox'
 import { Button } from '@mui/material';
 import Select from 'react-select';
+import { useParams } from "react-router-dom";
 import PortfolioSummary from './PortfolioSummary';
 import { PortfolioHoldingsTable } from './PortfolioHoldingsTable'
 import { PortfolioMapChart, PortfolioMapSizeSelectOptions, PortfolioMapColorSelectOptions} from './PortfolioMapChart'
 
 // Defines the Main Page of our app.
-export default class MainPage extends React.Component {
+class MainPage extends React.Component {
     // The MainPage constructor.
     constructor(props) {
         super(props);
         this.state = {
             stockList: [],
-            fullPortfolioSummary: {},
-            stockPortfolioSummary: {},
-            isStocksOnlyChecked: true,
+            portfolioSummary: {},
             isIncludeCashBalanceChecked: true,
             isCurrentOnlyChecked: true,
             portfolioMapSizeSelection: 'marketValue',
@@ -28,6 +27,12 @@ export default class MainPage extends React.Component {
         this.renderStockCharts = this.renderStockCharts.bind(this);
         this.render = this.render.bind(this);
         this.tickerMap = {}
+
+        if ((this.props.params.category === 'stock') | (this.props.params.category === 'etf') | (this.props.params.category === 'full')) {
+            this.dataCategory = this.props.params.category
+        } else {
+            this.dataCategory = 'stock'
+        }
         // Assign this instance to a global variable.
         window.stockList = this;
     }
@@ -35,15 +40,12 @@ export default class MainPage extends React.Component {
     // Fetch the stock list from the server.
     serverRequest() {
         console.log('Refreshing data...')
-        fetch("http://" + process.env.REACT_APP_API_BASE_URL + "/equities")
+        fetch("http://" + process.env.REACT_APP_API_BASE_URL + "/equities/" + this.dataCategory)
             .then(response => response.json())
             .then(resp => this.setState({ stockList: resp["equities"] }))
-        fetch("http://" + process.env.REACT_APP_API_BASE_URL + "/summary")
+        fetch("http://" + process.env.REACT_APP_API_BASE_URL + "/summary/" + this.dataCategory)
             .then(response => response.json())
-            .then(resp => {
-                this.setState({ fullPortfolioSummary: resp["summary"][0] })
-                this.setState({ stockPortfolioSummary: resp["summary"][1] })
-            })
+            .then(resp => this.setState({ portfolioSummary: resp["summary"] }))
     }
 
     // Runs on component mount, to grab data from the server.
@@ -53,11 +55,19 @@ export default class MainPage extends React.Component {
         this.serverRequest();
     }
 
+    // If data category is changed via Navbar, reload the data.
+    componentDidUpdate(prevProps) {
+        // Check if category was changed so the page refreshes.
+        if( this.props.params.category !== prevProps.params.category ){
+            this.dataCategory = this.props.params.category
+            this.serverRequest();
+        };
+    }
     
     buttonClick = () => {
         // Copy the top-25 to clipboard.
         const listToExport = this.state.stockList
-        .filter(s => (parseFloat(s.marketValue) > 0.0 && s.equityType == 'Stock'))
+        .filter(s => (parseFloat(s.marketValue) > 0.0 && s.equityType === 'Stock'))
         .sort((a, b) => b.marketValue - a.marketValue)
         .slice(0, 25)
         .map(s => '$' + s.ticker)
@@ -66,9 +76,6 @@ export default class MainPage extends React.Component {
     }
     
     // Save the new checked state of the checkboxes.
-    onStocksOnlyCheckboxClick = checked => {
-        this.setState({ isStocksOnlyChecked: checked })
-    }
     onIncludeCashBalanceCheckboxClick = checked => {
         this.setState({ isIncludeCashBalanceChecked: checked })
     }
@@ -114,23 +121,14 @@ export default class MainPage extends React.Component {
         }
         // Calculate some displayed values based on the current checkbox config.
         var cashBalance = this.state.stockList.find(s => s.ticker === 'CASH').marketValue
-        var marketValuePieChart = toUSD(this.state.isStocksOnlyChecked ? 
-                this.state.isIncludeCashBalanceChecked ? 
-                        this.state.stockPortfolioSummary.totalMarketValue :
-                        this.state.stockPortfolioSummary.totalMarketValue - cashBalance
-                    : 
-                this.state.isIncludeCashBalanceChecked ? 
-                    this.state.fullPortfolioSummary.totalMarketValue :
-                    this.state.fullPortfolioSummary.totalMarketValue - cashBalance)
-        var costBasisPieChart = toUSD(this.state.isStocksOnlyChecked ? 
-                this.state.stockPortfolioSummary.totalCostBasis :
-                this.state.fullPortfolioSummary.totalCostBasis)
+        var marketValuePieChart = toUSD(this.state.isIncludeCashBalanceChecked ? 
+                    this.state.portfolioSummary.totalMarketValue :
+                    this.state.portfolioSummary.totalMarketValue - cashBalance)
+        var costBasisPieChart = toUSD(this.state.portfolioSummary.totalCostBasis)
         // Render the stock charts and tables for the main page.
         return (
             <>
-                <PortfolioSummary summaryData={
-                    this.state.isStocksOnlyChecked ? this.state.stockPortfolioSummary : this.state.fullPortfolioSummary
-                } />
+                <PortfolioSummary summaryData={this.state.portfolioSummary} />
                 <br></br>
                 <h3 className="header-centered">Portfolio Composition</h3>
                 {/* Put the two pie charts in a div container so they sit horizontally adjacent. */}
@@ -139,7 +137,7 @@ export default class MainPage extends React.Component {
                         <StockPieChart
                             chartData={this.state.stockList}
                             displayDataset="marketValue"
-                            stocksOnly={this.state.isStocksOnlyChecked}
+                            stocksOnly={false}
                             includeCash={this.state.isIncludeCashBalanceChecked}
                             title={marketValuePieChart}
                             titleDesc={"Market Value"}
@@ -150,7 +148,7 @@ export default class MainPage extends React.Component {
                         <StockPieChart
                             chartData={this.state.stockList}
                             displayDataset="totalCostBasis"
-                            stocksOnly={this.state.isStocksOnlyChecked}
+                            stocksOnly={false}
                             includeCash={this.state.isIncludeCashBalanceChecked}
                             title={costBasisPieChart}
                             titleDesc={"Cost Basis"}
@@ -159,14 +157,6 @@ export default class MainPage extends React.Component {
                     </div>
                 </div>
                 <div className="checkbox-horiz-container">
-                    <div className="config-checkbox-div">
-                        <Checkbox
-                            label="Stocks Only"
-                            checked={this.state.isStocksOnlyChecked}
-                            onClick={this.onStocksOnlyCheckboxClick}
-                            marginLeftVal="20px"
-                        />
-                    </div>
                     <div className="config-checkbox-div">
                         <Checkbox
                             label="Display Cash Balance"
@@ -195,7 +185,7 @@ export default class MainPage extends React.Component {
                         </Button>
                     </div>
                 </div>
-                <h3 className="header-left">{'My Holdings (' + this.state.stockPortfolioSummary.totalEquities + ' Stocks)'}</h3>
+                <h3 className="header-left">{'My Holdings (' + this.state.portfolioSummary.totalEquities + ' Stocks)'}</h3>
                 {/* Display our current holdings in a bar chart. */}
                 <StockBarChart
                     chartData={this.state.stockList}
@@ -224,17 +214,9 @@ export default class MainPage extends React.Component {
                 {/* Display all the stocks/ETFs in a sortable table, account for user filtering selections. */}
                 <PortfolioHoldingsTable
                     holdingsData={this.state.isCurrentOnlyChecked ?
-                        this.state.isStocksOnlyChecked ?
-                            this.state.stockList.filter(s => s.currentlyHeld && s.equityType === "Stock") :
-                            this.state.stockList.filter(s => s.currentlyHeld) :
-                        this.state.isStocksOnlyChecked ?
-                            this.state.stockList.filter(s => s.equityType === "Stock") :
-                            this.state.stockList
+                            this.state.stockList.filter(s => s.currentlyHeld) : this.state.stockList
                     }
-                    totalPortfolioValue={this.state.isStocksOnlyChecked ? 
-                        this.state.stockPortfolioSummary.totalMarketValue : 
-                        this.state.fullPortfolioSummary.totalMarketValue
-                    }
+                    totalPortfolioValue={this.state.portfolioSummary.totalMarketValue}
                 />
             </>
         )
@@ -249,3 +231,10 @@ export default class MainPage extends React.Component {
         )
     }
 }
+
+export default (props) => (
+    <MainPage
+        {...props}
+        params={useParams()}
+    />
+);

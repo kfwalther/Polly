@@ -47,8 +47,17 @@ func NewGoogleSheetManager(httpClient *http.Client, ctx *context.Context, sheetI
 	return &mgr
 }
 
-func (mgr *GoogleSheetManager) GetTransactionData() *sheets.ValueRange {
-	resp := mgr.getSheetData(mgr.sheetIds[0], "TransactionList!A2:G")
+func (mgr *GoogleSheetManager) GetStockTransactionData() *sheets.ValueRange {
+	resp := mgr.getSheetData(mgr.sheetIds[0], "Stocks!A2:G")
+	// Check if we parsed any data from the spreadsheet.
+	if len(resp.Values) == 0 {
+		log.Fatalf("No transaction data found in spreadsheet... Exiting!")
+	}
+	return resp
+}
+
+func (mgr *GoogleSheetManager) GetEtfTransactionData() *sheets.ValueRange {
+	resp := mgr.getSheetData(mgr.sheetIds[0], "ETFs!A2:G")
 	// Check if we parsed any data from the spreadsheet.
 	if len(resp.Values) == 0 {
 		log.Fatalf("No transaction data found in spreadsheet... Exiting!")
