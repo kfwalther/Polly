@@ -18,8 +18,8 @@ function App() {
       <Routes>
         <Route exact path='/' element={<MainPage/>} />
         <Route path='/home/:category' element={<MainPage/>} />
-        <Route path='/refresh' element={<RefreshPage/>} />
         <Route path='/transactions' element={<TransactionsPage />} />
+        <Route path='/refresh' element={<RefreshPage/>} />
       </Routes>
     </>
   )
