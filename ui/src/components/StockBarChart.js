@@ -5,7 +5,7 @@ export default function StockBarChart({ chartData, chartOptions }) {
 
     function getFilteredChartData() {
         // Filter for only non-zero equities.
-        let filtered = chartData.filter(s => (s.marketValue > 0.0 && s.equityType === "Stock"));
+        let filtered = chartData.filter(s => (s.marketValue > 0.0));
         // Sort the stocks by the dataset being displayed.
         let sorted = filtered.sort((a, b) => b.unrealizedGain - a.unrealizedGain);
         // Put the sorted values in an array, and add a column header.

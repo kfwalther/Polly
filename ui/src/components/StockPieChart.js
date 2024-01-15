@@ -35,7 +35,7 @@ export const PieChartColors = [
 ]
 
 // Returns a pie chart of stocks, after filtering, with an underlay label in the center of the pie.
-export function StockPieChart({ chartData, displayDataset, stocksOnly, includeCash, title, titleDesc, tickerColors }) {
+export function StockPieChart({ chartData, displayDataset, includeCash, title, titleDesc, tickerColors }) {
 
     var orderedColors = []
     // Define the options for this pie chart.
@@ -54,10 +54,6 @@ export function StockPieChart({ chartData, displayDataset, stocksOnly, includeCa
         let filtered = chartData.filter(s => (s[displayDataset] > 0.0));
         if (!includeCash) {
             filtered = filtered.filter(s => s.equityType !== "Cash");
-        }
-        // Check if we should be filtering for only stocks too.
-        if (stocksOnly) {
-            filtered = filtered.filter(s => s.equityType !== "Mutual Fund" && s.equityType !== "ETF");
         }
         // Sort the stocks by the dataset being displayed.
         let sorted = filtered.sort((a, b) => b[displayDataset] - a[displayDataset]);

@@ -16,7 +16,7 @@ class MainPage extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
-            stockList: [],
+            equityList: [],
             portfolioSummary: {},
             isIncludeCashBalanceChecked: true,
             isCurrentOnlyChecked: true,
@@ -27,14 +27,9 @@ class MainPage extends React.Component {
         this.renderStockCharts = this.renderStockCharts.bind(this);
         this.render = this.render.bind(this);
         this.tickerMap = {}
-
-        if ((this.props.params.category === 'stock') | (this.props.params.category === 'etf') | (this.props.params.category === 'full')) {
-            this.dataCategory = this.props.params.category
-        } else {
-            this.dataCategory = 'stock'
-        }
+        this.dataCategory = this.props.params.category ? this.props.params.category : 'stock'
         // Assign this instance to a global variable.
-        window.stockList = this;
+        window.equityList = this;
     }
 
     // Fetch the stock list from the server.
@@ -42,7 +37,7 @@ class MainPage extends React.Component {
         console.log('Refreshing data...')
         fetch("http://" + process.env.REACT_APP_API_BASE_URL + "/equities/" + this.dataCategory)
             .then(response => response.json())
-            .then(resp => this.setState({ stockList: resp["equities"] }))
+            .then(resp => this.setState({ equityList: resp["equities"] }))
         fetch("http://" + process.env.REACT_APP_API_BASE_URL + "/summary/" + this.dataCategory)
             .then(response => response.json())
             .then(resp => this.setState({ portfolioSummary: resp["summary"] }))
@@ -63,10 +58,10 @@ class MainPage extends React.Component {
             this.serverRequest();
         };
     }
-    
+
     buttonClick = () => {
         // Copy the top-25 to clipboard.
-        const listToExport = this.state.stockList
+        const listToExport = this.state.equityList
         .filter(s => (parseFloat(s.marketValue) > 0.0 && s.equityType === 'Stock'))
         .sort((a, b) => b.marketValue - a.marketValue)
         .slice(0, 25)
@@ -74,7 +69,7 @@ class MainPage extends React.Component {
         .join(' ')
         window.prompt('Copy to clipboard: Ctrl+C, Enter', listToExport)
     }
-    
+
     // Save the new checked state of the checkboxes.
     onIncludeCashBalanceCheckboxClick = checked => {
         this.setState({ isIncludeCashBalanceChecked: checked })
@@ -93,10 +88,10 @@ class MainPage extends React.Component {
 
     // Helper function to map colors to our current list of stocks, sorted by market value.
     assignTickerColors() {
-        // Sort the stocks/ETFs we currently own by current market value, and map them to the colors above.
+        // Sort the equities we currently own by current market value, and map them to the colors above.
         this.tickerMap = new Map(
             // Filter out equities we no longer own.
-            this.state.stockList.filter(s => (parseFloat(s.marketValue) > 0.0)
+            this.state.equityList.filter(s => (parseFloat(s.marketValue) > 0.0)
             ).sort(
                 // Sort the remaining by current value
                 (a, b) => b.marketValue - a.marketValue
@@ -120,8 +115,8 @@ class MainPage extends React.Component {
             bar: { groupWidth: '40%' }
         }
         // Calculate some displayed values based on the current checkbox config.
-        var cashBalance = this.state.stockList.find(s => s.ticker === 'CASH').marketValue
-        var marketValuePieChart = toUSD(this.state.isIncludeCashBalanceChecked ? 
+        var cashBalance = this.state.equityList.find(s => s.ticker === 'CASH').marketValue
+        var marketValuePieChart = toUSD(this.state.isIncludeCashBalanceChecked ?
                     this.state.portfolioSummary.totalMarketValue :
                     this.state.portfolioSummary.totalMarketValue - cashBalance)
         var costBasisPieChart = toUSD(this.state.portfolioSummary.totalCostBasis)
@@ -135,9 +130,8 @@ class MainPage extends React.Component {
                 <div className="charts-container">
                     <div className="chart-marketvalue">
                         <StockPieChart
-                            chartData={this.state.stockList}
+                            chartData={this.state.equityList}
                             displayDataset="marketValue"
-                            stocksOnly={false}
                             includeCash={this.state.isIncludeCashBalanceChecked}
                             title={marketValuePieChart}
                             titleDesc={"Market Value"}
@@ -146,9 +140,8 @@ class MainPage extends React.Component {
                     </div>
                     <div className="chart-costbasis">
                         <StockPieChart
-                            chartData={this.state.stockList}
+                            chartData={this.state.equityList}
                             displayDataset="totalCostBasis"
-                            stocksOnly={false}
                             includeCash={this.state.isIncludeCashBalanceChecked}
                             title={costBasisPieChart}
                             titleDesc={"Cost Basis"}
@@ -175,9 +168,9 @@ class MainPage extends React.Component {
                     </div>
                     <div className="config-checkbox-div">
                         {/* Display a button to export the top 25 stock names. */}
-                        <Button 
-                            className="export-button" 
-                            variant="contained" 
+                        <Button
+                            className="export-button"
+                            variant="contained"
                             color="info"
                             onClick={this.buttonClick}
                         >
@@ -188,33 +181,33 @@ class MainPage extends React.Component {
                 <h3 className="header-left">{'My Holdings (' + this.state.portfolioSummary.totalEquities + ' Stocks)'}</h3>
                 {/* Display our current holdings in a bar chart. */}
                 <StockBarChart
-                    chartData={this.state.stockList}
+                    chartData={this.state.equityList}
                     chartOptions={barChartOptions}
                 />
                 <div className="portfoliomap-picker-container">
                     <h4 className='portfoliomap-size-picker-label'>Size by: </h4>
-                    <Select 
-                        options={PortfolioMapSizeSelectOptions} 
+                    <Select
+                        options={PortfolioMapSizeSelectOptions}
                         onChange={this.refreshPortfolioMapSize}
-                        defaultValue={PortfolioMapSizeSelectOptions.filter(o => o.label === 'Market Value')} 
+                        defaultValue={PortfolioMapSizeSelectOptions.filter(o => o.label === 'Market Value')}
                     />
                     <h4 className='portfoliomap-color-picker-label'>Color by: </h4>
-                    <Select 
-                        options={PortfolioMapColorSelectOptions} 
+                    <Select
+                        options={PortfolioMapColorSelectOptions}
                         onChange={this.refreshPortfolioMapColor}
                         defaultValue={PortfolioMapColorSelectOptions.filter(o => o.label === 'Growth Rate TTM')}
                     />
                 </div>
                 {/* Display our current holdings in a portfolio map chart also. */}
                 <PortfolioMapChart
-                    chartData={this.state.stockList}
+                    chartData={this.state.equityList}
                     sizeBy={this.state.portfolioMapSizeSelection}
                     colorBy={this.state.portfolioMapColorSelection}
                 />
                 {/* Display all the stocks/ETFs in a sortable table, account for user filtering selections. */}
                 <PortfolioHoldingsTable
                     holdingsData={this.state.isCurrentOnlyChecked ?
-                            this.state.stockList.filter(s => s.currentlyHeld) : this.state.stockList
+                            this.state.equityList.filter(s => s.currentlyHeld) : this.state.equityList
                     }
                     totalPortfolioValue={this.state.portfolioSummary.totalMarketValue}
                 />
@@ -226,7 +219,7 @@ class MainPage extends React.Component {
     render() {
         const curState = this.state
         // TODO: Improve this loading prompt...
-        return curState.stockList.length ? this.renderStockCharts() : (
+        return curState.equityList.length ? this.renderStockCharts() : (
             <span>LOADING STOCKS...</span>
         )
     }

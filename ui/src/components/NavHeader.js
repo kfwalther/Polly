@@ -15,14 +15,15 @@ export const NavHeader = () => {
                     <Nav className="nav-header">
                         {/* Use Link from react-router-dom to define the routing links. */}
                         <NavDropdown
-                                title="Home" 
-                                id="collapsible-nav-dropdown" 
+                                title="Home"
+                                id="collapsible-nav-dropdown"
                                 className="vertical-dropdown"
                                 onToggle={() => setExpanded(!expanded)}
                                 show={expanded}
                                 >
                             <NavDropdown.Item as={NavLink} to="/home/stock">Stocks</NavDropdown.Item>
                             <NavDropdown.Item as={NavLink} to="/home/etf">ETFs</NavDropdown.Item>
+                            <NavDropdown.Item as={NavLink} to="/home/crypto">Crypto</NavDropdown.Item>
                             <NavDropdown.Item as={NavLink} to="/home/full">Full</NavDropdown.Item>
                         </NavDropdown>
                         <Link to="/transactions" className="nav-item">Transactions & Performance</Link>
