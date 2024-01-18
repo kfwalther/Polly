@@ -68,7 +68,7 @@ type Equity struct {
 // Constructor for a new Equity object.
 func NewEquity(tkr string, eqType string) (*Equity, error) {
 	// Validate the equity type before creating the object.
-	if eqType != "Stock" && eqType != "ETF" && eqType != "Mutual Fund" && eqType != "Cash" {
+	if eqType != "Stock" && eqType != "ETF" && eqType != "Mutual Fund" && eqType != "Crypto" && eqType != "Cash" {
 		return nil, errors.New("Could not create Equity. Invalid equity type (" + eqType + ") for " + tkr)
 	}
 	var s Equity
@@ -143,6 +143,15 @@ func (s *Equity) GetQuoteOfSP500(quoteDate time.Time) float64 {
 			// Likely don't have today's S&P500 quote queried yet, just return the latest quote.
 			return s.sp500History.Close[len(s.sp500History.Close)-1]
 		} else {
+			// Transaction likely occurred on a weekend. Try +/-1 day.
+			idxMinusOne := indexOf(getUtcDate(quoteDate.Add(time.Duration(-24)*time.Hour)), s.sp500History.Date)
+			if idxMinusOne != -1 {
+				return s.sp500History.Close[idxMinusOne]
+			}
+			idxPlusOne := indexOf(getUtcDate(quoteDate.Add(24*time.Hour)), s.sp500History.Date)
+			if idxPlusOne != -1 {
+				return s.sp500History.Close[idxPlusOne]
+			}
 			log.Printf("WARNING: Could not retrieve S&P500 quote for date: %v", quoteDate)
 			return 0.0
 		}
@@ -259,15 +268,20 @@ func (s *Equity) PreProcess(sheetMgr *GoogleSheetManager, stockDataMap *map[stri
 		}
 	}
 	var stockData map[string]interface{} = nil
+	// Crypto tickers from Yahoo are searchable only with '-USD' after coin type.
+	tickerLookup := s.Ticker
+	if s.EquityType == "Crypto" {
+		tickerLookup = s.Ticker + "-USD"
+	}
 	// If Yahoo returned data for this equity, try to extract it from the JSON map.
-	if stockMapEntry, ok := (*stockDataMap)[s.Ticker]; ok {
+	if stockMapEntry, ok := (*stockDataMap)[tickerLookup]; ok {
 		if stockData, ok = stockMapEntry.(map[string]interface{}); ok {
 			curPriceName := "currentPrice"
 			if s.EquityType == "ETF" {
 				// ETFs don't have currentPrice, use navPrice instead.
 				curPriceName = "navPrice"
-			} else if s.EquityType == "Mutual Fund" {
-				// Mutual funds don't have currentPrice, use previousClose instead.
+			} else if s.EquityType == "Mutual Fund" || s.EquityType == "Crypto" {
+				// Mutual funds and crypto don't have currentPrice, use previousClose instead.
 				curPriceName = "previousClose"
 			}
 			// Save the current market price.

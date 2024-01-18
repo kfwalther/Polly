@@ -3,7 +3,6 @@ package finance
 import (
 	"log"
 	"sort"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -11,7 +10,6 @@ import (
 	"github.com/kfwalther/Polly/backend/data"
 	"github.com/markcheno/go-quote"
 
-	"github.com/gorilla/websocket"
 	"golang.org/x/exp/maps"
 )
 
@@ -98,21 +96,22 @@ var DelistedTickers = map[string][]string{
 
 // Definition of a equity catalogue to house a portfolio of stock/ETF info in a map.
 type EquityCatalogue struct {
-	yFinInterface     *YahooFinanceExtension
-	sp500quotes       quote.Quote
-	sheetMgr          *GoogleSheetManager
-	dbClient          *data.MongoDbClient
-	portfolioSummary  *PortfolioSummary
-	progressWebSocket *websocket.Conn
-	equities          map[string]*Equity
-	transactions      []Transaction
-	CashFlowYtd       float64
-	PortfolioHistory  map[time.Time]float64 `json:"portfolioHistory"`
+	yFinInterface    *YahooFinanceExtension
+	sp500quotes      quote.Quote
+	sheetMgr         *GoogleSheetManager
+	dbClient         *data.MongoDbClient
+	portfolioSummary *PortfolioSummary
+	equityType       string
+	equities         map[string]*Equity
+	transactions     []Transaction
+	CashFlowYtd      float64
+	PortfolioHistory map[time.Time]float64 `json:"portfolioHistory"`
 }
 
 // Constructor for a new EquityCatalogue object, initializing the map.
-func NewEquityCatalogue(sheetMgr *GoogleSheetManager, dbClient *data.MongoDbClient, pyScript string) *EquityCatalogue {
+func NewEquityCatalogue(equityType string, sheetMgr *GoogleSheetManager, dbClient *data.MongoDbClient, pyScript string) *EquityCatalogue {
 	var ec EquityCatalogue
+	ec.equityType = equityType
 	// Initialize the interfaces.
 	ec.yFinInterface = NewYahooFinanceExtension(pyScript)
 	ec.sheetMgr = sheetMgr
@@ -122,7 +121,6 @@ func NewEquityCatalogue(sheetMgr *GoogleSheetManager, dbClient *data.MongoDbClie
 	ec.transactions = make([]Transaction, 0)
 	ec.PortfolioHistory = make(map[time.Time]float64)
 	ec.portfolioSummary = NewPortfolioSummary()
-	ec.progressWebSocket = nil
 	return &ec
 }
 
@@ -149,26 +147,13 @@ func (ec *EquityCatalogue) GetSp500() quote.Quote {
 	return ec.sp500quotes
 }
 
-// Send progress updates to the client via the web socket, if it's initialized.
-func (ec *EquityCatalogue) SendProgressUpdate(progressPercent float64) {
-	if ec.progressWebSocket != nil {
-		percentStr := strconv.FormatFloat(progressPercent, 'E', -1, 64)
-		// Write the web socket message to the client (1% progress).
-		err := ec.progressWebSocket.WriteMessage(websocket.TextMessage, []byte(percentStr))
-		if err != nil {
-			log.Println("WARNING: Web socket write error: ", err)
-		}
-	}
-}
-
 // Re-run the Google Sheets retrieval and portfolio calculations again to refresh all data.
-func (ec *EquityCatalogue) Refresh(progressSocket *websocket.Conn) {
+func (ec *EquityCatalogue) Refresh() {
 	// Re-init the data structures for this class.
 	ec.equities = make(map[string]*Equity)
 	ec.transactions = make([]Transaction, 0)
 	ec.PortfolioHistory = make(map[time.Time]float64)
 	ec.portfolioSummary = NewPortfolioSummary()
-	ec.progressWebSocket = progressSocket
 }
 
 // Method to process the imported data, by creating a new [Transaction] for
@@ -190,7 +175,7 @@ func (ec *EquityCatalogue) ProcessImport(txnData [][]interface{}) {
 					val.transactions = append(val.transactions, *txn)
 				} else {
 					// Create a new Equity to track transactions for it, then append.
-					if sec, err := NewEquity(txn.Ticker, row[6].(string)); err == nil {
+					if sec, err := NewEquity(txn.Ticker, row[5].(string)); err == nil {
 						sec.transactions = append(sec.transactions, *txn)
 						ec.equities[txn.Ticker] = sec
 					}
@@ -202,12 +187,17 @@ func (ec *EquityCatalogue) ProcessImport(txnData [][]interface{}) {
 
 // Retrieves data from Yahoo for the given ticker, and stores the data in the DB.
 func (ec *EquityCatalogue) RetrieveAndStoreStockData(ticker string, startDate string, endDate string) {
-	log.Printf("Querying %s data from Yahoo: %s ---> %s", ticker, startDate, endDate)
-	newQuotes, err := quote.NewQuoteFromYahoo(ticker, startDate, endDate, quote.Daily, true)
+	queryTicker := ticker
+	if ec.equityType == "crypto" {
+		queryTicker = queryTicker + "-USD"
+	}
+	log.Printf("Querying %s data from Yahoo: %s ---> %s", queryTicker, startDate, endDate)
+	newQuotes, err := quote.NewQuoteFromYahoo(queryTicker, startDate, endDate, quote.Daily, true)
 	if err != nil {
-		log.Printf("WARNING: Couldn't get ticker (%s) data from Yahoo: %s", ticker, err)
+		log.Printf("WARNING: Couldn't get ticker (%s) data from Yahoo: %s", queryTicker, err)
 		return
 	}
+	newQuotes.Symbol = strings.TrimSuffix(newQuotes.Symbol, "-USD")
 	ec.dbClient.StoreTickerData(newQuotes)
 }
 
@@ -314,7 +304,11 @@ func (ec *EquityCatalogue) Calculate() {
 	for t := range ec.equities {
 		// Don't include any delisted equities.
 		if _, ok := DelistedTickers[t]; !ok {
-			tickers = append(tickers, t)
+			if ec.equityType == "crypto" {
+				tickers = append(tickers, t+"-USD")
+			} else {
+				tickers = append(tickers, t)
+			}
 		}
 	}
 	tickerList := strings.Join(tickers, ",")

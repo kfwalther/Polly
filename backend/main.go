@@ -32,12 +32,10 @@ func main() {
 	tokenFile := config.AuthTokenFile
 	// Create a new OAuth handler to manage OAuth with Google Sheets API.
 	oauthHandler := auth.NewOAuthHandler(tokenFile, oauthConfig)
-	// Define the Google Sheets IDs file.
-	sheetIdFile := config.GoogleSheetsIdsFile
 	// Name the python script to use with yfinance to grab extended stock info.
 	pyScript := "yahooFinanceHelper.py"
 	// Create a controller to manage front-end interaction.
-	ctrlr := controllers.NewPortfolioController(oauthHandler, sheetIdFile, pyScript)
+	ctrlr := controllers.NewPortfolioController(oauthHandler, config.GoogleSheetsIdsFile, pyScript)
 	ctrlr.Init(config)
 
 	// Set gin web server to release mode. Comment out to enable debug logging.
@@ -45,13 +43,17 @@ func main() {
 	// Setup the Go web server, with default logger.
 	router := gin.Default()
 	router.Use(cors.Default())
+
 	// Setup the GET routes for our web server.
-	router.GET("/summary/stock", ctrlr.GetStockSummary)
-	router.GET("/summary/etf", ctrlr.GetEtfSummary)
-	router.GET("/summary/full", ctrlr.GetFullSummary)
-	router.GET("/equities/stock", ctrlr.GetStocks)
-	router.GET("/equities/etf", ctrlr.GetEtfs)
-	router.GET("/equities/full", ctrlr.GetAllEquities)
+	// Accept multiple equity types.
+	router.GET("/equities/:equitytype", func(c *gin.Context) {
+		equityType := c.Param("equitytype")
+		ctrlr.GetEquities(c, equityType)
+	})
+	router.GET("/summary/:equitytype", func(c *gin.Context) {
+		equityType := c.Param("equitytype")
+		ctrlr.GetSummary(c, equityType)
+	})
 	router.GET("/transactions", ctrlr.GetTransactions)
 	router.GET("/sp500", ctrlr.GetSp500History)
 	router.GET("/history", ctrlr.GetPortfolioHistory)

@@ -11,6 +11,7 @@ type Configuration struct {
 	GcpCredentialsFile   string
 	AuthTokenFile        string
 	GoogleSheetsIdsFile  string
+	EquityTypes          []string
 	MongoDbConnectionUri string
 	MongoDbName          string
 	WebServerPort        string
