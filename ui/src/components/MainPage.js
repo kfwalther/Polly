@@ -199,11 +199,15 @@ class MainPage extends React.Component {
                     />
                 </div>
                 {/* Display our current holdings in a portfolio map chart also. */}
-                <PortfolioMapChart
-                    chartData={this.state.equityList}
-                    sizeBy={this.state.portfolioMapSizeSelection}
-                    colorBy={this.state.portfolioMapColorSelection}
-                />
+                {
+                    (this.dataCategory === 'stock') ? 
+                        <PortfolioMapChart
+                            chartData={this.state.equityList}
+                            sizeBy={this.state.portfolioMapSizeSelection}
+                            colorBy={this.state.portfolioMapColorSelection}
+                        />      
+                        : null
+                }
                 {/* Display all the stocks/ETFs in a sortable table, account for user filtering selections. */}
                 <PortfolioHoldingsTable
                     holdingsData={this.state.isCurrentOnlyChecked ?
