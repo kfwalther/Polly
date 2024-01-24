@@ -143,14 +143,16 @@ func (s *Equity) GetQuoteOfSP500(quoteDate time.Time) float64 {
 			// Likely don't have today's S&P500 quote queried yet, just return the latest quote.
 			return s.sp500History.Close[len(s.sp500History.Close)-1]
 		} else {
-			// Transaction likely occurred on a weekend. Try +/-1 day.
-			idxMinusOne := indexOf(getUtcDate(quoteDate.Add(time.Duration(-24)*time.Hour)), s.sp500History.Date)
-			if idxMinusOne != -1 {
-				return s.sp500History.Close[idxMinusOne]
-			}
-			idxPlusOne := indexOf(getUtcDate(quoteDate.Add(24*time.Hour)), s.sp500History.Date)
-			if idxPlusOne != -1 {
-				return s.sp500History.Close[idxPlusOne]
+			// Transaction likely occurred on a weekend. Try +/- a few days.
+			for i := 1; i < 4; i++ {
+				idxMinusOne := indexOf(getUtcDate(quoteDate.Add(time.Duration(-24*i)*time.Hour)), s.sp500History.Date)
+				if idxMinusOne != -1 {
+					return s.sp500History.Close[idxMinusOne]
+				}
+				idxPlusOne := indexOf(getUtcDate(quoteDate.Add(time.Duration(24*i)*time.Hour)), s.sp500History.Date)
+				if idxPlusOne != -1 {
+					return s.sp500History.Close[idxPlusOne]
+				}
 			}
 			log.Printf("WARNING: Could not retrieve S&P500 quote for date: %v", quoteDate)
 			return 0.0
