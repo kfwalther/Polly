@@ -1,7 +1,7 @@
 import { Chart } from 'react-google-charts';
 
 
-export default function StockBarChart({ chartData, chartOptions }) {
+export default function StockBarChart({ chartData }) {
 
     function getFilteredChartData() {
         // Filter for only non-zero equities.
@@ -15,6 +15,15 @@ export default function StockBarChart({ chartData, chartOptions }) {
     }
 
     var data = getFilteredChartData()
+    // Define the options for the bar chart.
+    var chartOptions = {
+        backgroundColor: 'black',
+        legend: { position: 'none' },
+        chartArea: { top: 25, bottom: 50, left: 40, right: 40 },
+        vAxis: { format: 'short', textStyle: { fontSize: 12, bold: true, color: 'grey' } },
+        hAxis: { showTextEvery: 1, maxAlternation: 1, slantedText: true, slantedTextAngle: 45, textStyle: { fontSize: 12, bold: true, color: 'grey' } },
+        bar: { groupWidth: '40%' }
+    }
     return (
         <div className="barchart-container">
             <Chart

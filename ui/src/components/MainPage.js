@@ -101,19 +101,34 @@ class MainPage extends React.Component {
             ))
     }
 
+    renderStockHeatMap() {
+        <div className="portfoliomap-picker-container">
+            <h4 className='portfoliomap-size-picker-label'>Size by: </h4>
+            <Select
+                options={PortfolioMapSizeSelectOptions}
+                onChange={this.refreshPortfolioMapSize}
+                defaultValue={PortfolioMapSizeSelectOptions.filter(o => o.label === 'Market Value')}
+            />
+            <h4 className='portfoliomap-color-picker-label'>Color by: </h4>
+            <Select
+                options={PortfolioMapColorSelectOptions}
+                onChange={this.refreshPortfolioMapColor}
+                defaultValue={PortfolioMapColorSelectOptions.filter(o => o.label === 'Growth Rate TTM')}
+            />
+        </div>
+        {/* Display our current holdings in a portfolio map chart also. */}           
+        <PortfolioMapChart
+            chartData={this.state.equityList}
+            sizeBy={this.state.portfolioMapSizeSelection}
+            colorBy={this.state.portfolioMapColorSelection}
+        />      
+    }
+
     // Returns the JSX to display the stock main page.
     renderStockCharts() {
         // Map ticker names to pie chart colors.
         this.assignTickerColors()
-        // Define the options for the bar chart.
-        var barChartOptions = {
-            backgroundColor: 'black',
-            legend: { position: 'none' },
-            chartArea: { top: 25, bottom: 50, left: 40, right: 40 },
-            vAxis: { format: 'short', textStyle: { fontSize: 12, bold: true, color: 'grey' } },
-            hAxis: { showTextEvery: 1, maxAlternation: 1, slantedText: true, slantedTextAngle: 45, textStyle: { fontSize: 12, bold: true, color: 'grey' } },
-            bar: { groupWidth: '40%' }
-        }
+
         // Calculate some displayed values based on the current checkbox config.
         var cashBalance = this.state.equityList.find(s => s.ticker === 'CASH').marketValue
         var marketValuePieChart = toUSD(this.state.isIncludeCashBalanceChecked ?
@@ -180,34 +195,9 @@ class MainPage extends React.Component {
                 </div>
                 <h3 className="header-left">{'My Holdings (' + this.state.portfolioSummary.totalEquities + ' Stocks)'}</h3>
                 {/* Display our current holdings in a bar chart. */}
-                <StockBarChart
-                    chartData={this.state.equityList}
-                    chartOptions={barChartOptions}
-                />
-                <div className="portfoliomap-picker-container">
-                    <h4 className='portfoliomap-size-picker-label'>Size by: </h4>
-                    <Select
-                        options={PortfolioMapSizeSelectOptions}
-                        onChange={this.refreshPortfolioMapSize}
-                        defaultValue={PortfolioMapSizeSelectOptions.filter(o => o.label === 'Market Value')}
-                    />
-                    <h4 className='portfoliomap-color-picker-label'>Color by: </h4>
-                    <Select
-                        options={PortfolioMapColorSelectOptions}
-                        onChange={this.refreshPortfolioMapColor}
-                        defaultValue={PortfolioMapColorSelectOptions.filter(o => o.label === 'Growth Rate TTM')}
-                    />
-                </div>
-                {/* Display our current holdings in a portfolio map chart also. */}
-                {
-                    (this.dataCategory === 'stock') ? 
-                        <PortfolioMapChart
-                            chartData={this.state.equityList}
-                            sizeBy={this.state.portfolioMapSizeSelection}
-                            colorBy={this.state.portfolioMapColorSelection}
-                        />      
-                        : null
-                }
+                <StockBarChart chartData={this.state.equityList}/>
+                {/* Display the heat map only when stocks are being viewed. */}
+                { (this.dataCategory === 'stock') ? this.renderStockHeatMap() : null }
                 {/* Display all the stocks/ETFs in a sortable table, account for user filtering selections. */}
                 <PortfolioHoldingsTable
                     holdingsData={this.state.isCurrentOnlyChecked ?
