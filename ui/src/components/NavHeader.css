@@ -13,6 +13,10 @@
 }
 
 .vertical-dropdown .dropdown-menu {
+    display: none;
+}
+
+.vertical-dropdown.show .dropdown-menu {
     display: flex;
     flex-direction: column;
 }

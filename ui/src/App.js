@@ -1,16 +1,16 @@
 import './App.css'
-import React from 'react';
-import MainPage from './components/MainPage'
-import RefreshPage from './components/RefreshPage'
+import { BrowserRouter } from 'react-router-dom';
 import { Header } from './components/Header';
 import { NavHeader } from './components/NavHeader';
 import { Routes, Route } from 'react-router-dom';
+import MainPage from './components/MainPage'
+import RefreshPage from './components/RefreshPage'
 import TransactionsPage from './components/TransactionsPage';
 
 function App() {
   // This is what gets rendered on the page.
   return (
-    <>
+    <BrowserRouter>
       { /* Display the decorative header, and navigation bar. */}
       <Header />
       <NavHeader />
@@ -21,7 +21,7 @@ function App() {
         <Route path='/transactions' element={<TransactionsPage />} />
         <Route path='/refresh' element={<RefreshPage/>} />
       </Routes>
-    </>
+    </BrowserRouter>
   )
 }
 
