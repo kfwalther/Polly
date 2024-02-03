@@ -11,17 +11,3 @@
     margin-right: 20px;
     font-size: 20px;
 }
-
-.vertical-dropdown .dropdown-menu {
-    display: none;
-}
-
-.vertical-dropdown.show .dropdown-menu {
-    display: flex;
-    flex-direction: column;
-}
-
-.vertical-dropdown .dropdown-item {
-    width: 100%;
-    text-align: left;
-}

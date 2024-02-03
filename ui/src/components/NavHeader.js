@@ -1,5 +1,5 @@
-import { Container, Nav, Navbar, NavDropdown } from 'react-bootstrap';
-import { Link, NavLink } from 'react-router-dom';
+import { Container, Nav, Navbar } from 'react-bootstrap';
+import { Link } from 'react-router-dom';
 import './NavHeader.css'
 
 // Returns the navigation bar header.
@@ -8,24 +8,15 @@ export const NavHeader = () => {
   return (
     <Navbar>
       <Container>
-        <Navbar.Toggle aria-controls="responsive-navbar-nav" />
-        <Navbar.Collapse id="responsive-navbar-nav">
-          <Nav className="nav-header">
-            {/* Use Link from react-router-dom to define the routing links. */}
-            <NavDropdown
-              title="Home"
-              id="collapsible-nav-dropdown"
-              className="vertical-dropdown"
-            >
-              <NavDropdown.Item as={NavLink} to="/home/stock">Stocks</NavDropdown.Item>
-              <NavDropdown.Item as={NavLink} to="/home/etf">ETFs</NavDropdown.Item>
-              <NavDropdown.Item as={NavLink} to="/home/crypto">Crypto</NavDropdown.Item>
-              <NavDropdown.Item as={NavLink} to="/home/full">Full</NavDropdown.Item>
-            </NavDropdown>
-            <Link to="/transactions" className="nav-item">Transactions & Performance</Link>
-            <Link to="/refresh" className="nav-item">Refresh Data</Link>
-          </Nav>
-        </Navbar.Collapse>
+        <Nav className="nav-header">
+          {/* Use Link from react-router-dom to define the routing links. */}
+          <Link to="/home/stock" className="nav-item">Stocks</Link>
+          <Link to="/home/etf" className="nav-item">ETFs</Link>
+          <Link to="/home/crypto" className="nav-item">Crypto</Link>
+          <Link to="/home/full" className="nav-item">Full Portfolio</Link>
+          <Link to="/transactions" className="nav-item">Transactions & Performance</Link>
+          <Link to="/refresh" className="nav-item">Refresh Data</Link>
+        </Nav>
       </Container>
     </Navbar>
   );
