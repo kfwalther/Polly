@@ -1,3 +1,20 @@
+
+.summary-table-container {
+    font-size: 0;
+    position: relative;
+}
+
+.summary-table-div {
+    /* Display tables side-by-side horizontally. */
+    display: inline-block;
+    width: 300px;
+}
+
+.historical-table-div {
+    /* Display tables side-by-side horizontally. */
+    display: inline-block;
+}
+
 .summary-table {
     width: auto;
     margin-top: 15px;

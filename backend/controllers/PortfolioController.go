@@ -238,10 +238,11 @@ func (c *PortfolioController) CalculatePortfolioSummaryMetrics() {
 		c.fullPortfolioSummary.TotalCostBasis += summary.TotalCostBasis
 		c.fullPortfolioSummary.DailyGain += summary.DailyGain
 		c.fullPortfolioSummary.TotalEquities += summary.TotalEquities
-		totalCashFlowYtd += c.equityCatalogues[equityType].CashFlowYtd
+		totalCashFlowYtd += c.equityCatalogues[equityType].CashFlowByYear[time.Now().Year()]
 	}
 	if c.fullPortfolioSummary.TotalCostBasis > 0.001 {
 		c.fullPortfolioSummary.PercentageGain = ((c.fullPortfolioSummary.TotalMarketValue - c.fullPortfolioSummary.TotalCostBasis) / c.fullPortfolioSummary.TotalCostBasis) * 100.0
 	}
-	c.fullPortfolioSummary.YearToDatePercentageGain = (c.fullPortfolioSummary.TotalMarketValue/(c.fullPortfolioSummary.MarketValueJan1+totalCashFlowYtd) - 1) * 100.0
+	c.fullPortfolioSummary.AnnualPerformance = make(map[int]float64)
+	c.fullPortfolioSummary.AnnualPerformance[time.Now().Year()] = (c.fullPortfolioSummary.TotalMarketValue/(c.fullPortfolioSummary.MarketValueJan1+totalCashFlowYtd) - 1) * 100.0
 }

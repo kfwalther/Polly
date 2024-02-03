@@ -272,9 +272,13 @@ export default function TransactionsPage() {
         <>
             {/* Display a rollup/summary of all our transactions. */}
             <table className="txn-summary-table">
-                <th className="txn-summary-table-header">Transaction Count</th>
-                <th className="txn-summary-table-header">Win Rate</th>
-                <th className="txn-summary-table-header">Beat Rate</th>
+                <thead>
+                    <tr>
+                        <th className="txn-summary-table-header">Transaction Count</th>
+                        <th className="txn-summary-table-header">Win Rate</th>
+                        <th className="txn-summary-table-header">Beat Rate</th>
+                    </tr>
+                </thead>
                 <tbody>
                     <tr>
                         <td className="txn-summary-table-cell">{buySellList.length}</td>

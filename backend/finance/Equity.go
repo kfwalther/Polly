@@ -107,15 +107,6 @@ func datesEqual(inDate1 time.Time, inDate2 time.Time) bool {
 	return inDate1.Format("2006-01-02") == inDate2.Format("2006-01-02")
 }
 
-// A helper function to retrieve the market value of this equity on a given date.
-func (s *Equity) GetMarketValueOnDate(inDateTime time.Time) float64 {
-	if val, ok := s.ValueHistory[inDateTime.Unix()]; ok {
-		return val
-	} else {
-		return 0.0
-	}
-}
-
 // A simple helper function to calculate and save the max value in this equity's value history.
 func (s *Equity) getMaxValueFromHistory() {
 	max := math.Inf(-1)

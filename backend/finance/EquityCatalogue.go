@@ -104,7 +104,7 @@ type EquityCatalogue struct {
 	equityType       string
 	equities         map[string]*Equity
 	transactions     []Transaction
-	CashFlowYtd      float64
+	CashFlowByYear   map[int]float64
 	PortfolioHistory map[time.Time]float64 `json:"portfolioHistory"`
 }
 
@@ -237,9 +237,9 @@ func (ec *EquityCatalogue) AccumulateValueHistory(stockHistory map[int64]float64
 }
 
 // Iterate through every txn to calculate the cash balance history in the portfolio.
-func (ec *EquityCatalogue) CalculateCashBalanceHistory(firstTradeDay time.Time) {
+func (ec *EquityCatalogue) CalculateCashBalanceHistory() {
 	curCashAmount := 0.0
-	ec.CashFlowYtd = 0.0
+	ec.CashFlowByYear = make(map[int]float64)
 	// Order the transactions by date, using anonymous function.
 	sort.Slice(ec.transactions, func(i, j int) bool {
 		return ec.transactions[i].DateTime.Before(ec.transactions[j].DateTime)
@@ -251,21 +251,18 @@ func (ec *EquityCatalogue) CalculateCashBalanceHistory(firstTradeDay time.Time) 
 			curCashAmount -= txn.Value
 		}
 		ec.equities["CASH"].ValueHistory[txn.DateTime.Unix()] = curCashAmount
-		// Keep track of portfolio cash flow YTD.
-		if txn.DateTime.After(firstTradeDay) {
-			if txn.Action == "Deposit" {
-				ec.CashFlowYtd += txn.Value
-			} else if txn.Action == "Withdraw" {
-				ec.CashFlowYtd -= txn.Value
-			}
+		// Keep track of portfolio cash flow by year.
+		if txn.Action == "Deposit" {
+			ec.CashFlowByYear[txn.DateTime.Year()] += txn.Value
+		} else if txn.Action == "Withdraw" {
+			ec.CashFlowByYear[txn.DateTime.Year()] -= txn.Value
 		}
 	}
 	ec.equities["CASH"].MarketValue = curCashAmount
 }
 
 // Iterate through each equity to calculate summary metrics across the entire portfolio.
-func (ec *EquityCatalogue) CalculatePortfolioSummaryMetrics(firstTradeDay time.Time) {
-	ec.portfolioSummary.MarketValueJan1 = 0.0
+func (ec *EquityCatalogue) CalculatePortfolioSummaryMetrics() {
 	for _, s := range ec.equities {
 		if s.Ticker != "CASH" {
 			// s.DisplayMetrics()
@@ -281,14 +278,14 @@ func (ec *EquityCatalogue) CalculatePortfolioSummaryMetrics(firstTradeDay time.T
 			// For cash, just track the current balance in the summary.
 			ec.portfolioSummary.TotalMarketValue += s.MarketValue
 		}
-		ec.portfolioSummary.MarketValueJan1 += s.GetMarketValueOnDate(firstTradeDay)
 	}
+
+	ec.portfolioSummary.CalculateHistoricalPerformance(ec.PortfolioHistory, ec.CashFlowByYear)
 	// Store the last updated time, and percentage gain.
 	ec.portfolioSummary.LastUpdated = time.Now()
 	if ec.portfolioSummary.TotalCostBasis > 0.001 {
 		ec.portfolioSummary.PercentageGain = ((ec.portfolioSummary.TotalMarketValue - ec.portfolioSummary.TotalCostBasis) / ec.portfolioSummary.TotalCostBasis) * 100.0
 	}
-	ec.portfolioSummary.YearToDatePercentageGain = (ec.portfolioSummary.TotalMarketValue/(ec.portfolioSummary.MarketValueJan1+ec.CashFlowYtd) - 1) * 100.0
 }
 
 // Kicks off async functions in go-routines to calculate metrics for each equity
@@ -340,18 +337,15 @@ func (ec *EquityCatalogue) Calculate() {
 	// Wait/monitor until all work is complete.
 	waitGroup.Wait()
 
-	// Define the first trading day of the year to reference for YTD calculations.
-	firstTradeDay := time.Date(time.Now().Year(), time.January, 2, 0, 0, 0, 0, time.UTC)
-
 	// Calculate the cash balance history in our portfolio.
-	ec.CalculateCashBalanceHistory(firstTradeDay)
+	ec.CalculateCashBalanceHistory()
 
 	// Calculate total invested market value and other summary metrics across all equities.
-	ec.CalculatePortfolioSummaryMetrics(firstTradeDay)
+	ec.CalculatePortfolioSummaryMetrics()
 
 	log.Println("---------------------------------")
 	log.Printf("Total Market Value: $%f", ec.portfolioSummary.TotalMarketValue)
 	log.Printf("Percentage Gain/Loss: %f%%", ec.portfolioSummary.PercentageGain)
-	log.Printf("Cash Flow YTD: $%f", ec.CashFlowYtd)
+	log.Printf("Cash Flow YTD: %v", ec.CashFlowByYear)
 	log.Println("---------------------------------")
 }
