@@ -158,9 +158,9 @@ func (s *Equity) processFinancialHistoryData(data [][]interface{}) {
 		return
 	}
 	// Iterate thru each date we have data for (until blank). Format is YYYYMMDD
-	for i := 1; i < len(data[0]); i++ {
-		if data[0][i] != "" {
-			s.quarterlyDates = append(s.quarterlyDates, data[0][i].(string))
+	for i := 1; i < len(data[6]); i++ {
+		if data[6][i] != "" {
+			s.quarterlyDates = append(s.quarterlyDates, data[6][i].(string))
 			numQs++
 		} else {
 			break
@@ -324,16 +324,16 @@ func (s *Equity) PreProcess(sheetMgr *GoogleSheetManager, stockDataMap *map[stri
 				s.ForwardPE = 0.0
 			}
 			log.Printf("Grabbing %s from Revenue sheet...", s.Ticker)
-			sheetData := sheetMgr.GetRevenueData(s.Ticker)
+			sheetData := sheetMgr.GetAllRevenueData(s.Ticker)
 			if sheetData != nil {
 				// Save initial revenue info from top of current Google sheet.
-				s.revenueUnits = sheetData.Values[0][0].(string)
-				s.CurrentQuarter = sheetData.Values[1][0].(string)
+				s.revenueUnits = sheetData.Values[0][1].(string)
+				s.CurrentQuarter = sheetData.Values[1][1].(string)
 				// We save these revenue values in thousands (not $M or $B).
-				if s.RevenueCurrentYearEstimate, err = strconv.ParseFloat(sheetData.Values[3][0].(string), 64); err != nil {
+				if s.RevenueCurrentYearEstimate, err = strconv.ParseFloat(sheetData.Values[3][1].(string), 64); err != nil {
 					log.Printf("WARNING: Unable to parse current year Revenue estimate from %s sheet: %v", s.Ticker, err)
 				}
-				if s.RevenueNextYearEstimate, err = strconv.ParseFloat(sheetData.Values[4][0].(string), 64); err != nil {
+				if s.RevenueNextYearEstimate, err = strconv.ParseFloat(sheetData.Values[4][1].(string), 64); err != nil {
 					log.Printf("WARNING: Unable to parse next year Revenue estimate from %s sheet: %v", s.Ticker, err)
 				}
 				// Adjust for revenue logged in $M, not thousands.
@@ -342,7 +342,7 @@ func (s *Equity) PreProcess(sheetMgr *GoogleSheetManager, stockDataMap *map[stri
 					s.RevenueNextYearEstimate *= 1000
 				}
 				// Save info from revenue history within sheet, if populated.
-				s.processFinancialHistoryData(sheetMgr.GetAllRevenueData(s.Ticker).Values)
+				s.processFinancialHistoryData(sheetData.Values)
 			}
 		}
 	} else {
