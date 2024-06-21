@@ -33,11 +33,16 @@ var StockSplits = map[string][]Transaction{
 			DateTime: time.Date(2021, 7, 20, 0, 0, 0, 0, time.Local),
 			Action:   "Split",
 			Shares:   4},
+		Transaction{
+			Ticker:   "NVDA",
+			DateTime: time.Date(2024, 6, 7, 0, 0, 0, 0, time.Local),
+			Action:   "Split",
+			Shares:   10},
 	},
 	"SHOP": {
 		Transaction{
 			Ticker:   "SHOP",
-			DateTime: time.Date(2022, 06, 29, 0, 0, 0, 0, time.Local),
+			DateTime: time.Date(2022, 6, 29, 0, 0, 0, 0, time.Local),
 			Action:   "Split",
 			Shares:   10},
 	},
@@ -345,6 +350,7 @@ func (ec *EquityCatalogue) Calculate() {
 
 	log.Println("---------------------------------")
 	log.Printf("Total Market Value: $%f", ec.portfolioSummary.TotalMarketValue)
+	log.Printf("Market Value Jan 1: $%f", ec.portfolioSummary.MarketValueJan1)
 	log.Printf("Percentage Gain/Loss: %f%%", ec.portfolioSummary.PercentageGain)
 	log.Printf("Cash Flow YTD: %v", ec.CashFlowByYear)
 	log.Println("---------------------------------")
