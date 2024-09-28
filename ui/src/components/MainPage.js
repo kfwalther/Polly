@@ -94,7 +94,7 @@ class MainPage extends React.Component {
             this.state.equityList.filter(s => (parseFloat(s.marketValue) > 0.0)
             ).sort(
                 // Sort the remaining by current value
-                (a, b) => b.marketValue - a.marketValue
+                (a, b) => b.totalCostBasis - a.totalCostBasis
             ).map(
                 // Map the sorted tickers to colors (rolling over after 31).
                 (s, idx) => [s.ticker, PieChartColors[idx % 31]]
@@ -116,12 +116,12 @@ class MainPage extends React.Component {
                 defaultValue={PortfolioMapColorSelectOptions.filter(o => o.label === 'Growth Rate TTM')}
             />
         </div>
-        {/* Display our current holdings in a portfolio map chart also. */}           
+        {/* Display our current holdings in a portfolio map chart also. */}
         <PortfolioMapChart
             chartData={this.state.equityList}
             sizeBy={this.state.portfolioMapSizeSelection}
             colorBy={this.state.portfolioMapColorSelection}
-        />      
+        />
     }
 
     // Returns the JSX to display the stock main page.

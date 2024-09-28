@@ -91,6 +91,8 @@ var DelistedTickers = map[string][]string{
 	"APPH": {"AppHarvest Inc."},
 	// Delisted from Nasdaq in August 2023, filed for bankrupcy
 	"PTRA": {"Proterra Inc."},
+	// Delisted from Nasdaq in June 2024, filed for bankrupcy
+	"DMTK": {"Dermtech Inc."},
 	// Bought by AMD
 	"XLNX": {"Xilinx Inc."},
 	// Delisted mutual fund in 2022
