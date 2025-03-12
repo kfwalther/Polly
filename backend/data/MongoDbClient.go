@@ -5,7 +5,6 @@ import (
 	"log"
 	"time"
 
-	"github.com/markcheno/go-quote"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -56,7 +55,6 @@ func (mc *MongoDbClient) ConnectMongoDb(connectionUri string, dbName string) {
 	}
 	// Connect to the database.
 	mc.pollyDb = mc.mongoClient.Database(mc.databaseName)
-	return
 }
 
 func (mc *MongoDbClient) TickerExists(ticker string) bool {
@@ -94,8 +92,8 @@ func (mc *MongoDbClient) GetLatestQuote(ticker string) time.Time {
 	return dateTime.Time()
 }
 
-func (mc *MongoDbClient) GetTickerData(ticker string) quote.Quote {
-	var data quote.Quote
+func (mc *MongoDbClient) GetTickerData(ticker string) Quote {
+	var data Quote
 	data.Symbol = ticker
 	// Grab the corresponding stock history collection from the DB.
 	cursor, err := mc.pollyDb.Collection(ticker).Find(mc.ctx, bson.M{})
@@ -117,7 +115,7 @@ func (mc *MongoDbClient) GetTickerData(ticker string) quote.Quote {
 	return data
 }
 
-func (mc *MongoDbClient) StoreTickerData(q quote.Quote) {
+func (mc *MongoDbClient) StoreTickerData(q Quote) {
 	// Grab the corresponding stock history collection from the DB.
 	historyData := mc.pollyDb.Collection(q.Symbol)
 	// Insert the stock price data into the collection.

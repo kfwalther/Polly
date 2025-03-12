@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/markcheno/go-quote"
+	"github.com/kfwalther/Polly/backend/data"
 )
 
 // Definition of a equity to hold the transactions for a particular stock/ETF.
@@ -49,8 +49,8 @@ type Equity struct {
 	ValueHistory                    map[int64]float64 `json:"valueHistory"`
 	// Some arrays/objects to support metric calculation.
 	buyQ          []Transaction
-	priceHistory  quote.Quote
-	sp500History  quote.Quote
+	priceHistory  data.Quote
+	sp500History  data.Quote
 	splitMultiple float64
 	transactions  []Transaction
 	// Financial history data
@@ -429,7 +429,7 @@ func (s *Equity) CalculateTransactionData(txnIdx int, curShares float64) float64
 }
 
 // Calculate various metrics about this equity.
-func (s *Equity) CalculateMetrics(histQuotes quote.Quote, sp500Quotes quote.Quote) {
+func (s *Equity) CalculateMetrics(histQuotes data.Quote, sp500Quotes data.Quote) {
 	// Ignore ticker CASH for now, may use this later.
 	if s.Ticker == "CASH" {
 		return

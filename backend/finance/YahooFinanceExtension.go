@@ -5,6 +5,8 @@ import (
 	"log"
 	"os/exec"
 	"time"
+
+	"github.com/kfwalther/Polly/backend/data"
 )
 
 // A class to support calling yfinance python package to query extended data about individual symbols.
@@ -42,5 +44,22 @@ func (ext *YahooFinanceExtension) GetTickerData(tickers string) *map[string]inte
 	if err != nil {
 		log.Fatalf("Error: %v", err)
 	}
+	log.Printf("Successfully pulled yfinance data for ticker(s): %s", tickers)
 	return &myDict
+}
+
+// GetHistoricalData retrieves historical price data for a ticker
+func (ext *YahooFinanceExtension) GetHistoricalData(ticker string, startDate string, endDate string) (*data.Quote, error) {
+	cmd := exec.Command("python", ext.yfinScript, ticker, startDate, endDate)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return nil, err
+	}
+	// Parse the JSON output into a Quote structure
+	var quote data.Quote
+	err = json.Unmarshal(output, &quote)
+	if err != nil {
+		return nil, err
+	}
+	return &quote, nil
 }

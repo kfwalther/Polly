@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/kfwalther/Polly/backend/data"
-	"github.com/markcheno/go-quote"
 
 	"golang.org/x/exp/maps"
 )
@@ -95,6 +94,8 @@ var DelistedTickers = map[string][]string{
 	"DMTK": {"Dermtech Inc."},
 	// Bought by AMD
 	"XLNX": {"Xilinx Inc."},
+	// Acquired by CoStar in Feb 2025
+	"MTTR": {"Matterport"},
 	// Delisted mutual fund in 2022
 	"PONDX": {"PIMCO Income Fund Class D"},
 	// This represents cash transactions in our tracker, ignore as a ticker.
@@ -104,7 +105,7 @@ var DelistedTickers = map[string][]string{
 // Definition of a equity catalogue to house a portfolio of stock/ETF info in a map.
 type EquityCatalogue struct {
 	yFinInterface    *YahooFinanceExtension
-	sp500quotes      quote.Quote
+	sp500quotes      data.Quote
 	sheetMgr         *GoogleSheetManager
 	dbClient         *data.MongoDbClient
 	portfolioSummary *PortfolioSummary
@@ -150,7 +151,7 @@ func (ec *EquityCatalogue) GetTransactionList() []Transaction {
 	return txns
 }
 
-func (ec *EquityCatalogue) GetSp500() quote.Quote {
+func (ec *EquityCatalogue) GetSp500() data.Quote {
 	return ec.sp500quotes
 }
 
@@ -199,13 +200,13 @@ func (ec *EquityCatalogue) RetrieveAndStoreStockData(ticker string, startDate st
 		queryTicker = queryTicker + "-USD"
 	}
 	log.Printf("Querying %s data from Yahoo: %s ---> %s", queryTicker, startDate, endDate)
-	newQuotes, err := quote.NewQuoteFromYahoo(queryTicker, startDate, endDate, quote.Daily, true)
+	quote, err := ec.yFinInterface.GetHistoricalData(queryTicker, startDate, endDate)
 	if err != nil {
 		log.Printf("WARNING: Couldn't get ticker (%s) data from Yahoo: %s", queryTicker, err)
 		return
 	}
-	newQuotes.Symbol = strings.TrimSuffix(newQuotes.Symbol, "-USD")
-	ec.dbClient.StoreTickerData(newQuotes)
+	quote.Symbol = strings.TrimSuffix(quote.Symbol, "-USD")
+	ec.dbClient.StoreTickerData(*quote)
 }
 
 // Checks existing ticker history data in our DB, and pulls any missing data from Yahoo to fill in gaps. Careful modifying this method...
@@ -305,20 +306,23 @@ func (ec *EquityCatalogue) Calculate() {
 
 	// Get the tickers for all equities we've ever owned in comma-separated list.
 	tickers := make([]string, 0, len(ec.equities))
+	var allStocksData map[string]interface{} = make(map[string]interface{})
 	for t := range ec.equities {
+		var ticker string
 		// Don't include any delisted equities.
 		if _, ok := DelistedTickers[t]; !ok {
 			if ec.equityType == "crypto" {
-				tickers = append(tickers, t+"-USD")
+				ticker = t + "-USD"
 			} else {
-				tickers = append(tickers, t)
+				ticker = t
 			}
+			tickers = append(tickers, ticker)
+			// Use Python yFinance module to query data for each ticker.
+			temp := ec.yFinInterface.GetTickerData(ticker)
+			allStocksData[ticker] = (*temp)[ticker]
 		}
 	}
-	tickerList := strings.Join(tickers, ",")
-	log.Printf("Querying Yahoo finance for %d equities...\n", len(tickers))
-	// Use Python yFinance module to query data for all tickers at once.
-	allStocksData := ec.yFinInterface.GetTickerData(tickerList)
+	log.Printf("Queried Yahoo finance for %d equities...\n", len(tickers))
 
 	// Setup a wait group.
 	var waitGroup sync.WaitGroup
@@ -331,7 +335,7 @@ func (ec *EquityCatalogue) Calculate() {
 		// Launch a new goroutine for this equity.
 		go func(s *Equity) {
 			if _, ok := DelistedTickers[s.Ticker]; !ok {
-				s.PreProcess(ec.sheetMgr, allStocksData)
+				s.PreProcess(ec.sheetMgr, &allStocksData)
 				// Make sure the stock's history data is up-to-date.
 				ec.RefreshStockHistory(&s.transactions, s.CurrentlyHeld)
 			}
