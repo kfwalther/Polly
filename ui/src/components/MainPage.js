@@ -102,26 +102,30 @@ class MainPage extends React.Component {
     }
 
     renderStockHeatMap() {
-        <div className="portfoliomap-picker-container">
-            <h4 className='portfoliomap-size-picker-label'>Size by: </h4>
-            <Select
-                options={PortfolioMapSizeSelectOptions}
-                onChange={this.refreshPortfolioMapSize}
-                defaultValue={PortfolioMapSizeSelectOptions.filter(o => o.label === 'Market Value')}
-            />
-            <h4 className='portfoliomap-color-picker-label'>Color by: </h4>
-            <Select
-                options={PortfolioMapColorSelectOptions}
-                onChange={this.refreshPortfolioMapColor}
-                defaultValue={PortfolioMapColorSelectOptions.filter(o => o.label === 'Growth Rate TTM')}
-            />
-        </div>
-        {/* Display our current holdings in a portfolio map chart also. */}
-        <PortfolioMapChart
-            chartData={this.state.equityList}
-            sizeBy={this.state.portfolioMapSizeSelection}
-            colorBy={this.state.portfolioMapColorSelection}
-        />
+        return (
+            <>
+                <div className="portfoliomap-picker-container">
+                    <h4 className='portfoliomap-size-picker-label'>Size by: </h4>
+                    <Select
+                        options={PortfolioMapSizeSelectOptions}
+                        onChange={this.refreshPortfolioMapSize}
+                        defaultValue={PortfolioMapSizeSelectOptions.filter(o => o.label === 'Market Value')}
+                    />
+                    <h4 className='portfoliomap-color-picker-label'>Color by: </h4>
+                    <Select
+                        options={PortfolioMapColorSelectOptions}
+                        onChange={this.refreshPortfolioMapColor}
+                        defaultValue={PortfolioMapColorSelectOptions.filter(o => o.label === 'Growth Rate TTM')}
+                    />
+                </div>
+                {/* Display our current holdings in a portfolio map chart also. */}
+                <PortfolioMapChart
+                    chartData={this.state.equityList}
+                    sizeBy={this.state.portfolioMapSizeSelection}
+                    colorBy={this.state.portfolioMapColorSelection}
+                />
+            </>
+        )
     }
 
     // Returns the JSX to display the stock main page.
@@ -195,7 +199,7 @@ class MainPage extends React.Component {
                 </div>
                 <h3 className="header-left">{'My Holdings (' + this.state.portfolioSummary.totalEquities + ' Stocks)'}</h3>
                 {/* Display our current holdings in a bar chart. */}
-                <StockBarChart chartData={this.state.equityList}/>
+                <StockBarChart chartData={this.state.equityList.filter(s => s.ticker !== 'CASH')}/>
                 {/* Display the heat map only when stocks are being viewed. */}
                 { (this.dataCategory === 'stock') ? this.renderStockHeatMap() : null }
                 {/* Display all the stocks/ETFs in a sortable table, account for user filtering selections. */}
