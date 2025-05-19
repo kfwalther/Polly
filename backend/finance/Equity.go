@@ -359,16 +359,8 @@ func (s *Equity) CalculateTransactionData(txnIdx int, curShares float64) float64
 		curShares += t.Shares
 		// Add the txn to the buy queue.
 		s.buyQ = append(s.buyQ, *t)
-		// Calculate the return had we bought S&P500 for this transaction.
-		spDateOfTxn := s.GetQuoteOfSP500(t.DateTime)
-		spNow := s.GetQuoteOfSP500(time.Now())
-		t.Sp500Return = ((spNow - spDateOfTxn) / spDateOfTxn) * 100.0
 	} else if t.Action == "Sell" {
 		curShares -= t.Shares
-		// Calculate the return had we sold S&P500 for this transaction.
-		spDateOfTxn := s.GetQuoteOfSP500(t.DateTime)
-		spNow := s.GetQuoteOfSP500(time.Now())
-		t.Sp500Return = -((spNow - spDateOfTxn) / spDateOfTxn) * 100.0
 		// In the loop below, calculate the realized gain from this sale.
 		remainingShares := t.Shares
 		for remainingShares > 0 {
@@ -409,17 +401,24 @@ func (s *Equity) CalculateTransactionData(txnIdx int, curShares float64) float64
 		s.splitMultiple /= t.Shares
 	}
 
-	if s.MarketPrice > 0.0 {
+	if s.MarketPrice > 0.0 && (t.Action == "Buy" || t.Action == "Sell") {
 		// Calculate the theoretical return on this txn, if we held.
-		if t.Action == "Buy" || t.Action == "Sell" {
-			isNeg := 1.0
-			if t.Action == "Sell" {
-				isNeg = -1.0
-			}
+		isNeg := 1.0
+		if t.Action == "Sell" {
+			isNeg = -1.0
+		}
+		// Calculate the return had we bought/sold S&P500 for this transaction.
+		spDateOfTxn := s.GetQuoteOfSP500(t.DateTime)
+		spNow := s.GetQuoteOfSP500(time.Now())
+
+		if spDateOfTxn > 0 {
+			t.Sp500Return = -((spNow - spDateOfTxn) / spDateOfTxn) * 100.0
+		}
+		if t.Value > 0 {
 			// Calculate the theoretical total return (%) of each txn (using any split multiple from above).
 			t.TotalReturn = isNeg * ((s.MarketPrice*t.Shares*s.splitMultiple - t.Value) / t.Value) * 100.0
-			t.ExcessReturn = t.TotalReturn - t.Sp500Return
 		}
+		t.ExcessReturn = t.TotalReturn - t.Sp500Return
 	}
 	// Round down small values to essentially zero.
 	if curShares < 0.001 {
@@ -455,7 +454,7 @@ func (s *Equity) CalculateMetrics(histQuotes data.Quote, sp500Quotes data.Quote)
 			}
 			// Save the value of this stock in our portfolio on this date (if still owned).
 			if curShares > 0 || tIdx < len(s.transactions) {
-				s.ValueHistory[s.priceHistory.Date[dIdx].Unix()] = curShares * s.priceHistory.Close[dIdx] * s.splitMultiple
+				s.ValueHistory[getUtcDate(s.priceHistory.Date[dIdx]).Unix()] = curShares * s.priceHistory.Close[dIdx] * s.splitMultiple
 			} else {
 				// If share count is zero, and no more transactions, we need not calculate any more dates for this stock.
 				break
