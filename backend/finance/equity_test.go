@@ -1,10 +1,12 @@
 package finance
 
 import (
+	"math"
 	"testing"
 	"time"
 
 	"github.com/kfwalther/Polly/backend/data"
+	"google.golang.org/api/sheets/v4"
 )
 
 func testTransaction(action string, shares, price float64, date time.Time) Transaction {
@@ -234,4 +236,137 @@ func TestProcessFinancialHistoryDataHandlesFourQuarters(t *testing.T) {
 	requireFloat(t, equity.fcfTtm, 10)
 	requireFloat(t, equity.RevenueGrowthPercentageYoy, 0)
 	requireFloat(t, equity.GrossMargin, 0.4)
+}
+
+type fakeRevenueDataProvider struct {
+	values map[string]*sheets.ValueRange
+}
+
+func (f fakeRevenueDataProvider) GetAllRevenueData(ticker string) *sheets.ValueRange {
+	return f.values[ticker]
+}
+
+func TestGetQuoteOfSP500HandlesExactWeekendAndMissingHistory(t *testing.T) {
+	equity, err := NewEquity("ACME", "Stock")
+	if err != nil {
+		t.Fatal(err)
+	}
+	friday := time.Date(2024, time.January, 5, 0, 0, 0, 0, time.UTC)
+	monday := friday.AddDate(0, 0, 3)
+	equity.sp500History = data.Quote{Date: []time.Time{friday, monday}, Close: []float64{100, 105}}
+
+	requireFloat(t, equity.GetQuoteOfSP500(friday), 100)
+	requireFloat(t, equity.GetQuoteOfSP500(friday.AddDate(0, 0, 1)), 100)
+
+	equity.sp500History = data.Quote{}
+	requireFloat(t, equity.GetQuoteOfSP500(friday), 0)
+}
+
+func TestGetQuoteOfSP500UsesLatestQuoteForToday(t *testing.T) {
+	equity, err := NewEquity("ACME", "Stock")
+	if err != nil {
+		t.Fatal(err)
+	}
+	equity.sp500History = data.Quote{
+		Date:  []time.Time{getUtcDate(time.Now().AddDate(0, 0, -1))},
+		Close: []float64{123},
+	}
+
+	requireFloat(t, equity.GetQuoteOfSP500(time.Now()), 123)
+}
+
+func TestCalculateMetricsSkipsForwardPriceToSalesForZeroEstimate(t *testing.T) {
+	equity, err := NewEquity("ACME", "Stock")
+	if err != nil {
+		t.Fatal(err)
+	}
+	day := time.Date(2024, time.January, 2, 0, 0, 0, 0, time.UTC)
+	equity.transactions = []Transaction{testTransaction("Buy", 10, 10, day.Add(12*time.Hour))}
+	equity.MarketPrice = 10
+	equity.MarketPrevClosePrice = 10
+	equity.CurrentlyHeld = true
+	equity.MarketCap = 1000000
+	equity.RevenueCurrentYearEstimate = 100
+	equity.RevenueNextYearEstimate = 0
+	today := getUtcDate(time.Now())
+
+	equity.CalculateMetrics(
+		data.Quote{Date: []time.Time{day}, Close: []float64{10}},
+		data.Quote{Date: []time.Time{day, today}, Close: []float64{100, 110}},
+	)
+
+	requireFloat(t, equity.PriceToSalesNtm, 0)
+	requireFloat(t, equity.RevenueGrowthPercentageNextYear, -1)
+	if math.IsInf(equity.PriceToSalesNtm, 0) || math.IsNaN(equity.PriceToSalesNtm) {
+		t.Fatalf("PriceToSalesNtm must be finite, got %v", equity.PriceToSalesNtm)
+	}
+}
+
+func TestPreProcessSortsTransactionsAndMapsPricesByEquityType(t *testing.T) {
+	testCases := []struct {
+		equityType string
+		priceKey   string
+		tickerKey  string
+	}{
+		{equityType: "Stock", priceKey: "currentPrice", tickerKey: "ACME"},
+		{equityType: "ETF", priceKey: "navPrice", tickerKey: "ACME"},
+		{equityType: "Mutual Fund", priceKey: "previousClose", tickerKey: "ACME"},
+		{equityType: "Crypto", priceKey: "previousClose", tickerKey: "ACME-USD"},
+	}
+	provider := fakeRevenueDataProvider{values: map[string]*sheets.ValueRange{}}
+	firstDay := time.Date(2024, time.January, 2, 12, 0, 0, 0, time.UTC)
+
+	for _, tc := range testCases {
+		t.Run(tc.equityType, func(t *testing.T) {
+			equity, err := NewEquity("ACME", tc.equityType)
+			if err != nil {
+				t.Fatal(err)
+			}
+			equity.transactions = []Transaction{
+				testTransaction("Buy", 1, 10, firstDay.AddDate(0, 0, 1)),
+				testTransaction("Buy", 1, 10, firstDay),
+			}
+			quoteData := map[string]interface{}{"previousClose": 20.0}
+			quoteData[tc.priceKey] = 25.0
+			stockData := map[string]interface{}{tc.tickerKey: quoteData}
+
+			equity.PreProcess(provider, &stockData)
+
+			if !equity.transactions[0].DateTime.Equal(firstDay) {
+				t.Fatalf("transactions were not sorted: first date = %v", equity.transactions[0].DateTime)
+			}
+			if !equity.CurrentlyHeld {
+				t.Fatal("equity should be currently held")
+			}
+			requireFloat(t, equity.MarketPrice, 25)
+			wantPreviousClose := 20.0
+			if tc.priceKey == "previousClose" {
+				wantPreviousClose = 25.0
+			}
+			requireFloat(t, equity.MarketPrevClosePrice, wantPreviousClose)
+		})
+	}
+}
+
+func TestPreProcessAddsKnownStockSplits(t *testing.T) {
+	equity, err := NewEquity("NVDA", "Stock")
+	if err != nil {
+		t.Fatal(err)
+	}
+	equity.transactions = []Transaction{
+		testTransaction("Buy", 1, 100, time.Date(2020, time.January, 2, 12, 0, 0, 0, time.UTC)),
+	}
+	stockData := map[string]interface{}{
+		"NVDA": map[string]interface{}{"currentPrice": 100.0, "previousClose": 100.0},
+	}
+
+	equity.PreProcess(fakeRevenueDataProvider{}, &stockData)
+
+	if len(equity.transactions) != 3 {
+		t.Fatalf("transactions = %d, want purchase plus two splits", len(equity.transactions))
+	}
+	if equity.transactions[1].Action != "Split" || equity.transactions[2].Action != "Split" {
+		t.Fatalf("split transactions were not inserted in chronological order: %#v", equity.transactions)
+	}
+	requireFloat(t, equity.splitMultiple, 40)
 }

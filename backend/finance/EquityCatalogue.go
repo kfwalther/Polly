@@ -250,6 +250,11 @@ func (ec *EquityCatalogue) AccumulateValueHistory(stockHistory map[int64]float64
 
 // Iterate through every txn to calculate the cash balance history in the portfolio.
 func (ec *EquityCatalogue) CalculateCashBalanceHistory() {
+	cash, ok := ec.equities["CASH"]
+	if !ok {
+		cash, _ = NewEquity("CASH", "Cash")
+		ec.equities["CASH"] = cash
+	}
 	curCashAmount := 0.0
 	ec.CashFlowByYear = make(map[int]float64)
 	// Order the transactions by date, using anonymous function.
@@ -262,7 +267,7 @@ func (ec *EquityCatalogue) CalculateCashBalanceHistory() {
 		} else if txn.Action == "Withdraw" || txn.Action == "Buy" {
 			curCashAmount -= txn.Value
 		}
-		ec.equities["CASH"].ValueHistory[txn.DateTime.Unix()] = curCashAmount
+		cash.ValueHistory[txn.DateTime.Unix()] = curCashAmount
 		// Keep track of portfolio cash flow by year.
 		if txn.Action == "Deposit" {
 			ec.CashFlowByYear[txn.DateTime.Year()] += txn.Value
@@ -270,7 +275,7 @@ func (ec *EquityCatalogue) CalculateCashBalanceHistory() {
 			ec.CashFlowByYear[txn.DateTime.Year()] -= txn.Value
 		}
 	}
-	ec.equities["CASH"].MarketValue = curCashAmount
+	cash.MarketValue = curCashAmount
 }
 
 // Iterate through each equity to calculate summary metrics across the entire portfolio.

@@ -105,3 +105,23 @@ func TestCalculatePortfolioSummaryMetricsAggregatesEquitiesAndCash(t *testing.T)
 		t.Fatal("LastUpdated should be set")
 	}
 }
+
+func TestCalculateCashBalanceHistoryCreatesMissingCashEquity(t *testing.T) {
+	catalogue := NewEquityCatalogue("stock", nil, nil, "")
+	stock, err := NewEquity("ACME", "Stock")
+	if err != nil {
+		t.Fatal(err)
+	}
+	catalogue.equities["ACME"] = stock
+	catalogue.transactions = []Transaction{
+		testTransaction("Buy", 2, 10, time.Date(2024, time.January, 2, 12, 0, 0, 0, time.UTC)),
+	}
+
+	catalogue.CalculateCashBalanceHistory()
+
+	cash, exists := catalogue.equities["CASH"]
+	if !exists {
+		t.Fatal("CASH equity should be created when absent")
+	}
+	requireFloat(t, cash.MarketValue, -20)
+}

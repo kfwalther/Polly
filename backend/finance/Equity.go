@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/kfwalther/Polly/backend/data"
+	"google.golang.org/api/sheets/v4"
 )
 
 // Definition of a equity to hold the transactions for a particular stock/ETF.
@@ -63,6 +64,11 @@ type Equity struct {
 	quarterlyPercentSM             []float64
 	quarterlyPercentFCF            []float64
 	quarterlyPercentSBC            []float64
+}
+
+// RevenueDataProvider retrieves revenue history for an equity.
+type RevenueDataProvider interface {
+	GetAllRevenueData(ticker string) *sheets.ValueRange
 }
 
 // Constructor for a new Equity object.
@@ -124,6 +130,10 @@ func (s *Equity) getMaxValueFromHistory() {
 }
 
 func (s *Equity) GetQuoteOfSP500(quoteDate time.Time) float64 {
+	if len(s.sp500History.Date) == 0 || len(s.sp500History.Close) == 0 {
+		log.Printf("WARNING: No S&P500 history available for %v", quoteDate)
+		return 0.0
+	}
 	// Get index of this date (Yahoo dates are returned in UTC).
 	idx := indexOf(getUtcDate(quoteDate), s.sp500History.Date)
 	if idx != -1 {
@@ -245,7 +255,7 @@ func (s *Equity) processFinancialHistoryData(data [][]interface{}) {
 }
 
 // Sorts the transactions for this equity, adds any stock splits, and pre-populates data from Growth Stock Google Sheet.
-func (s *Equity) PreProcess(sheetMgr *GoogleSheetManager, stockDataMap *map[string]interface{}) {
+func (s *Equity) PreProcess(sheetMgr RevenueDataProvider, stockDataMap *map[string]interface{}) {
 	// Cash shouldn't be considered here.
 	if s.Ticker == "CASH" {
 		return
@@ -541,8 +551,10 @@ func (s *Equity) CalculateMetrics(histQuotes data.Quote, sp500Quotes data.Quote)
 			s.PriceToFcfTtm = s.MarketCap / (s.fcfTtm * 1000)
 		}
 		if s.RevenueCurrentYearEstimate > 0.0001 {
-			s.PriceToSalesNtm = s.MarketCap / (s.RevenueNextYearEstimate * 1000)
 			s.RevenueGrowthPercentageNextYear = (s.RevenueNextYearEstimate - s.RevenueCurrentYearEstimate) / s.RevenueCurrentYearEstimate
+		}
+		if s.RevenueNextYearEstimate > 0.0001 {
+			s.PriceToSalesNtm = s.MarketCap / (s.RevenueNextYearEstimate * 1000)
 		}
 	}
 	// Get the total gain.
