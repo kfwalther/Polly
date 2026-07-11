@@ -28,18 +28,29 @@ func (ps *PortfolioSummary) CalculateHistoricalPerformance(portfolioHistory map[
 	ps.AnnualPerformance = make(map[int]float64)
 	// Find the first datetime for this portfolio.
 	beginDatetime, initialValue := ps.findEarliestTimeValue(portfolioHistory)
-	var nextValue float64
-	year := 0
-	// Iterate through each year to calculate performance.
-	for year = beginDatetime.Year(); year < time.Now().Year(); year++ {
+	if beginDatetime.IsZero() {
+		return
+	}
+	nextValue := initialValue
+	year := beginDatetime.Year()
+	// Iterate through each completed year of portfolio history.
+	for ; year < time.Now().Year(); year++ {
 		// Find the earliest datetime of the following year.
-		_, nextValue = ps.findEarliestTimeValue(portfolioHistory, year+1)
+		nextDatetime, nextYearValue := ps.findEarliestTimeValue(portfolioHistory, year+1)
+		if nextDatetime.IsZero() {
+			break
+		}
+		nextValue = nextYearValue
 		// Save current year's performance.
-		ps.AnnualPerformance[year] = (nextValue/(initialValue+cashFlows[year]) - 1) * 100.0
+		if denominator := initialValue + cashFlows[year]; denominator > 0.001 {
+			ps.AnnualPerformance[year] = (nextValue/denominator - 1) * 100.0
+		}
 		initialValue = nextValue
 	}
 	ps.MarketValueJan1 = nextValue
-	ps.AnnualPerformance[year] = (ps.TotalMarketValue/(nextValue+cashFlows[year]) - 1) * 100.0
+	if denominator := nextValue + cashFlows[year]; denominator > 0.001 {
+		ps.AnnualPerformance[year] = (ps.TotalMarketValue/denominator - 1) * 100.0
+	}
 }
 
 // Helper function to locate the earliest time value in the time/value map.
