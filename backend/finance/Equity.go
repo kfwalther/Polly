@@ -78,6 +78,7 @@ func NewEquity(tkr string, eqType string) (*Equity, error) {
 	s.transactions = make([]Transaction, 0)
 	// Create a slice to use as a FIFO queue for calculating metrics.
 	s.buyQ = make([]Transaction, 0)
+	s.splitMultiple = 1.0
 	// Create slices for the financial data.
 	s.quarterlyDates = make([]string, 0)
 	s.quarterlyRevenue = make([]float64, 0)
@@ -167,8 +168,11 @@ func (s *Equity) processFinancialHistoryData(data [][]interface{}) {
 		}
 	}
 
-	// Check if any quarterly history data found.
-	if numQs > 1 {
+	// Process the available quarterly history data.
+	if numQs > 0 {
+		if numQs < 5 {
+			log.Printf("WARNING: Only %d quarters of financial history found for %s; YoY revenue growth requires five quarters", numQs, s.Ticker)
+		}
 		multiplier := 1.0
 		if s.revenueUnits == "M" {
 			multiplier = 1000.0
@@ -181,12 +185,16 @@ func (s *Equity) processFinancialHistoryData(data [][]interface{}) {
 					val, _ := strconv.ParseFloat(row[i].(string), 64)
 					s.quarterlyRevenue = append(s.quarterlyRevenue, val*multiplier)
 				}
-				// Calculate last 4 Qs of revenue (TTM), and revenue growth YoY.
-				s.RevenueTtm = s.quarterlyRevenue[numQs-1] + s.quarterlyRevenue[numQs-2] + s.quarterlyRevenue[numQs-3] + s.quarterlyRevenue[numQs-4]
-				if s.quarterlyRevenue[numQs-5] > 0.001 {
-					s.RevenueGrowthPercentageYoy = (s.quarterlyRevenue[numQs-1] - s.quarterlyRevenue[numQs-5]) / s.quarterlyRevenue[numQs-5]
-				} else {
-					log.Printf("WARNING: Couldn't calculate rev growth YoY for %s", s.Ticker)
+				// Calculate TTM once four quarters are available, and YoY growth once five are available.
+				if numQs >= 4 {
+					s.RevenueTtm = s.quarterlyRevenue[numQs-1] + s.quarterlyRevenue[numQs-2] + s.quarterlyRevenue[numQs-3] + s.quarterlyRevenue[numQs-4]
+				}
+				if numQs >= 5 {
+					if s.quarterlyRevenue[numQs-5] > 0.001 {
+						s.RevenueGrowthPercentageYoy = (s.quarterlyRevenue[numQs-1] - s.quarterlyRevenue[numQs-5]) / s.quarterlyRevenue[numQs-5]
+					} else {
+						log.Printf("WARNING: Couldn't calculate rev growth YoY for %s", s.Ticker)
+					}
 				}
 			}
 			// Read all gross margin history.
@@ -211,8 +219,10 @@ func (s *Equity) processFinancialHistoryData(data [][]interface{}) {
 					val, _ := strconv.ParseFloat(row[i].(string), 64)
 					s.quarterlyFCF = append(s.quarterlyFCF, val*multiplier)
 				}
-				// Calculate last 4 Qs of FCF (TTM).
-				s.fcfTtm = s.quarterlyFCF[numQs-1] + s.quarterlyFCF[numQs-2] + s.quarterlyFCF[numQs-3] + s.quarterlyFCF[numQs-4]
+				// Calculate TTM FCF once four quarters are available.
+				if numQs >= 4 {
+					s.fcfTtm = s.quarterlyFCF[numQs-1] + s.quarterlyFCF[numQs-2] + s.quarterlyFCF[numQs-3] + s.quarterlyFCF[numQs-4]
+				}
 			}
 			// Read FCF as a percentage of revenue history.
 			if row[0].(string) == "FCF / Revenue (%)" {
@@ -229,6 +239,8 @@ func (s *Equity) processFinancialHistoryData(data [][]interface{}) {
 				}
 			}
 		}
+	} else {
+		log.Printf("WARNING: No quarterly financial history found for %s", s.Ticker)
 	}
 }
 
@@ -427,14 +439,40 @@ func (s *Equity) CalculateTransactionData(txnIdx int, curShares float64) float64
 	return curShares
 }
 
+// resetCalculatedMetrics clears values derived from transactions and quote data.
+func (s *Equity) resetCalculatedMetrics() {
+	s.ValueHistory = make(map[int64]float64)
+	s.ValueAllTimeHigh = 0.0
+	s.MarketValue = 0.0
+	s.DailyGain = 0.0
+	s.DailyGainPercentage = 0.0
+	s.UnitCostBasis = 0.0
+	s.TotalCostBasis = 0.0
+	s.NumShares = 0.0
+	s.RealizedGain = 0.0
+	s.UnrealizedGain = 0.0
+	s.UnrealizedGainPercentage = 0.0
+	s.TotalGain = 0.0
+	s.HoldingDays = 0
+	s.buyQ = make([]Transaction, 0)
+
+	// Rebuild the multiplier used while processing split transactions. PreProcess
+	// normally initializes it, but recalculation must also be repeatable.
+	s.splitMultiple = 1.0
+	for _, txn := range s.transactions {
+		if txn.Action == "Split" {
+			s.splitMultiple *= txn.Shares
+		}
+	}
+}
+
 // Calculate various metrics about this equity.
 func (s *Equity) CalculateMetrics(histQuotes data.Quote, sp500Quotes data.Quote) {
 	// Ignore ticker CASH for now, may use this later.
 	if s.Ticker == "CASH" {
 		return
 	}
-	// Reset the slice to use as a FIFO queue for calculating metrics.
-	s.buyQ = make([]Transaction, 0)
+	s.resetCalculatedMetrics()
 
 	// Note, for calculations below, Yahoo stock price history is already split-adjusted.
 	s.priceHistory = histQuotes
