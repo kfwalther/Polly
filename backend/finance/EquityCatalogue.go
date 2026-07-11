@@ -305,7 +305,7 @@ func (ec *EquityCatalogue) Calculate() {
 
 	// Grab the historical S&P 500 data to compare against (2015 to present).
 	// Define a dummy SPY transaction to pass in, the date is what the function requires.
-	ec.RefreshStockHistory(&[]Transaction{*NewTransaction("2015-01-01", "SPY", "Buy", "1", "100.0")}, true)
+	ec.RefreshStockHistory(&[]Transaction{*NewTransaction("1/1/2015", "SPY", "Buy", "1", "100.0")}, true)
 	ec.sp500quotes = ec.dbClient.GetTickerData("SPY")
 
 	// Get the tickers for all equities we've ever owned in comma-separated list.

@@ -48,7 +48,7 @@ func NewGoogleSheetManager(httpClient *http.Client, ctx *context.Context, sheetI
 }
 
 func (mgr *GoogleSheetManager) GetTransactionData(equityType string) *sheets.ValueRange {
-	resp := mgr.getSheetData(mgr.sheetIds[0], equityType+"!A2:G")
+	resp := mgr.getSheetData(mgr.sheetIds[0], "INPUT: "+equityType+"!A2:G")
 	// Check if we parsed any data from the spreadsheet.
 	if len(resp.Values) == 0 {
 		log.Fatalf("No transaction data found in %s spreadsheet... Exiting!", equityType)

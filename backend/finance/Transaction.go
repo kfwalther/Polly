@@ -30,7 +30,7 @@ func NewTransaction(dTime string, tkr string, act string, numShares string, txnP
 	var t Transaction
 	var err error
 	// Attempt to parse each field into appropriate type in the object.
-	if t.DateTime, err = time.Parse("2006-01-02", dTime); err != nil {
+	if t.DateTime, err = time.Parse("1/2/2006", dTime); err != nil {
 		log.Fatalf("Unable to parse date field from transaction: %v", dTime)
 	}
 	// Place the transaction times at midday, so we can order stock splits at market open first.

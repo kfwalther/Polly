@@ -36,13 +36,13 @@ func (ext *YahooFinanceExtension) GetTickerData(tickers string) *map[string]inte
 		output, err = cmd.CombinedOutput()
 	}
 	if output == nil {
-		log.Fatalf("Error: could not retrieve extended stock info (%s) via yfinance: %v", tickers, err)
+		log.Printf("Error: could not retrieve extended stock info (%s) via yfinance: %v", tickers, err)
 	}
 	// Parse the JSON string into a map
 	var myDict map[string]interface{}
 	err = json.Unmarshal(output, &myDict)
 	if err != nil {
-		log.Fatalf("Error: %v", err)
+		log.Printf("Error unmarshaling yfinance data: %v", err)
 	}
 	log.Printf("Successfully pulled yfinance data for ticker(s): %s", tickers)
 	return &myDict
