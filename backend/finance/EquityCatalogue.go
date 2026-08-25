@@ -121,11 +121,11 @@ type EquityCatalogue struct {
 }
 
 // Constructor for a new EquityCatalogue object, initializing the map.
-func NewEquityCatalogue(equityType string, sheetMgr *GoogleSheetManager, dbClient *data.MongoDbClient, pyScript string) *EquityCatalogue {
+func NewEquityCatalogue(equityType string, sheetMgr *GoogleSheetManager, dbClient *data.MongoDbClient, pyScript string, historicalConfig HistoricalDownloadConfig) *EquityCatalogue {
 	var ec EquityCatalogue
 	ec.equityType = equityType
 	// Initialize the interfaces.
-	ec.yFinInterface = NewYahooFinanceExtension(pyScript)
+	ec.yFinInterface = NewYahooFinanceExtension(pyScript, historicalConfig)
 	ec.sheetMgr = sheetMgr
 	ec.dbClient = dbClient
 	// Initialize the data structures for this class.
@@ -197,45 +197,173 @@ func (ec *EquityCatalogue) ProcessImport(txnData [][]interface{}) {
 	}
 }
 
-// Retrieves data from Yahoo for the given ticker, and stores the data in the DB.
-func (ec *EquityCatalogue) RetrieveAndStoreStockData(ticker string, startDate string, endDate string) {
-	queryTicker := ticker
-	if ec.equityType == "crypto" {
-		queryTicker = queryTicker + "-USD"
-	}
-	log.Printf("Querying %s data from Yahoo: %s ---> %s", queryTicker, startDate, endDate)
-	quote, err := ec.yFinInterface.GetHistoricalData(queryTicker, startDate, endDate)
+// Retrieves and stores historical data for the given tickers.
+func (ec *EquityCatalogue) RetrieveAndStoreStockData(tickers []string, startDate string, endDate string) {
+	quotes, queryToTicker, err := ec.queryHistoricalData(tickers, startDate, endDate)
 	if err != nil {
-		log.Printf("WARNING: Couldn't get ticker (%s) data from Yahoo: %s", queryTicker, err)
+		log.Printf("WARNING: Couldn't get historical ticker data from Yahoo: %s", err)
 		return
 	}
-	quote.Symbol = strings.TrimSuffix(quote.Symbol, "-USD")
-	ec.dbClient.StoreTickerData(*quote)
+	for queryTicker, ticker := range queryToTicker {
+		quote, ok := quotes[queryTicker]
+		if !ok {
+			log.Printf("WARNING: No historical data returned from Yahoo for ticker %s", queryTicker)
+			continue
+		}
+		quote.Symbol = strings.TrimSuffix(quote.Symbol, "-USD")
+		if quote.Symbol == "" {
+			quote.Symbol = ticker
+		}
+		ec.dbClient.StoreTickerData(quote)
+	}
 }
 
-// Checks existing ticker history data in our DB, and pulls any missing data from Yahoo to fill in gaps. Careful modifying this method...
-func (ec *EquityCatalogue) RefreshStockHistory(txns *[]Transaction, currentlyOwned bool) {
-	// Does the ticker exist in the DB?
+// Adds Yahoo-specific ticker suffixes and retrieves historical data in chunks.
+func (ec *EquityCatalogue) queryHistoricalData(tickers []string, startDate string, endDate string) (map[string]data.Quote, map[string]string, error) {
+	queryTickers := make([]string, 0, len(tickers))
+	queryToTicker := make(map[string]string, len(tickers))
+	for _, ticker := range tickers {
+		queryTicker := ticker
+		if ec.equityType == "crypto" {
+			queryTicker += "-USD"
+		}
+		queryTickers = append(queryTickers, queryTicker)
+		queryToTicker[queryTicker] = ticker
+	}
+	if len(queryTickers) == 0 {
+		return map[string]data.Quote{}, queryToTicker, nil
+	}
+
+	log.Printf("Querying %d tickers from Yahoo: %s ---> %s", len(queryTickers), startDate, endDate)
+	quotes, err := ec.yFinInterface.GetHistoricalDataBatch(queryTickers, startDate, endDate)
+	return quotes, queryToTicker, err
+}
+
+type historicalDataRequest struct {
+	ticker    string
+	startDate string
+	endDate   string
+}
+
+func (ec *EquityCatalogue) getHistoricalDataRequest(txns *[]Transaction, currentlyOwned bool) (*historicalDataRequest, bool) {
+	if txns == nil || len(*txns) == 0 {
+		return nil, false
+	}
+
 	ticker := (*txns)[0].Ticker
 	if ec.dbClient.TickerExists(ticker) {
 		latestDate := ec.dbClient.GetLatestQuote(ticker)
-		// Do we currently own this equity?
 		if currentlyOwned {
-			// Are we up to date on the quotes? More than 3 days have passed?
-			if time.Now().Sub(latestDate).Hours() > 72 {
-				ec.RetrieveAndStoreStockData(ticker, latestDate.Add(24*time.Hour).UTC().Format("2006-01-02"), time.Now().UTC().Format("2006-01-02"))
+			if time.Since(latestDate).Hours() <= 72 {
+				return nil, false
 			}
-		} else {
-			// If we don't own it, ensure we have all the data through the last sell date (get one day past sell date to be safe).
-			sellDate := (*txns)[len(*txns)-1].DateTime
-			if sellDate.Sub(latestDate).Hours() > 24 {
-				ec.RetrieveAndStoreStockData(ticker, latestDate.Add(24*time.Hour).UTC().Format("2006-01-02"), sellDate.Add(24*time.Hour).UTC().Format("2006-01-02"))
-			}
+			return &historicalDataRequest{
+				ticker:    ticker,
+				startDate: latestDate.Add(24 * time.Hour).UTC().Format("2006-01-02"),
+				endDate:   time.Now().UTC().Format("2006-01-02"),
+			}, true
 		}
-	} else {
-		// Ticker doesn't exist in DB yet, query all its data.
-		ec.RetrieveAndStoreStockData(ticker, (*txns)[0].DateTime.Format("2006-01-02"), time.Now().UTC().Format("2006-01-02"))
+
+		sellDate := (*txns)[len(*txns)-1].DateTime
+		if sellDate.Sub(latestDate).Hours() <= 24 {
+			return nil, false
+		}
+		return &historicalDataRequest{
+			ticker:    ticker,
+			startDate: latestDate.Add(24 * time.Hour).UTC().Format("2006-01-02"),
+			endDate:   sellDate.Add(24 * time.Hour).UTC().Format("2006-01-02"),
+		}, true
 	}
+
+	return &historicalDataRequest{
+		ticker:    ticker,
+		startDate: (*txns)[0].DateTime.Format("2006-01-02"),
+		endDate:   time.Now().UTC().Format("2006-01-02"),
+	}, true
+}
+
+func trimHistoricalQuoteToRange(quote data.Quote, startDate string, endDate string) data.Quote {
+	start, startErr := time.Parse("2006-01-02", startDate)
+	end, endErr := time.Parse("2006-01-02", endDate)
+	if startErr != nil || endErr != nil {
+		return quote
+	}
+
+	trimmed := data.Quote{Symbol: quote.Symbol}
+	for i, date := range quote.Date {
+		if date.Before(start) || !date.Before(end) {
+			continue
+		}
+		trimmed.Date = append(trimmed.Date, date)
+		if i < len(quote.Open) {
+			trimmed.Open = append(trimmed.Open, quote.Open[i])
+		}
+		if i < len(quote.High) {
+			trimmed.High = append(trimmed.High, quote.High[i])
+		}
+		if i < len(quote.Low) {
+			trimmed.Low = append(trimmed.Low, quote.Low[i])
+		}
+		if i < len(quote.Close) {
+			trimmed.Close = append(trimmed.Close, quote.Close[i])
+		}
+		if i < len(quote.Volume) {
+			trimmed.Volume = append(trimmed.Volume, quote.Volume[i])
+		}
+	}
+	return trimmed
+}
+
+// Retrieves all pending ticker histories in one common date range. Each
+// returned quote is trimmed back to its ticker-specific range before storage.
+func (ec *EquityCatalogue) retrievePendingHistoricalData(requests []historicalDataRequest) {
+	if len(requests) == 0 {
+		return
+	}
+	startDate := requests[0].startDate
+	endDate := requests[0].endDate
+	tickers := make([]string, 0, len(requests))
+	for _, request := range requests {
+		if request.startDate < startDate {
+			startDate = request.startDate
+		}
+		if request.endDate > endDate {
+			endDate = request.endDate
+		}
+		tickers = append(tickers, request.ticker)
+	}
+	quotes, queryToTicker, err := ec.queryHistoricalData(tickers, startDate, endDate)
+	if err != nil {
+		log.Printf("WARNING: Couldn't get historical ticker data from Yahoo: %s", err)
+		return
+	}
+	for _, request := range requests {
+		queryTicker := request.ticker
+		if ec.equityType == "crypto" {
+			queryTicker += "-USD"
+		}
+		quote, ok := quotes[queryTicker]
+		if !ok {
+			log.Printf("WARNING: No historical data returned from Yahoo for ticker %s", queryTicker)
+			continue
+		}
+		quote = trimHistoricalQuoteToRange(quote, request.startDate, request.endDate)
+		quote.Symbol = strings.TrimSuffix(quote.Symbol, "-USD")
+		if quote.Symbol == "" {
+			quote.Symbol = queryToTicker[queryTicker]
+		}
+		ec.dbClient.StoreTickerData(quote)
+	}
+}
+
+// Checks existing ticker history data in the DB and pulls any missing data.
+// Date-range selection is centralized in getHistoricalDataRequest.
+func (ec *EquityCatalogue) RefreshStockHistory(txns *[]Transaction, currentlyOwned bool) {
+	request, ok := ec.getHistoricalDataRequest(txns, currentlyOwned)
+	if !ok {
+		return
+	}
+	ec.RetrieveAndStoreStockData([]string{request.ticker}, request.startDate, request.endDate)
 }
 
 // Add an individual's equity history to the total portfolio value history.
@@ -333,6 +461,20 @@ func (ec *EquityCatalogue) Calculate() {
 	}
 	log.Printf("Queried Yahoo finance for %d equities...\n", len(tickers))
 
+	// Preprocess equities before planning history requests because ownership is
+	// determined during preprocessing.
+	pendingRequests := make([]historicalDataRequest, 0, len(ec.equities))
+	for _, s := range ec.equities {
+		if _, ok := DelistedTickers[s.Ticker]; ok {
+			continue
+		}
+		s.PreProcess(ec.sheetMgr, &allStocksData)
+		if request, ok := ec.getHistoricalDataRequest(&s.transactions, s.CurrentlyHeld); ok {
+			pendingRequests = append(pendingRequests, *request)
+		}
+	}
+	ec.retrievePendingHistoricalData(pendingRequests)
+
 	// Setup a wait group.
 	var waitGroup sync.WaitGroup
 	// Specify the number of metrics to wait for.
@@ -343,11 +485,6 @@ func (ec *EquityCatalogue) Calculate() {
 	for _, s := range ec.equities {
 		// Launch a new goroutine for this equity.
 		go func(s *Equity) {
-			if _, ok := DelistedTickers[s.Ticker]; !ok {
-				s.PreProcess(ec.sheetMgr, &allStocksData)
-				// Make sure the stock's history data is up-to-date.
-				ec.RefreshStockHistory(&s.transactions, s.CurrentlyHeld)
-			}
 			// Pass SP500 quotes to this function to use when calculating transaction level metrics.
 			s.CalculateMetrics(ec.dbClient.GetTickerData(s.Ticker), ec.sp500quotes)
 			waitGroup.Done()

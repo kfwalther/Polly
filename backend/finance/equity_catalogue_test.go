@@ -6,7 +6,7 @@ import (
 )
 
 func TestProcessImportGroupsTransactionsByTicker(t *testing.T) {
-	catalogue := NewEquityCatalogue("stock", nil, nil, "")
+	catalogue := NewEquityCatalogue("stock", nil, nil, "", DefaultHistoricalDownloadConfig)
 	catalogue.ProcessImport([][]interface{}{
 		{"1/2/2024", "ACME", "Buy", "10", "12.50", "Stock"},
 		{"1/3/2024", "ACME", "Sell", "2", "15", "Stock"},
@@ -29,7 +29,7 @@ func TestProcessImportGroupsTransactionsByTicker(t *testing.T) {
 }
 
 func TestCalculateCashBalanceHistoryOrdersAndClassifiesTransactions(t *testing.T) {
-	catalogue := NewEquityCatalogue("stock", nil, nil, "")
+	catalogue := NewEquityCatalogue("stock", nil, nil, "", DefaultHistoricalDownloadConfig)
 	catalogue.ProcessImport([][]interface{}{
 		{"1/3/2024", "CASH", "Deposit", "1000", "", "Cash"},
 		{"1/1/2024", "ACME", "Buy", "10", "10", "Stock"},
@@ -52,7 +52,7 @@ func TestCalculateCashBalanceHistoryOrdersAndClassifiesTransactions(t *testing.T
 }
 
 func TestAccumulateValueHistoryCombinesPositiveDailyValues(t *testing.T) {
-	catalogue := NewEquityCatalogue("stock", nil, nil, "")
+	catalogue := NewEquityCatalogue("stock", nil, nil, "", DefaultHistoricalDownloadConfig)
 	day := time.Date(2024, time.January, 2, 0, 0, 0, 0, time.UTC)
 	catalogue.PortfolioHistory[day] = 10
 
@@ -70,7 +70,7 @@ func TestAccumulateValueHistoryCombinesPositiveDailyValues(t *testing.T) {
 }
 
 func TestCalculatePortfolioSummaryMetricsAggregatesEquitiesAndCash(t *testing.T) {
-	catalogue := NewEquityCatalogue("stock", nil, nil, "")
+	catalogue := NewEquityCatalogue("stock", nil, nil, "", DefaultHistoricalDownloadConfig)
 	currentYear := time.Now().Year()
 	historyDay := time.Date(currentYear, time.January, 2, 0, 0, 0, 0, time.UTC)
 	stock, err := NewEquity("ACME", "Stock")
@@ -107,7 +107,7 @@ func TestCalculatePortfolioSummaryMetricsAggregatesEquitiesAndCash(t *testing.T)
 }
 
 func TestCalculateCashBalanceHistoryCreatesMissingCashEquity(t *testing.T) {
-	catalogue := NewEquityCatalogue("stock", nil, nil, "")
+	catalogue := NewEquityCatalogue("stock", nil, nil, "", DefaultHistoricalDownloadConfig)
 	stock, err := NewEquity("ACME", "Stock")
 	if err != nil {
 		t.Fatal(err)

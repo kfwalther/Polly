@@ -57,7 +57,7 @@ func (c *PortfolioController) CreatePortfolioCatalogueAndProcess(httpClient *htt
 	c.googleSheetMgr = finance.NewGoogleSheetManager(httpClient, &ctx, c.googleSheetIdsFile)
 	for _, equityType := range c.equityTypes {
 		// Create the new equity catalogues to house our portfolio data.
-		catalogue := finance.NewEquityCatalogue(equityType, c.googleSheetMgr, c.dbClient, c.yfinPythonScriptFile)
+		catalogue := finance.NewEquityCatalogue(equityType, c.googleSheetMgr, c.dbClient, c.yfinPythonScriptFile, finance.DefaultHistoricalDownloadConfig)
 		// Read from portfolio transactions sheets.
 		txns := c.googleSheetMgr.GetTransactionData(equityType)
 		// Process the imported data to organize it by ticker.
