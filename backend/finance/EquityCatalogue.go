@@ -441,26 +441,22 @@ func (ec *EquityCatalogue) Calculate() {
 	ec.RefreshStockHistory(&[]Transaction{*NewTransaction("1/1/2015", "SPY", "Buy", "1", "100.0")}, true)
 	ec.sp500quotes = ec.dbClient.GetTickerData("SPY")
 
-	// Get the tickers for all equities we've ever owned in comma-separated list.
+	// Get the tickers for all equities we've ever owned and request their
+	// extended info in one Python invocation. GetTickerData falls back to
+	// smaller chunks only for failed or partially returned symbols.
 	tickers := make([]string, 0, len(ec.equities))
-	var allStocksData map[string]interface{} = make(map[string]interface{})
 	for t := range ec.equities {
-		var ticker string
-		// Don't include any delisted equities.
-		if _, ok := DelistedTickers[t]; !ok {
-			if ec.equityType == "crypto" {
-				ticker = t + "-USD"
-			} else {
-				ticker = t
-			}
-			tickers = append(tickers, ticker)
-			// Use Python yFinance module to query data for each ticker.
-			temp := ec.yFinInterface.GetTickerData(ticker)
-			allStocksData[ticker] = (*temp)[ticker]
+		if _, ok := DelistedTickers[t]; ok {
+			continue
 		}
+		ticker := t
+		if ec.equityType == "crypto" {
+			ticker += "-USD"
+		}
+		tickers = append(tickers, ticker)
 	}
+	allStocksData := ec.yFinInterface.GetTickerData(tickers)
 	log.Printf("Queried Yahoo finance for %d equities...\n", len(tickers))
-
 	// Preprocess equities before planning history requests because ownership is
 	// determined during preprocessing.
 	pendingRequests := make([]historicalDataRequest, 0, len(ec.equities))

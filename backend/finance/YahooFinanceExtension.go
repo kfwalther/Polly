@@ -50,39 +50,7 @@ func runPythonCommand(script string, args ...string) ([]byte, error) {
 	return exec.Command("python", commandArgs...).CombinedOutput()
 }
 
-// Call the python yFinance script to query data for the given tickers (accepts single ticker or comma-separated list of tickers).
-func (ext *YahooFinanceExtension) GetTickerData(tickers string) *map[string]interface{} {
-	retrySecs := 1
-	output, err := ext.runCommand(ext.yfinScript, tickers)
-	for err != nil && retrySecs < 8 {
-		log.Printf("Warning: could not retrieve extended stock info (%s) via yfinance - will retry: %v", tickers, err)
-		time.Sleep(time.Duration(retrySecs) * time.Second)
-		retrySecs += retrySecs
-		output, err = ext.runCommand(ext.yfinScript, tickers)
-	}
-	if err != nil {
-		log.Printf("Error: could not retrieve extended stock info (%s) via yfinance: %v", tickers, err)
-	}
-	var myDict map[string]interface{}
-	err = json.Unmarshal(output, &myDict)
-	if err != nil {
-		log.Printf("Error unmarshaling yfinance data: %v", err)
-	}
-	log.Printf("Successfully pulled yfinance data for ticker(s): %s", tickers)
-	return &myDict
-}
-
-func normalizeHistoricalQuoteDates(quote data.Quote) data.Quote {
-	for i, date := range quote.Date {
-		quote.Date[i] = time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, time.UTC)
-	}
-	return quote
-}
-
-// GetHistoricalDataBatch retrieves daily historical data for multiple symbols.
-// Symbols are split into configured chunks and requests are serialized with a
-// configurable pause between chunks.
-func (ext *YahooFinanceExtension) GetHistoricalDataBatch(tickers []string, startDate string, endDate string) (map[string]data.Quote, error) {
+func cleanTickerList(tickers []string) []string {
 	cleanTickers := make([]string, 0, len(tickers))
 	seen := make(map[string]struct{}, len(tickers))
 	for _, ticker := range tickers {
@@ -96,7 +64,101 @@ func (ext *YahooFinanceExtension) GetHistoricalDataBatch(tickers []string, start
 		seen[ticker] = struct{}{}
 		cleanTickers = append(cleanTickers, ticker)
 	}
+	return cleanTickers
+}
 
+// GetTickerData retrieves extended information for all requested symbols. It
+// first tries one Python invocation, then retries only missing symbols in
+// configured-sized chunks if Yahoo rejects or partially fulfills the request.
+func (ext *YahooFinanceExtension) GetTickerData(tickers []string) map[string]interface{} {
+	cleanTickers := cleanTickerList(tickers)
+	if len(cleanTickers) == 0 {
+		return map[string]interface{}{}
+	}
+
+	fetch := func(symbols []string) (map[string]interface{}, error) {
+		query := strings.Join(symbols, ",")
+		retrySecs := 1
+		var lastErr error
+		for attempt := 0; attempt < 4; attempt++ {
+			output, err := ext.runCommand(ext.yfinScript, query)
+			if err == nil {
+				var tickerData map[string]interface{}
+				if unmarshalErr := json.Unmarshal(output, &tickerData); unmarshalErr == nil && tickerData != nil {
+					log.Printf("Successfully pulled yfinance data for ticker(s): %s", query)
+					return tickerData, nil
+				} else if unmarshalErr != nil {
+					err = fmt.Errorf("unmarshal yfinance data: %w", unmarshalErr)
+				} else {
+					err = fmt.Errorf("yfinance returned no ticker data")
+				}
+			}
+			lastErr = err
+			if attempt < 3 {
+				log.Printf("Warning: could not retrieve extended stock info (%s) via yfinance - will retry: %v", query, err)
+				ext.sleep(time.Duration(retrySecs) * time.Second)
+				retrySecs *= 2
+			}
+		}
+		return nil, lastErr
+	}
+
+	allData, err := fetch(cleanTickers)
+	if err != nil {
+		log.Printf("WARNING: all-ticker yfinance info request failed; retrying in chunks: %v", err)
+		allData = make(map[string]interface{})
+	}
+
+	missing := make([]string, 0)
+	for _, ticker := range cleanTickers {
+		if _, ok := allData[ticker]; !ok {
+			missing = append(missing, ticker)
+		}
+	}
+	if len(missing) == 0 {
+		return allData
+	}
+	if len(missing) < len(cleanTickers) {
+		log.Printf("WARNING: yfinance returned data for %d/%d tickers; retrying %d missing symbols in chunks", len(cleanTickers)-len(missing), len(cleanTickers), len(missing))
+	}
+
+	chunkSize := ext.historicalConfig.ChunkSize
+	if chunkSize <= 0 {
+		chunkSize = DefaultHistoricalDownloadConfig.ChunkSize
+	}
+	for start := 0; start < len(missing); start += chunkSize {
+		if start > 0 && ext.historicalConfig.WaitBetweenChunks > 0 {
+			ext.sleep(ext.historicalConfig.WaitBetweenChunks)
+		}
+		end := start + chunkSize
+		if end > len(missing) {
+			end = len(missing)
+		}
+		chunk := missing[start:end]
+		chunkData, err := fetch(chunk)
+		if err != nil {
+			log.Printf("WARNING: could not retrieve yfinance info for ticker chunk %s: %v", strings.Join(chunk, ","), err)
+			continue
+		}
+		for ticker, tickerData := range chunkData {
+			allData[ticker] = tickerData
+		}
+	}
+	return allData
+}
+
+func normalizeHistoricalQuoteDates(quote data.Quote) data.Quote {
+	for i, date := range quote.Date {
+		quote.Date[i] = time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, time.UTC)
+	}
+	return quote
+}
+
+// GetHistoricalDataBatch retrieves daily historical data for multiple symbols.
+// Symbols are split into configured chunks and requests are serialized with a
+// configurable pause between chunks.
+func (ext *YahooFinanceExtension) GetHistoricalDataBatch(tickers []string, startDate string, endDate string) (map[string]data.Quote, error) {
+	cleanTickers := cleanTickerList(tickers)
 	quotes := make(map[string]data.Quote)
 	for start := 0; start < len(cleanTickers); start += ext.historicalConfig.ChunkSize {
 		if start > 0 && ext.historicalConfig.WaitBetweenChunks > 0 {

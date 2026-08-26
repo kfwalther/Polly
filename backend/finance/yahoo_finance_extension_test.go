@@ -124,3 +124,66 @@ func assertUTCMidnightDates(t *testing.T, dates []time.Time) {
 		}
 	}
 }
+
+func TestGetTickerDataAttemptsAllTickersInOneInvocation(t *testing.T) {
+	ext := NewYahooFinanceExtension("yahooFinanceHelper.py", HistoricalDownloadConfig{
+		ChunkSize:         2,
+		WaitBetweenChunks: 0,
+	})
+	var calls []string
+	ext.runCommand = func(script string, args ...string) ([]byte, error) {
+		calls = append(calls, args[0])
+		return tickerInfoJSON(strings.Split(args[0], ",")), nil
+	}
+
+	data := ext.GetTickerData([]string{"AAPL", "MSFT", "GOOG"})
+	if len(calls) != 1 || calls[0] != "AAPL,MSFT,GOOG" {
+		t.Fatalf("calls = %#v, want one all-ticker invocation", calls)
+	}
+	if len(data) != 3 {
+		t.Fatalf("data = %d tickers, want 3", len(data))
+	}
+}
+
+func TestGetTickerDataFallsBackToConfiguredChunks(t *testing.T) {
+	ext := NewYahooFinanceExtension("yahooFinanceHelper.py", HistoricalDownloadConfig{
+		ChunkSize:         2,
+		WaitBetweenChunks: 0,
+	})
+	var calls []string
+	attempts := 0
+	ext.runCommand = func(script string, args ...string) ([]byte, error) {
+		calls = append(calls, args[0])
+		attempts++
+		if attempts <= 4 {
+			return nil, fmt.Errorf("rate limited")
+		}
+		return tickerInfoJSON(strings.Split(args[0], ",")), nil
+	}
+	ext.sleep = func(time.Duration) {}
+
+	data := ext.GetTickerData([]string{"AAPL", "MSFT", "GOOG"})
+	wantCalls := []string{"AAPL,MSFT,GOOG", "AAPL,MSFT,GOOG", "AAPL,MSFT,GOOG", "AAPL,MSFT,GOOG", "AAPL,MSFT", "GOOG"}
+	if fmt.Sprint(calls) != fmt.Sprint(wantCalls) {
+		t.Fatalf("calls = %#v, want %#v", calls, wantCalls)
+	}
+	if len(data) != 3 {
+		t.Fatalf("data = %d tickers, want 3 after fallback", len(data))
+	}
+}
+
+func tickerInfoJSON(symbols []string) []byte {
+	parts := make([]string, 0, len(symbols))
+	for _, symbol := range symbols {
+		parts = append(parts, fmt.Sprintf(`%q:{"currentPrice":1}`, symbol))
+	}
+	return []byte("{" + strings.Join(parts, ",") + "}")
+}
+
+func TestCleanTickerListTrimsSkipsBlanksAndDeduplicates(t *testing.T) {
+	got := cleanTickerList([]string{" AAPL ", "", "MSFT", "AAPL", "  ", " MSFT "})
+	want := []string{"AAPL", "MSFT"}
+	if fmt.Sprint(got) != fmt.Sprint(want) {
+		t.Fatalf("cleanTickerList() = %#v, want %#v", got, want)
+	}
+}
