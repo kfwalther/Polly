@@ -14,43 +14,26 @@ import (
 
 // Define a global map to store the stock split history relevant to our portfolio
 var StockSplits = map[string][]Transaction{
-	"TSLA": {
-		Transaction{
-			Ticker:   "TSLA",
-			DateTime: time.Date(2020, 8, 31, 0, 0, 0, 0, time.Local),
-			Action:   "Split",
-			Shares:   5},
-		Transaction{
-			Ticker:   "TSLA",
-			DateTime: time.Date(2022, 8, 25, 0, 0, 0, 0, time.Local),
-			Action:   "Split",
-			Shares:   3},
-	},
-	"NVDA": {
-		Transaction{
-			Ticker:   "NVDA",
-			DateTime: time.Date(2021, 7, 20, 0, 0, 0, 0, time.Local),
-			Action:   "Split",
-			Shares:   4},
-		Transaction{
-			Ticker:   "NVDA",
-			DateTime: time.Date(2024, 6, 7, 0, 0, 0, 0, time.Local),
-			Action:   "Split",
-			Shares:   10},
-	},
-	"SHOP": {
-		Transaction{
-			Ticker:   "SHOP",
-			DateTime: time.Date(2022, 6, 29, 0, 0, 0, 0, time.Local),
-			Action:   "Split",
-			Shares:   10},
-	},
 	"AMZN": {
 		Transaction{
 			Ticker:   "AMZN",
 			DateTime: time.Date(2022, 6, 6, 0, 0, 0, 0, time.Local),
 			Action:   "Split",
 			Shares:   20},
+	},
+	"CELH": {
+		Transaction{
+			Ticker:   "CELH",
+			DateTime: time.Date(2023, 11, 15, 0, 0, 0, 0, time.Local),
+			Action:   "Split",
+			Shares:   3},
+	},
+	"CRWD": {
+		Transaction{
+			Ticker:   "CRWD",
+			DateTime: time.Date(2026, 7, 2, 0, 0, 0, 0, time.Local),
+			Action:   "Split",
+			Shares:   4},
 	},
 	"GOOG": {
 		Transaction{
@@ -73,10 +56,34 @@ var StockSplits = map[string][]Transaction{
 			Action:   "Split",
 			Shares:   0.5},
 	},
-	"CELH": {
+	"NVDA": {
 		Transaction{
-			Ticker:   "CELH",
-			DateTime: time.Date(2023, 11, 15, 0, 0, 0, 0, time.Local),
+			Ticker:   "NVDA",
+			DateTime: time.Date(2021, 7, 20, 0, 0, 0, 0, time.Local),
+			Action:   "Split",
+			Shares:   4},
+		Transaction{
+			Ticker:   "NVDA",
+			DateTime: time.Date(2024, 6, 7, 0, 0, 0, 0, time.Local),
+			Action:   "Split",
+			Shares:   10},
+	},
+	"SHOP": {
+		Transaction{
+			Ticker:   "SHOP",
+			DateTime: time.Date(2022, 6, 29, 0, 0, 0, 0, time.Local),
+			Action:   "Split",
+			Shares:   10},
+	},
+	"TSLA": {
+		Transaction{
+			Ticker:   "TSLA",
+			DateTime: time.Date(2020, 8, 31, 0, 0, 0, 0, time.Local),
+			Action:   "Split",
+			Shares:   5},
+		Transaction{
+			Ticker:   "TSLA",
+			DateTime: time.Date(2022, 8, 25, 0, 0, 0, 0, time.Local),
 			Action:   "Split",
 			Shares:   3},
 	},
