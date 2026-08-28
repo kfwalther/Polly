@@ -4,11 +4,15 @@
 //     return parseFloat(numberString)
 // }
 
+const usdFormatter = new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+});
+
 // Define nested function to format the raw data from the server to USD format.
 export function toUSD(numberString) {
     let number = parseFloat(numberString);
-    let isNeg = number < 0.0 ? '-' : ''
-    return isNeg + '$' + Math.abs(number).toFixed(2);
+    return usdFormatter.format(number);
 }
 
 export function toPercent(numberString) {
